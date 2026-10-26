@@ -7,3 +7,4 @@ bin/
 build_local.bat
 /src/langbarfb.ini
 !hunspell/*.dll
+/src/langbar_compile.bat
