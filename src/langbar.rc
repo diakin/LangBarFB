@@ -1,0 +1,3 @@
+// Ресурсы LangBarFB: значок exe (FB_PROGRAM_ICON - его же берут окна
+// программы). Путь - от папки src, из неё запускается fbc.
+FB_PROGRAM_ICON ICON "langbar.ico"

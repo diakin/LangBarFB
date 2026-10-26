@@ -179,6 +179,7 @@ build.bat 64        rem bin\langbar64.exe + rqlcl64.dll
 | `src/ui/dlg_about.bi` | Окно «О LangBarFB», версия программы |
 | `src/core/lang.bi` | Язык интерфейса: `Tr()` и таблица переводов на английский |
 | `help/` | Справка на русском и английском |
+| `src/langbar.rc`, `src/langbar.ico` | Значок exe (`FB_PROGRAM_ICON`, значок LangBarXX). unIDE передаёт `.rc` с именем главного `.bas` в fbc сама (с коммита 0d717ff), `build.bat` — тоже |
 | `build.bat` | Сборка 32 и 64 бит |
 | `build_local.bat.example` | Образец файла с путями к компиляторам и RqLcl |
 

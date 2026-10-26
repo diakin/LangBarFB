@@ -48,8 +48,13 @@ if errorlevel 1 goto nofbc
 if not exist "%RQLCL%\inc\rqlcl.bi" goto norqlcl
 if not exist bin mkdir bin
 echo Compiler: %FBC%
-"%FBC%" -s gui src\langbar.bas -i "%RQLCL%\inc" -x bin\langbar%BITS%.exe
-if errorlevel 1 exit /b 1
+rem fbc runs from src: langbar.rc refers to langbar.ico relative to it
+for %%I in ("%RQLCL%") do set RQLCL=%%~fI
+pushd src
+"%FBC%" -s gui langbar.bas langbar.rc -i "%RQLCL%\inc" -x ..\bin\langbar%BITS%.exe
+set FBERR=%errorlevel%
+popd
+if not "%FBERR%"=="0" exit /b 1
 copy /y "%RQLCL%\bin\rqlcl%BITS%.dll" bin\ >nul
 echo Done: bin\langbar%BITS%.exe
 exit /b 0
