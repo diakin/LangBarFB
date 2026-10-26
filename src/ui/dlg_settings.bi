@@ -517,6 +517,7 @@ Sub SettingsCreate()
     SoloNote.Parent = SwitchPage
     SoloNote.Left = 8 : SoloNote.Top = 292
     SoloNote.Width = 404 : SoloNote.Height = 44
+    SoloNote.AutoSize = 0
     SoloNote.WordWrap = 1
     SoloNote.Caption = Tr("Одиночная клавиша срабатывает, если её нажали и отпустили без других клавиш и щелчков мыши.")
 
@@ -600,10 +601,12 @@ Sub SettingsCreate()
     SpellStatusLabel.Parent = AutoPage
     SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 224
     SpellStatusLabel.Width = 404 : SpellStatusLabel.Height = 48
+    SpellStatusLabel.AutoSize = 0
     SpellStatusLabel.WordWrap = 1
     AutoNote.Parent = AutoPage
     AutoNote.Left = 8 : AutoNote.Top = 272
     AutoNote.Width = 404 : AutoNote.Height = 70
+    AutoNote.AutoSize = 0
     AutoNote.WordWrap = 1
     AutoNote.Caption = Tr("Слово проверяется на третьей букве (по началам слов словаря) и после пробела ") _
         & Tr("(по словарю): если в текущей раскладке его нет, а в другой есть, оно перепечатывается ") _
@@ -613,6 +616,7 @@ Sub SettingsCreate()
     RulesNote.Parent = RulesPage
     RulesNote.Left = 0 : RulesNote.Top = 0
     RulesNote.Width = 420 : RulesNote.Height = 32
+    RulesNote.AutoSize = 0
     RulesNote.WordWrap = 1
     RulesNote.Caption = Tr("Правила автопереключения: при наборе каких слов переключать раскладку, ") _
         & Tr("а при каких нет. Пока не действуют.")
@@ -665,6 +669,7 @@ Sub SettingsCreate()
     CaptureLabel.Parent = CaptureForm
     CaptureLabel.Left = 12 : CaptureLabel.Top = 12
     CaptureLabel.Width = 336 : CaptureLabel.Height = 56
+    CaptureLabel.AutoSize = 0
     CaptureLabel.WordWrap = 1
     PlaceButton(CaptureCancelButton, CaptureForm, Tr("Отмена"), 272, 76, 76)
     CaptureCancelButton.OnClick = @OnCaptureCancelClick

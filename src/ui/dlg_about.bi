@@ -55,9 +55,13 @@ Sub AboutCreate()
 
     AboutText.Parent = AboutForm
     AboutText.Left = 16 : AboutText.Top = 74
+    ' AutoSize метки LCL растягивает её по тексту в одну строку - перенос
+    ' не срабатывает; поэтому размер задан, а строки разбиты явно
+    AboutText.AutoSize = 0
     AboutText.Width = 348 : AboutText.Height = 48
     AboutText.WordWrap = 1
-    AboutText.Caption = Tr("Переключатель раскладки клавиатуры на FreeBASIC. Перенос LangBarXX (AutoHotkey, автор Krot66).")
+    AboutText.Caption = Tr("Переключатель раскладки клавиатуры на FreeBASIC.") & Chr(13, 10) _
+        & Tr("Перенос LangBarXX (AutoHotkey, автор Krot66).")
 
     AboutLink.Parent = AboutForm
     AboutLink.Left = 16 : AboutLink.Top = 126
