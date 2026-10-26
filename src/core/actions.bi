@@ -69,6 +69,21 @@ Private Function EnglishLayoutIdx() As Long
     Return -1
 End Function
 
+' Смена раскладки после напечатанного текста. Запрос уходит, когда окно
+' уже разобрало посланные клавиши; если за 300 мс раскладка окна не
+' сменилась, запрос посылается ещё раз (так было видно на Windows 7:
+' слово набрано, а раскладка осталась прежней).
+Private Sub RequestLayoutAfterInput(ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger)
+    SendWaitPump(50)
+    LayoutRequest(TargetWindow, LayoutHandle)
+    Dim TryIdx As Long
+    For TryIdx = 1 To 6
+        SendWaitPump(50)
+        If LayoutOfWindow(TargetWindow).LayoutHandle = LayoutHandle Then Exit Sub
+    Next
+    LayoutRequest(TargetWindow, LayoutHandle)
+End Sub
+
 ' Break: последнее слово - в следующей раскладке
 Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     If WordKeyCount = 0 Or TargetWindow <> WordWindow Or LayoutCount < 2 Then Exit Sub
@@ -107,7 +122,7 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
 
     SendKeyTap(LB_VK_BACK, WordCycleShownChars)
     SendUnicodeText(NewChars(), NewCount)
-    LayoutRequest(TargetWindow, TargetHandle)
+    RequestLayoutAfterInput(TargetWindow, TargetHandle)
     WordCycleActive = 1
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = NewCount
@@ -159,7 +174,7 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
 
     Dim Positions As Long = SendUnicodeText(TextChars(), CharCount)
     If Positions <= RESELECT_MAX_CHARS Then SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, Positions)
-    If NewLayout <> 0 And NewLayout <> WindowLayout Then LayoutRequest(TargetWindow, NewLayout)
+    If NewLayout <> 0 And NewLayout <> WindowLayout Then RequestLayoutAfterInput(TargetWindow, NewLayout)
     WordBufferReset()
     PlayEventSound(SOUND_CONVERT_SELECTION)
 End Sub
