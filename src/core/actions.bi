@@ -69,20 +69,30 @@ Private Function EnglishLayoutIdx() As Long
     Return -1
 End Function
 
-' Смена раскладки после напечатанного текста. Запрос уходит, когда окно
-' уже разобрало посланные клавиши; если за 300 мс раскладка окна не
-' сменилась, запрос посылается ещё раз (так было видно на Windows 7:
-' слово набрано, а раскладка осталась прежней).
-Private Sub RequestLayoutAfterInput(ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger)
-    SendWaitPump(50)
-    LayoutRequest(TargetWindow, LayoutHandle)
+' Смена раскладки с проверкой. Запрос уходит через DelayMillis (окно
+' успевает разобрать посланные или отпущенные клавиши) элементу с
+' фокусом; если за 300 мс раскладка окна не сменилась - самому окну,
+' как SetInputLayout у LangBarXX. Возвращает 1 - сменилась после первого
+' запроса, 2 - после второго, 0 - не сменилась.
+Private Function WaitWindowLayout(ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger) As Long
     Dim TryIdx As Long
     For TryIdx = 1 To 6
+        If LayoutOfWindow(TargetWindow).LayoutHandle = LayoutHandle Then Return 1
         SendWaitPump(50)
-        If LayoutOfWindow(TargetWindow).LayoutHandle = LayoutHandle Then Exit Sub
     Next
+    Return IIf(LayoutOfWindow(TargetWindow).LayoutHandle = LayoutHandle, 1, 0)
+End Function
+
+Function LayoutSwitchChecked(ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger, _
+        ByVal DelayMillis As Long) As Long
+    If TargetWindow = 0 Or LayoutHandle = 0 Then Return 0
+    If DelayMillis > 0 Then SendWaitPump(DelayMillis)
     LayoutRequest(TargetWindow, LayoutHandle)
-End Sub
+    If WaitWindowLayout(TargetWindow, LayoutHandle) Then Return 1
+    LbPostMessage(TargetWindow, LB_WM_INPUTLANGCHANGEREQUEST, 0, Cast(Integer, LayoutHandle))
+    If WaitWindowLayout(TargetWindow, LayoutHandle) Then Return 2
+    Return 0
+End Function
 
 ' Break: последнее слово - в следующей раскладке
 Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
@@ -122,7 +132,7 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
 
     SendKeyTap(LB_VK_BACK, WordCycleShownChars)
     SendUnicodeText(NewChars(), NewCount)
-    RequestLayoutAfterInput(TargetWindow, TargetHandle)
+    LayoutSwitchChecked(TargetWindow, TargetHandle, 50)
     WordCycleActive = 1
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = NewCount
@@ -174,7 +184,7 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
 
     Dim Positions As Long = SendUnicodeText(TextChars(), CharCount)
     If Positions <= RESELECT_MAX_CHARS Then SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, Positions)
-    If NewLayout <> 0 And NewLayout <> WindowLayout Then RequestLayoutAfterInput(TargetWindow, NewLayout)
+    If NewLayout <> 0 And NewLayout <> WindowLayout Then LayoutSwitchChecked(TargetWindow, NewLayout, 50)
     WordBufferReset()
     PlayEventSound(SOUND_CONVERT_SELECTION)
 End Sub

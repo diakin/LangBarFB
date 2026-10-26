@@ -271,6 +271,35 @@ Function SwitchTargetWindow() As Any Ptr
     Return ForegroundWindow
 End Function
 
+' Строка в окне отладки (пока оно открыто)
+Sub DebugLog(ByRef LineText As String)
+    If MainForm.Visible = 0 Then Exit Sub
+    EventList.AddItems(Time & "  " & LineText)
+    EventList.ItemIndex = EventList.ItemCount - 1
+End Sub
+
+' Смена раскладки с клавиатуры: с проверкой и записью в окно отладки
+Sub SwitchFromKeyboard(ByRef Reason As String, ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger)
+    Static SwitchBusy As Long
+    If SwitchBusy Or LayoutHandle = 0 Then Exit Sub
+    SwitchBusy = 1
+    ' 30 мс - чтобы окно успело получить отпускание клавиши
+    Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, LayoutHandle, 30)
+    Dim TargetIdx As Long = LayoutIndexOf(LayoutHandle)
+    Dim TargetCode As String = IIf(TargetIdx >= 0, LayoutList(TargetIdx).LocaleCode, Hex(LayoutHandle))
+    Dim ResultText As String
+    Select Case SwitchResult
+    Case 1
+        ResultText = "сменилась"
+    Case 2
+        ResultText = "сменилась со второго запроса (окну)"
+    Case Else
+        ResultText = "НЕ сменилась, у окна " & Hex(LayoutOfWindow(TargetWindow).LayoutHandle)
+    End Select
+    DebugLog(Reason & " -> " & TargetCode & ": " & ResultText & ", класс окна " & LayoutOfWindow(TargetWindow).WindowClass)
+    SwitchBusy = 0
+End Sub
+
 ' Одиночный Shift или Ctrl отпущен
 Sub OnSoloKey(ByVal KeyIdx As Long)
     Static LastKeyIdx As Long = -1
@@ -280,22 +309,24 @@ Sub OnSoloKey(ByVal KeyIdx As Long)
         If KeyIdx <> LastKeyIdx Or Timer - LastPressTime > DOUBLE_PRESS_SECONDS Then
             LastKeyIdx = KeyIdx
             LastPressTime = Timer
+            DebugLog(SoloKeyTitles(KeyIdx) & ": первое нажатие, ждём второе")
             Exit Sub
         End If
         LastKeyIdx = -1
     End If
     Dim TargetWindow As Any Ptr = SwitchTargetWindow()
     Dim KeyAction As String = Settings.SoloKeyAction(KeyIdx)
+    Dim LayoutHandle As UInteger
     Select Case KeyAction
-    Case ""
     Case "next"
-        LayoutNext(TargetWindow)
+        LayoutHandle = LayoutShifted(TargetWindow, 1)
     Case "prev"
-        LayoutPrev(TargetWindow)
+        LayoutHandle = LayoutShifted(TargetWindow, -1)
     Case Else
         Dim LayoutIdx As Long = LayoutIndexOfCode(KeyAction)
-        If LayoutIdx >= 0 Then LayoutRequest(TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
+        If LayoutIdx >= 0 Then LayoutHandle = LayoutList(LayoutIdx).LayoutHandle
     End Select
+    SwitchFromKeyboard(SoloKeyTitles(KeyIdx) & " (" & KeyAction & ")", TargetWindow, LayoutHandle)
 End Sub
 
 ' Раскладка по номеру (левый Ctrl/Alt/Win + цифра) или следующая (Caps Lock)
@@ -304,9 +335,9 @@ Sub OnSwitchLayout(ByVal LayoutIdx As Long)
     If LayoutIdx >= 0 And Settings.LangSelect >= 2 Then SendKeyTap(LB_VK_MENU_MASK)
     Dim TargetWindow As Any Ptr = SwitchTargetWindow()
     If LayoutIdx < 0 Then
-        LayoutNext(TargetWindow)
+        SwitchFromKeyboard("Caps Lock", TargetWindow, LayoutShifted(TargetWindow, 1))
     ElseIf LayoutIdx < LayoutCount Then
-        LayoutRequest(TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
+        SwitchFromKeyboard("Раскладка номер " & (LayoutIdx + 1), TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
     End If
 End Sub
 
