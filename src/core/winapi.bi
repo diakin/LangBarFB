@@ -289,8 +289,17 @@ Type LbKeybdInput
     dwFlags As ULong
     time As ULong
     dwExtraInfo As UInteger
-    Padding As ULongInt
+    ' два ULong, а не ULongInt: ULongInt в win32 выравнивается на 8, и
+    ' структура выходила 32 байта - SendInput такую не принимает
+    PaddingLow As ULong
+    PaddingHigh As ULong
 End Type
+
+#ifdef __FB_64BIT__
+#assert SizeOf(LbKeybdInput) = 40
+#else
+#assert SizeOf(LbKeybdInput) = 28
+#endif
 
 Declare Function LbSendInput Lib "user32" Alias "SendInput" ( _
     ByVal InputCount As ULong, ByVal Inputs As LbKeybdInput Ptr, ByVal InputSize As Long) As ULong
