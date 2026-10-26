@@ -1,12 +1,15 @@
 ' ---------------------------------------------------------------------------
 '  LangBarFB - переключатель раскладки на FreeBASIC (перенос LangBarXX).
 '
-'  Сейчас (этап 1, часть 1):
+'  Сейчас (этап 1):
 '  - одна копия программы (мьютекс);
 '  - значок в области уведомлений - флажок раскладки активного окна:
 '    flags\<код>.png (ru-RU.png, en-US.png - как у LangBarXX), а если
 '    файла нет - цветной прямоугольник с кодом страны;
-'  - щелчок по значку - следующая раскладка в окне, где работали до щелчка;
+'  - флажок у текстовой каретки (окна с системной кареткой) и крупный
+'    флажок посреди экрана на 0,7 с при смене раскладки;
+'  - щелчок по значку или флажку у каретки - следующая раскладка в окне,
+'    где работали;
 '  - меню значка: «Окно отладки» (нажатия, хук, раскладка), «Выход»;
 '  - хук WH_KEYBOARD_LL: нажатия только наблюдаются, не меняются.
 '
@@ -18,14 +21,23 @@
 #include once "core/winapi.bi"
 #include once "core/kbhook.bi"
 #include once "core/layouts.bi"
+#include once "core/caret.bi"
 #include once "ui/gfx.bi"
 #include once "ui/tray.bi"
+#include once "ui/overlay.bi"
 
 Const APP_TITLE = "LangBarFB"
 Const MUTEX_NAME = "LangBarFB_SingleInstance"
 Const KEY_EVENT_MSG = LB_WM_APP + 2
 Const MAX_LOG_LINES = 300
 Const LB_INFINITE = &hFFFFFFFF
+' флажок у каретки и уведомление - значения по умолчанию LangBarXX
+' ([Flag] DX, DY, Width; [LangNote] Note_Size, Note_Duration)
+Const CARET_FLAG_WIDTH = 22
+Const CARET_FLAG_DX = 16
+Const CARET_FLAG_DY = -12
+Const NOTE_SIZE_PERCENT = 8
+Const NOTE_DURATION_MS = 700
 
 Dim Shared MainForm As QFORM
 Dim Shared LayoutLabel As QLABEL
@@ -34,6 +46,13 @@ Dim Shared FlagsLabel As QLABEL
 Dim Shared EventList As QLISTBOX
 Dim Shared ClearButton As QBUTTON
 Dim Shared PollTimer As QTIMER
+Dim Shared CaretTimer As QTIMER
+Dim Shared NoteTimer As QTIMER
+Dim Shared CaretFlag As OverlayWindow
+Dim Shared NoteFlag As OverlayWindow
+' раскладка, нарисованная во флажке у каретки, и его место
+Dim Shared CaretFlagLayout As UInteger
+Dim Shared CaretFlagPos As LbPoint
 
 Dim Shared ExitRequested As Long
 Dim Shared LastEventTick As Double
@@ -41,6 +60,7 @@ Dim Shared LastEventTick As Double
 ' щелчок по значку меняет раскладку в нём
 Dim Shared LastUserWindow As Any Ptr
 Dim Shared ShownLayout As UInteger
+Dim Shared ShownLayoutWindow As Any Ptr
 Dim Shared FlagsFolder As String
 Dim Shared FlagImages(0 To MAX_LAYOUTS - 1) As Any Ptr
 
@@ -81,8 +101,86 @@ Sub LoadFlags()
     End If
 End Sub
 
-' Значок трея - флажок раскладки LayoutHandle
-Sub ShowLayoutInTray(ByVal LayoutHandle As UInteger)
+Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
+    If WindowHandle = 0 Then Return 1
+    If WindowHandle = TrayWindow Then Return 1
+    If WindowHandle = CaretFlag.WindowHandle Or WindowHandle = NoteFlag.WindowHandle Then Return 1
+    If WindowHandle = Cast(Any Ptr, MainForm.Handle) Then Return 1
+    Dim ClassBuffer As ZString * 64
+    LbGetClassName(WindowHandle, @ClassBuffer, 64)
+    Select Case ClassBuffer
+    Case "Shell_TrayWnd", "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland"
+        Return 1
+    End Select
+    Return 0
+End Function
+
+' Крупный флажок посреди основного экрана; через NOTE_DURATION_MS прячется.
+' Мышь проходит сквозь него.
+Sub ShowLayoutNote(ByVal LayoutIdx As Long)
+    Dim NoteWidth As Long = LbGetSystemMetrics(LB_SM_CXSCREEN) * NOTE_SIZE_PERCENT \ 100
+    Dim NoteImage As Any Ptr
+    With LayoutList(LayoutIdx)
+        NoteImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, NoteWidth)
+    End With
+    If NoteImage = 0 Then Exit Sub
+    Dim ImgHeight As ULong
+    GdipGetImageHeight(NoteImage, ImgHeight)
+    OverlayShowImage(NoteFlag, NoteImage, _
+        (LbGetSystemMetrics(LB_SM_CXSCREEN) - NoteWidth) \ 2, _
+        (LbGetSystemMetrics(LB_SM_CYSCREEN) - CLng(ImgHeight)) \ 2)
+    GfxFreeImage(NoteImage)
+    NoteTimer.Enabled = 0
+    NoteTimer.Enabled = 1
+End Sub
+
+Sub OnNoteTimer()
+    NoteTimer.Enabled = 0
+    OverlayHide(NoteFlag)
+End Sub
+
+' Флажок у каретки активного окна: раз в 50 мс. Нет каретки, активна
+' панель задач или наше окно - флажок прячется.
+Sub OnCaretTimer()
+    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+    Dim CaretPos As LbPoint, CaretHeight As Long
+    If IsOwnOrShellWindow(ForegroundWindow) Or _
+            CaretOfWindow(ForegroundWindow, CaretPos, CaretHeight) = 0 Then
+        If OverlayVisible(CaretFlag) Then OverlayHide(CaretFlag)
+        Exit Sub
+    End If
+    Dim NewPos As LbPoint
+    NewPos.PosX = CaretPos.PosX + CARET_FLAG_DX
+    NewPos.PosY = CaretPos.PosY + CARET_FLAG_DY
+
+    Dim Current As LayoutInfo = LayoutOfWindow(ForegroundWindow)
+    If Current.LayoutHandle <> CaretFlagLayout Or OverlayVisible(CaretFlag) = 0 Then
+        Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
+        If LayoutIdx < 0 Then Exit Sub
+        Dim FlagImage As Any Ptr
+        With LayoutList(LayoutIdx)
+            FlagImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, CARET_FLAG_WIDTH)
+        End With
+        If FlagImage = 0 Then Exit Sub
+        OverlayShowImage(CaretFlag, FlagImage, NewPos.PosX, NewPos.PosY)
+        GfxFreeImage(FlagImage)
+        CaretFlagLayout = Current.LayoutHandle
+        CaretFlagPos = NewPos
+    ElseIf NewPos.PosX <> CaretFlagPos.PosX Or NewPos.PosY <> CaretFlagPos.PosY Then
+        OverlayMove(CaretFlag, NewPos.PosX, NewPos.PosY)
+        CaretFlagPos = NewPos
+    End If
+End Sub
+
+' Флажок не активируется, поэтому активным остаётся окно с кареткой
+Sub OnCaretFlagClick()
+    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+    If IsOwnOrShellWindow(ForegroundWindow) Then ForegroundWindow = LastUserWindow
+    LayoutNext(ForegroundWindow)
+End Sub
+
+' Значок трея - флажок раскладки LayoutHandle окна WindowHandle
+Sub ShowLayoutInTray(ByVal LayoutHandle As UInteger, ByVal WindowHandle As Any Ptr)
     Dim LayoutIdx As Long = LayoutIndexOf(LayoutHandle)
     If LayoutIdx < 0 Then
         ' раскладку добавили в Windows после запуска
@@ -96,21 +194,12 @@ Sub ShowLayoutInTray(ByVal LayoutHandle As UInteger)
         TraySetIcon(GfxMakeFlagIcon(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, IconSize))
         TraySetTip(APP_TITLE & ": " & .LocaleCode)
     End With
+    ' уведомление - только когда раскладку сменили в том же окне; при
+    ' запуске и при переходе в окно с другой раскладкой его нет
+    If ShownLayout <> 0 And WindowHandle = ShownLayoutWindow Then ShowLayoutNote(LayoutIdx)
     ShownLayout = LayoutHandle
+    ShownLayoutWindow = WindowHandle
 End Sub
-
-Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
-    If WindowHandle = 0 Then Return 1
-    If WindowHandle = TrayWindow Then Return 1
-    If WindowHandle = Cast(Any Ptr, MainForm.Handle) Then Return 1
-    Dim ClassBuffer As ZString * 64
-    LbGetClassName(WindowHandle, @ClassBuffer, 64)
-    Select Case ClassBuffer
-    Case "Shell_TrayWnd", "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland"
-        Return 1
-    End Select
-    Return 0
-End Function
 
 Function DescribeEvent(ByRef KeyEvent As KbEvent) As String
     Dim Direction As String = IIf(KeyEvent.IsKeyUp, "отпущена", "нажата  ")
@@ -149,8 +238,9 @@ Sub OnPollTimer()
     ' флажок - раскладка окна, где работают; пока открыто меню значка
     ' или окно отладки - раскладка того окна, что было до них
     Dim Current As LayoutInfo = LayoutOfWindow(LastUserWindow)
-    If Current.LayoutHandle <> 0 And Current.LayoutHandle <> ShownLayout Then
-        ShowLayoutInTray(Current.LayoutHandle)
+    If Current.LayoutHandle <> 0 And _
+            (Current.LayoutHandle <> ShownLayout Or LastUserWindow <> ShownLayoutWindow) Then
+        ShowLayoutInTray(Current.LayoutHandle, LastUserWindow)
     End If
 
     If MainForm.Visible = 0 Then Exit Sub
@@ -247,6 +337,15 @@ End If
 PollTimer.Interval = 250
 PollTimer.OnTimer = @OnPollTimer
 
+CaretFlag.OnClick = @OnCaretFlagClick
+OverlayCreate(CaretFlag, 0)
+OverlayCreate(NoteFlag, 1)
+NoteTimer.Enabled = 0
+NoteTimer.Interval = NOTE_DURATION_MS
+NoteTimer.OnTimer = @OnNoteTimer
+CaretTimer.Interval = 50
+CaretTimer.OnTimer = @OnCaretTimer
+
 ' --- цикл сообщений: окно не нужно, программа живёт в трее ---
 ' DoEvents (Application.ProcessMessages) разбирает всё, что пришло, в том
 ' числе вызовы хука; MsgWaitForMultipleObjects ждёт следующего сообщения
@@ -257,6 +356,10 @@ Do
 Loop
 
 PollTimer.Enabled = 0
+CaretTimer.Enabled = 0
+NoteTimer.Enabled = 0
+OverlayDestroy(CaretFlag)
+OverlayDestroy(NoteFlag)
 KbHookRemove()
 TrayDestroy()
 Dim FlagIdx As Long

@@ -195,3 +195,56 @@ Declare Function LbMsgWaitForMultipleObjects Lib "user32" Alias "MsgWaitForMulti
 Declare Function LbMultiByteToWideChar Lib "kernel32" Alias "MultiByteToWideChar" ( _
     ByVal CodePage As ULong, ByVal Flags As ULong, ByVal SourceText As ZString Ptr, _
     ByVal SourceLen As Long, ByVal TargetText As WString Ptr, ByVal TargetLen As Long) As Long
+
+' --- окна поверх всех (overlay.bi) ---
+Const LB_WS_POPUP = &h80000000
+Const LB_WS_EX_TOPMOST = &h00000008
+Const LB_WS_EX_TRANSPARENT = &h00000020
+Const LB_WS_EX_TOOLWINDOW = &h00000080
+Const LB_WS_EX_LAYERED = &h00080000
+Const LB_WS_EX_NOACTIVATE = &h08000000
+Const LB_WM_MOUSEACTIVATE = &h0021
+Const LB_MA_NOACTIVATE = 3
+Const LB_SW_HIDE = 0
+Const LB_SWP_NOSIZE = &h0001
+Const LB_SWP_NOACTIVATE = &h0010
+Const LB_SWP_SHOWWINDOW = &h0040
+Const LB_ULW_ALPHA = 2
+Const LB_AC_SRC_ALPHA = 1
+Const LB_SM_CXSCREEN = 0
+Const LB_SM_CYSCREEN = 1
+
+Type LbSize
+    SizeX As Long
+    SizeY As Long
+End Type
+
+Type LbBlendFunction
+    BlendOp As UByte
+    BlendFlags As UByte
+    SourceConstantAlpha As UByte
+    AlphaFormat As UByte
+End Type
+
+Declare Function LbGetDC Lib "user32" Alias "GetDC" (ByVal WindowHandle As Any Ptr) As Any Ptr
+Declare Function LbReleaseDC Lib "user32" Alias "ReleaseDC" ( _
+    ByVal WindowHandle As Any Ptr, ByVal DeviceContext As Any Ptr) As Long
+Declare Function LbCreateCompatibleDC Lib "gdi32" Alias "CreateCompatibleDC" ( _
+    ByVal DeviceContext As Any Ptr) As Any Ptr
+Declare Function LbDeleteDC Lib "gdi32" Alias "DeleteDC" (ByVal DeviceContext As Any Ptr) As Long
+Declare Function LbSelectObject Lib "gdi32" Alias "SelectObject" ( _
+    ByVal DeviceContext As Any Ptr, ByVal GdiObject As Any Ptr) As Any Ptr
+Declare Function LbDeleteObject Lib "gdi32" Alias "DeleteObject" (ByVal GdiObject As Any Ptr) As Long
+Declare Function LbUpdateLayeredWindow Lib "user32" Alias "UpdateLayeredWindow" ( _
+    ByVal WindowHandle As Any Ptr, ByVal TargetDC As Any Ptr, ByRef TargetPos As LbPoint, _
+    ByRef WindowSize As LbSize, ByVal SourceDC As Any Ptr, ByRef SourcePos As LbPoint, _
+    ByVal ColorKey As ULong, ByRef Blend As LbBlendFunction, ByVal Flags As ULong) As Long
+Declare Function LbSetWindowPos Lib "user32" Alias "SetWindowPos" ( _
+    ByVal WindowHandle As Any Ptr, ByVal InsertAfter As Any Ptr, ByVal PosX As Long, ByVal PosY As Long, _
+    ByVal WndWidth As Long, ByVal WndHeight As Long, ByVal Flags As ULong) As Long
+Declare Function LbShowWindow Lib "user32" Alias "ShowWindow" ( _
+    ByVal WindowHandle As Any Ptr, ByVal ShowCommand As Long) As Long
+Declare Function LbIsWindowVisible Lib "user32" Alias "IsWindowVisible" ( _
+    ByVal WindowHandle As Any Ptr) As Long
+Declare Function LbClientToScreen Lib "user32" Alias "ClientToScreen" ( _
+    ByVal WindowHandle As Any Ptr, ByRef ClientPos As LbPoint) As Long
