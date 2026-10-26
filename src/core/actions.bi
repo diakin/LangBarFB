@@ -25,6 +25,10 @@
 ' символу на длинном тексте идёт заметно долго)
 Const RESELECT_MAX_CHARS = 2000
 
+Type ActionLogFn As Sub(ByRef LineText As String)
+' запись хода действий в окно отладки (ставит главная программа)
+Dim Shared ActionLog As ActionLogFn
+
 Dim Shared ActionBusy As Long
 ' последнее действие с выделенным текстом - для возврата
 Dim Shared LastActionIdx As Long = -1
@@ -94,6 +98,26 @@ Function LayoutSwitchChecked(ByVal TargetWindow As Any Ptr, ByVal LayoutHandle A
     Return 0
 End Function
 
+Private Sub LogAction(ByRef LineText As String)
+    If ActionLog <> 0 Then ActionLog(LineText)
+End Sub
+
+Private Function LayoutCodeOf(ByVal LayoutHandle As UInteger) As String
+    Dim LayoutIdx As Long = LayoutIndexOf(LayoutHandle)
+    If LayoutIdx < 0 Then Return Hex(LayoutHandle)
+    Return LayoutList(LayoutIdx).LocaleCode
+End Function
+
+Private Function SwitchResultText(ByVal SwitchResult As Long) As String
+    Select Case SwitchResult
+    Case 1
+        Return "сменилась"
+    Case 2
+        Return "сменилась со второго запроса (окну)"
+    End Select
+    Return "НЕ сменилась"
+End Function
+
 ' Break: последнее слово - в следующей раскладке
 Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     If WordKeyCount = 0 Or TargetWindow <> WordWindow Or LayoutCount < 2 Then Exit Sub
@@ -132,7 +156,8 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
 
     SendKeyTap(LB_VK_BACK, WordCycleShownChars)
     SendUnicodeText(NewChars(), NewCount)
-    LayoutSwitchChecked(TargetWindow, TargetHandle, 50)
+    LogAction("Break: слово в " & LayoutList(TargetIdx).LocaleCode & ", раскладка: " _
+        & SwitchResultText(LayoutSwitchChecked(TargetWindow, TargetHandle, 50)))
     WordCycleActive = 1
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = NewCount
@@ -143,7 +168,10 @@ End Sub
 Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any Ptr)
     Dim TextChars() As UShort
     Dim CharCount As Long = CopySelectionText(TextChars())
-    If CharCount = 0 Then Exit Sub
+    If CharCount = 0 Then
+        LogAction("действие " & (ActionIdx + 1) & ": выделенный текст не скопировался (Ctrl+C не изменил буфер обмена)")
+        Exit Sub
+    End If
 
     Dim OriginalChars() As UShort
     CopyText(TextChars(), CharCount, OriginalChars())
@@ -166,6 +194,8 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
             Dim TargetIdx As Long = (SourceIdx + 1) Mod LayoutCount
             ConvertLayoutText(TextChars(), CharCount, SourceIdx, TargetIdx)
             NewLayout = LayoutList(TargetIdx).LayoutHandle
+            LogAction("раскладка выделенного: " & CharCount & " симв., текст набран в " _
+                & LayoutList(SourceIdx).LocaleCode & ", перевод в " & LayoutList(TargetIdx).LocaleCode)
         Case ACTION_TOGGLE_CASE
             InvertTextCase(TextChars(), CharCount)
         Case ACTION_TRANSLIT
@@ -184,7 +214,14 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
 
     Dim Positions As Long = SendUnicodeText(TextChars(), CharCount)
     If Positions <= RESELECT_MAX_CHARS Then SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, Positions)
-    If NewLayout <> 0 And NewLayout <> WindowLayout Then LayoutSwitchChecked(TargetWindow, NewLayout, 50)
+    If NewLayout = 0 Then
+        ' регистр: раскладка не меняется
+    ElseIf NewLayout = WindowLayout Then
+        LogAction("раскладка окна уже " & LayoutCodeOf(NewLayout) & ", менять не нужно")
+    Else
+        LogAction("раскладка " & LayoutCodeOf(WindowLayout) & " -> " & LayoutCodeOf(NewLayout) & ": " _
+            & SwitchResultText(LayoutSwitchChecked(TargetWindow, NewLayout, 50)))
+    End If
     WordBufferReset()
     PlayEventSound(SOUND_CONVERT_SELECTION)
 End Sub
@@ -199,7 +236,13 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
     If (HotkeyTable(ActionIdx).Modifiers And (KB_MOD_ALT Or KB_MOD_WIN)) <> 0 Then
         SendKeyTap(LB_VK_MENU_MASK)
     End If
-    SendWaitModifiersUp(1500)
+    ' Shift и т. п. ещё держат (сочетание нажимают несколько раз подряд) -
+    ' для Windows они отпускаются, иначе сложатся с Ctrl+C и текстом
+    If SendWaitModifiersUp(150) = 0 Then
+        LogAction("модификаторы держат - отпускаются программно")
+        SendReleaseModifiers()
+        SendWaitPump(20)
+    End If
     If ActionIdx = ACTION_UNDO_CONVERT Then
         ActionUndoConvert(TargetWindow)
     Else

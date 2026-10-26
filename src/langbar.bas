@@ -524,6 +524,7 @@ ConfigLoad()
 If Settings.AutoStart Then ConfigApplyAutoStart(1)
 SettingsCreate()
 SettingsOnApply = @ApplySettings
+ActionLog = @DebugLog
 
 ' --- значок, флажки, хук ---
 If GfxStart() = 0 Then

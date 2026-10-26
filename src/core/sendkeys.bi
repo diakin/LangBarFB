@@ -87,6 +87,27 @@ Function SendUnicodeText(TextChars() As UShort, ByVal CharCount As Long) As Long
     Return Positions
 End Function
 
+' Отпускает для Windows модификаторы, которые пользователь ещё держит
+' (Shift+Break, нажатый несколько раз подряд): иначе Ctrl+C ушёл бы как
+' Ctrl+Shift+C. Хук продолжает считать их нажатыми (KbReleasedByUs).
+Sub SendReleaseModifiers()
+    Dim KeyInputs(0 To 7) As LbKeybdInput
+    Dim InputCount As Long, BitIdx As Long
+    For BitIdx = 0 To 7
+        Dim KeyBit As ULong = 1 Shl BitIdx
+        If (KbHeldMask And KeyBit) <> 0 And (KbReleasedByUs And KeyBit) = 0 Then
+            Dim VirtualKey As Long = KbHeldBitKey(BitIdx)
+            Dim Flags As ULong = LB_KEYEVENTF_KEYUP
+            ' правые Ctrl и Alt, Win - расширенные клавиши
+            If VirtualKey = &hA3 Or VirtualKey = &hA5 Or BitIdx >= 6 Then Flags Or= 1
+            SendFillKey(KeyInputs(InputCount), VirtualKey, 0, Flags)
+            InputCount += 1
+            KbReleasedByUs Or= KeyBit
+        End If
+    Next
+    If InputCount > 0 Then LbSendInput(InputCount, @KeyInputs(0), SizeOf(LbKeybdInput))
+End Sub
+
 ' Ждёт, пока пользователь отпустит Ctrl, Alt, Shift, Win (иначе они
 ' сложатся с тем, что посылает программа). 0 - не дождались за MaxMillis.
 Function SendWaitModifiersUp(ByVal MaxMillis As Long) As Long

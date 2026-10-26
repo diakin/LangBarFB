@@ -69,6 +69,16 @@ Dim Shared KbMouseClicks As ULong
 ' внутри хука для только что нажатой клавиши ненадёжен (MSDN,
 ' LowLevelKeyboardProc), а здесь состояние - до текущего события.
 Dim Shared KbHeldMask As ULong
+' клавиши, которые пользователь держит, а программа «отпустила» для
+' Windows (SendReleaseModifiers): GetAsyncKeyState их не видит, но для
+' сочетаний они нажаты
+Dim Shared KbReleasedByUs As ULong
+
+' Код клавиши по номеру бита маски
+Function KbHeldBitKey(ByVal BitIdx As Long) As Long
+    If BitIdx < 6 Then Return &hA0 + BitIdx
+    Return &h5B + BitIdx - 6
+End Function
 
 Function KbHeldBit(ByVal VirtualKey As ULong) As ULong
     Select Case VirtualKey
@@ -100,8 +110,8 @@ Private Sub KbDropReleasedKeys(ByVal ExceptBit As ULong)
     Dim BitIdx As Long
     For BitIdx = 0 To 7
         Dim KeyBit As ULong = 1 Shl BitIdx
-        If (KbHeldMask And KeyBit) <> 0 And KeyBit <> ExceptBit Then
-            Dim VirtualKey As Long = IIf(BitIdx < 6, &hA0 + BitIdx, &h5B + BitIdx - 6)
+        If (KbHeldMask And KeyBit) <> 0 And KeyBit <> ExceptBit And (KbReleasedByUs And KeyBit) = 0 Then
+            Dim VirtualKey As Long = KbHeldBitKey(BitIdx)
             If (LbGetAsyncKeyState(VirtualKey) And &h8000) = 0 Then KbHeldMask And= Not KeyBit
         End If
     Next
@@ -141,8 +151,15 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
         KbDropReleasedKeys(HeldBit)
         KeyEvent.HeldMask = KbHeldMask
         KeyEvent.Modifiers = KbModifiersOfMask(KbHeldMask)
-        If HeldBit <> 0 Then
-            If KeyEvent.IsKeyUp Then KbHeldMask And= Not HeldBit Else KbHeldMask Or= HeldBit
+        ' маска - только то, что держит пользователь: программные нажатия
+        ' и отпускания её не меняют
+        If HeldBit <> 0 And KeyEvent.IsInjected = 0 Then
+            If KeyEvent.IsKeyUp Then
+                KbHeldMask And= Not HeldBit
+                KbReleasedByUs And= Not HeldBit
+            Else
+                KbHeldMask Or= HeldBit
+            End If
         End If
         If KbKeyFilter <> 0 Then KeyEvent.IsSwallowed = KbKeyFilter(KeyEvent)
         ' Caps Lock переключается, только если нажатие дошло до Windows
