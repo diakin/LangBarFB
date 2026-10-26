@@ -2,10 +2,17 @@
 rem Build LangBarFB.
 rem   build.bat 32   - bin\langbar32.exe with rqlcl32.dll next to it
 rem   build.bat 64   - bin\langbar64.exe with rqlcl64.dll
-rem FBC   - path to the compiler (default fbc32.exe / fbc64.exe from PATH)
-rem RQLCL - RqLcl folder of the unIDE repository, branch mainTest
-rem         (default ..\unIDE\RqLcl)
+rem
+rem Paths are read from build_local.bat if it exists (not in git, copy
+rem build_local.bat.example and edit it):
+rem   FB32DIR - folder of the 32-bit FreeBASIC (fbc.exe or fbc32.exe)
+rem   FB64DIR - folder of the 64-bit FreeBASIC (fbc.exe or fbc64.exe)
+rem   RQLCL   - RqLcl folder of the unIDE repository, branch mainTest
+rem             (default ..\unIDE\RqLcl)
+rem Without FB32DIR / FB64DIR the compiler is looked up in PATH.
 
+setlocal
+if exist "%~dp0build_local.bat" call "%~dp0build_local.bat"
 if "%RQLCL%"=="" set RQLCL=..\unIDE\RqLcl
 
 if "%1"=="32" goto win32
@@ -14,17 +21,43 @@ echo Usage: build.bat 32 or build.bat 64
 exit /b 1
 
 :win32
-if "%FBC%"=="" set FBC=fbc32.exe
 set BITS=32
-goto build
+set FBDIR=%FB32DIR%
+goto findfbc
 
 :win64
-if "%FBC%"=="" set FBC=fbc64.exe
 set BITS=64
+set FBDIR=%FB64DIR%
+
+:findfbc
+set FBC=
+if "%FBDIR%"=="" goto frompath
+if exist "%FBDIR%\fbc%BITS%.exe" set FBC=%FBDIR%\fbc%BITS%.exe
+if "%FBC%"=="" if exist "%FBDIR%\fbc.exe" set FBC=%FBDIR%\fbc.exe
+if "%FBC%"=="" goto nofbc
+goto build
+
+:frompath
+set FBC=fbc%BITS%.exe
+where /q %FBC%
+if errorlevel 1 set FBC=fbc.exe
+where /q %FBC%
+if errorlevel 1 goto nofbc
 
 :build
+if not exist "%RQLCL%\inc\rqlcl.bi" goto norqlcl
 if not exist bin mkdir bin
+echo Compiler: %FBC%
 "%FBC%" -s gui src\langbar.bas -i "%RQLCL%\inc" -x bin\langbar%BITS%.exe
 if errorlevel 1 exit /b 1
 copy /y "%RQLCL%\bin\rqlcl%BITS%.dll" bin\ >nul
 echo Done: bin\langbar%BITS%.exe
+exit /b 0
+
+:nofbc
+echo FreeBASIC %BITS%-bit compiler not found. Set FB%BITS%DIR in build_local.bat
+exit /b 1
+
+:norqlcl
+echo RqLcl not found: %RQLCL%\inc\rqlcl.bi. Set RQLCL in build_local.bat
+exit /b 1

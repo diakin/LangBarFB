@@ -1,0 +1,5 @@
+@echo off
+rem Copy to build_local.bat and set your paths. build_local.bat is not in git.
+set FB32DIR=D:\FreeBASIC-1.10.1-win32
+set FB64DIR=D:\FreeBASIC-1.10.1-win64
+set RQLCL=D:\unIDE\RqLcl

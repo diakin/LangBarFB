@@ -23,15 +23,29 @@ LangBarFB — переключатель раскладки клавиатуры
 
 Для сборки нужны:
 
-- FreeBASIC 1.10 для Windows;
-- папка `RqLcl` из unIDE (ветка `mainTest`). По умолчанию она ищется в `..\unIDE\RqLcl`, другой путь задаётся переменной `RQLCL`.
+- FreeBASIC для Windows, 32 и/или 64 бит;
+- папка `RqLcl` из unIDE (ветка `mainTest`).
+
+### Из unIDE
+
+Откройте `src\langbar.bas`, выберите GUI и разрядность и запустите сборку. Нужна сборка unIDE не старше коммита ec2fa85: она сама добавляет `-i <RqLcl>\inc`, если в исходнике есть `#include "rqlcl.bi"`, и кладёт DLL рядом с exe. Папка RqLcl задаётся в IDE Options → Compilers → RapidQ Basic → RqLcl folder. Exe и DLL появятся в `src\`.
+
+### Через build.bat
+
+Скопируйте `build_local.bat.example` в `build_local.bat` и укажите свои пути. Сам `build_local.bat` в git не попадает.
+
+```
+set FB32DIR=D:\FreeBASIC-1.10.1-win32
+set FB64DIR=D:\FreeBASIC-1.10.1-win64
+set RQLCL=D:\unIDE\RqLcl
+```
+
+В каждой папке компилятор ищется как `fbc32.exe` / `fbc64.exe`, а если такого нет, как `fbc.exe`. Если `FB32DIR` / `FB64DIR` не заданы, компилятор ищется в PATH. Если не задан `RQLCL`, папка ищется в `..\unIDE\RqLcl`.
 
 ```
 build.bat 32        rem bin\langbar32.exe + rqlcl32.dll
 build.bat 64        rem bin\langbar64.exe + rqlcl64.dll
 ```
-
-Если `fbc32.exe` / `fbc64.exe` нет в PATH, задайте путь к компилятору переменной `FBC`, например `set FBC=C:\FreeBASIC\fbc64.exe`.
 
 ## Что проверить на этапе 0
 
@@ -51,6 +65,7 @@ build.bat 64        rem bin\langbar64.exe + rqlcl64.dll
 | `src/core/layouts.bi` | Раскладка активного окна |
 | `src/ui/tray.bi` | Служебное окно, значок и его меню |
 | `build.bat` | Сборка 32 и 64 бит |
+| `build_local.bat.example` | Образец файла с путями к компиляторам и RqLcl |
 
 Исходники `.bas`, `.bi` и `.bat` хранятся в CP1251 с CRLF, так же как в unIDE (`.gitattributes`, `working-tree-encoding`). Строки при передаче в RqLcl должны быть в CP1251.
 

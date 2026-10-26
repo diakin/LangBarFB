@@ -4,3 +4,4 @@ bin/
 *.o
 *.asm
 *.c
+build_local.bat
