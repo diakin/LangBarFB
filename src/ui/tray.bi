@@ -14,26 +14,27 @@
 
 Const TRAY_ICON_ID = 1
 Const TRAY_CALLBACK_MSG = LB_WM_APP + 1
-Const TRAY_CMD_SHOW = 101
-Const TRAY_CMD_EXIT = 102
 
 Type TrayHandlerFn As Sub()
 Type MessageHandlerFn As Sub(ByVal Msg As ULong)
+' меню значка строит программа (TrayBuildMenu, меню освобождает tray.bi),
+' выбранный пункт приходит в TrayOnCommand
+Type TrayMenuBuilderFn As Function() As Any Ptr
+Type TrayCommandFn As Sub(ByVal CommandId As Long)
 
 Dim Shared TrayWindow As Any Ptr
 Dim Shared TrayIconData As LbNotifyIconDataA
-Dim Shared TrayOnShow As TrayHandlerFn
 Dim Shared TrayOnClick As TrayHandlerFn
 Dim Shared TrayIconHandle As Any Ptr
-Dim Shared TrayOnExit As TrayHandlerFn
+Dim Shared TrayBuildMenu As TrayMenuBuilderFn
+Dim Shared TrayOnCommand As TrayCommandFn
 ' сообщения LB_WM_APP + 2 и дальше уходят сюда (сигнал хука и т. п.)
 Dim Shared TrayOnAppMessage As MessageHandlerFn
 
 Private Sub TrayShowMenu()
-    Dim MenuHandle As Any Ptr = LbCreatePopupMenu()
-    LbAppendMenu(MenuHandle, LB_MF_STRING, TRAY_CMD_SHOW, "Окно отладки")
-    LbAppendMenu(MenuHandle, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MenuHandle, LB_MF_STRING, TRAY_CMD_EXIT, "Выход")
+    If TrayBuildMenu = 0 Then Exit Sub
+    Dim MenuHandle As Any Ptr = TrayBuildMenu()
+    If MenuHandle = 0 Then Exit Sub
     Dim CursorPos As LbPoint
     LbGetCursorPos(CursorPos)
     ' без этого меню не закрывается щелчком в другом месте (KB135788)
@@ -41,13 +42,9 @@ Private Sub TrayShowMenu()
     Dim ChosenId As Long = LbTrackPopupMenu(MenuHandle, _
         LB_TPM_RIGHTBUTTON Or LB_TPM_RETURNCMD, CursorPos.PosX, CursorPos.PosY, 0, TrayWindow, 0)
     LbPostMessage(TrayWindow, LB_WM_NULL, 0, 0)
+    ' DestroyMenu освобождает и подменю
     LbDestroyMenu(MenuHandle)
-    Select Case ChosenId
-    Case TRAY_CMD_SHOW
-        If TrayOnShow <> 0 Then TrayOnShow()
-    Case TRAY_CMD_EXIT
-        If TrayOnExit <> 0 Then TrayOnExit()
-    End Select
+    If ChosenId <> 0 And TrayOnCommand <> 0 Then TrayOnCommand(ChosenId)
 End Sub
 
 Private Function TrayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Msg As ULong, _
