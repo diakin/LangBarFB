@@ -1,7 +1,8 @@
 ' ---------------------------------------------------------------------------
 '  LangBarFB - переключатель раскладки клавиатуры на FreeBASIC.
 '
-'  Copyright (C) 2026 авторы LangBarFB (https://github.com/diakin/LangBarFB)
+'  Copyright (C) 2026 Diakin (https://github.com/diakin/LangBarFB)
+'  Разработано с помощью Claude Code (Anthropic).
 '
 '  Основан на LangBarXX (AutoHotkey), Copyright (C) Krot66,
 '  https://github.com/Krot66/LangBarXX, лицензия LGPL-3.0. Код LangBarFB

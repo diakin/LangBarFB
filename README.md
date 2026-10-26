@@ -109,6 +109,8 @@ set RQLCL=D:\unIDE\RqLcl
 
 ## Лицензия
 
+Copyright (C) 2026 Diakin. Разработано с помощью Claude Code (Anthropic).
+
 LangBarFB распространяется на условиях GNU Lesser General Public License версии 3 ([COPYING.LESSER](COPYING.LESSER)) вместе с GNU General Public License версии 3 ([COPYING](COPYING)) — под той же лицензией, что LangBarXX (`_Installer/LGPL-3.0.txt` в его репозитории).
 
 - LangBarXX — © Krot66, https://github.com/Krot66/LangBarXX.
