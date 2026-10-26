@@ -2,7 +2,7 @@
 '  dictload.bi - скачивание библиотеки Hunspell и словарей.
 '
 '  Основной источник - репозиторий LangBarFB (папки hunspell и dict, из
-'  установщика LangBarXX 1.8.4): файлы скачиваются по одному с GitHub в
+'  установщика LangBarXX 1.8.4, и sounds - звуки LangBarXX): файлы скачиваются по одному с GitHub в
 '  папку exe, только языки раскладок Windows.
 '
 '  Запасные источники - если с основного не скачалось:
@@ -30,6 +30,7 @@
 
 Const DICT_BASE_URL = "https://raw.githubusercontent.com/diakin/LangBarFB/master/"
 Const DICT_MIRROR_URL = "https://raw.githubusercontent.com/LibreOffice/dictionaries/master/"
+Const DICT_SOUNDS_MIRROR = "https://raw.githubusercontent.com/Krot66/LangBarXX/master/sounds/"
 Const DICT_NUGET_URL = "https://api.nuget.org/v3-flatcontainer/nhunspell/1.2.5554.16953/nhunspell.1.2.5554.16953.nupkg"
 ' страница со словарями - если скачать не вышло, их можно взять вручную
 Const DICT_PAGE_URL = "https://github.com/diakin/LangBarFB/tree/master/dict"
@@ -234,6 +235,16 @@ Function DictDownloadStart(ByRef TargetFolder As String, ByVal NotifyWindow As A
     DictWriteUnzipScript(TargetFolder)
     DictAddJob("hunspell\" & SPELL_DLL_NAME, DICT_NUGET_URL, 1, TargetFolder)
     DictEndGroup("Hunspell", 0)
+    ' звуки (из LangBarXX; запасной источник - его репозиторий)
+    MkDir TargetFolder & "\sounds"
+    Dim FirstSound As Long = DictJobCount
+    Dim SoundNames(0 To 2) As String
+    SoundNames(0) = "autocorrect.wav" : SoundNames(1) = "undo.wav" : SoundNames(2) = "autoreplace.wav"
+    Dim SoundIdx As Long
+    For SoundIdx = 0 To 2
+        DictAddJob("sounds\" & SoundNames(SoundIdx), DICT_SOUNDS_MIRROR & SoundNames(SoundIdx), 0, TargetFolder)
+    Next
+    DictEndGroup("звуки", FirstSound)
     Dim LayoutIdx As Long, LangIdx As Long
     For LayoutIdx = 0 To LayoutCount - 1
         For LangIdx = 0 To DICT_LANG_COUNT - 1

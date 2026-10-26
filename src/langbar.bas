@@ -91,6 +91,8 @@ Dim Shared ShownLayout As UInteger
 Dim Shared ShownLayoutWindow As Any Ptr
 Dim Shared FlagsFolder As String
 Dim Shared FlagImages(0 To MAX_LAYOUTS - 1) As Any Ptr
+' первая часть строки FlagsLabel (флажки); вторая - каретка, по таймеру
+Dim Shared FlagsLabelText As String
 ' папка словарей из настроек, с которой они загружены
 Dim Shared SpellLoadedFolder As String
 
@@ -125,10 +127,11 @@ Sub LoadFlags()
         If FlagImages(LayoutIdx) <> 0 Then FoundCount += 1
     Next
     If FlagsFolder = "" Then
-        FlagsLabel.Caption = "Флажки: папки flags нет - текстовые флажки. Раскладок: " & LayoutCount
+        FlagsLabelText = "Флажки: папки flags нет - текстовые флажки. Раскладок: " & LayoutCount
     Else
-        FlagsLabel.Caption = "Флажки: " & FlagsFolder & " - найдено " & FoundCount & " из " & LayoutCount
+        FlagsLabelText = "Флажки: " & FlagsFolder & " - найдено " & FoundCount & " из " & LayoutCount
     End If
+    FlagsLabel.Caption = FlagsLabelText
 End Sub
 
 ' Словари Hunspell - по одному на раскладку списка, поэтому загружаются
@@ -479,6 +482,7 @@ Sub OnPollTimer()
     HookLabel.Caption = HookState & ";  вызовов: " & KbHookCalls _
         & ";  в обработчике: среднее " & KbHookAverageMicros() & " мкс, наибольшее " & KbMaxHookMicros & " мкс" _
         & ";  потеряно: " & KbLostEvents & ";  последнее нажатие: " & SinceLast
+    FlagsLabel.Caption = FlagsLabelText & ";  " & CaretDebugText
 End Sub
 
 Sub OnClearClick()

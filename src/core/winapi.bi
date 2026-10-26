@@ -473,3 +473,6 @@ Declare Function LbGetFileVersionInfo Lib "version" Alias "GetFileVersionInfoA" 
     ByVal FileName As ZString Ptr, ByVal Handle As ULong, ByVal BufferLen As ULong, ByVal Buffer As Any Ptr) As Long
 Declare Function LbVerQueryValue Lib "version" Alias "VerQueryValueA" ( _
     ByVal Block As Any Ptr, ByVal SubBlock As ZString Ptr, ByVal ValuePtr As Any Ptr Ptr, ByVal ValueLen As ULong Ptr) As Long
+
+Declare Function LbIsChild Lib "user32" Alias "IsChild" ( _
+    ByVal ParentHandle As Any Ptr, ByVal WindowHandle As Any Ptr) As Long

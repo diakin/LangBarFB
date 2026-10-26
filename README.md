@@ -136,6 +136,7 @@ build.bat 64        rem bin\langbar64.exe + rqlcl64.dll
 | `src/core/actions.bi` | Действия горячих клавиш |
 | `src/core/spell.bi` | Hunspell: загрузка библиотеки и словарей LangBarXX, проверка слова, `user_dict.dic` |
 | `src/core/dictload.bi` | Скачивание библиотеки Hunspell и словарей с GitHub в отдельном потоке |
+| `sounds/` | Звуки LangBarXX (autocorrect, undo, autoreplace) |
 | `hunspell/`, `dict/` | Библиотека NHunspell и словари из установщика LangBarXX 1.8.4 |
 | `src/core/autoswitch.bi` | Автопереключение: проверка слова после пробела и перепечатка |
 | `src/core/switchkeys.bi` | Переключение с клавиатуры: одиночные Shift/Ctrl, Ctrl/Alt/Win + цифра, Caps Lock, Num Lock |
