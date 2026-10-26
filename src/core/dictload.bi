@@ -29,7 +29,7 @@ Const DICT_LANG_COUNT = 6
 Dim Shared DictLangCodes(0 To DICT_LANG_COUNT - 1) As ZString * 8 = { _
     "en-US", "ru-RU", "uk-UA", "be-BY", "de-DE", "fr-FR"}
 Dim Shared DictLangFiles(0 To DICT_LANG_COUNT - 1) As ZString * 80 = { _
-    "en_US.aff|en_US.dic|en_US_(computer_abbr).dic", "ru_RU.aff|ru_RU.dic", "uk_UA.aff|uk_UA.dic", _
+    "en_US.aff|en_US.dic|en_US_(computer_abbr).dic", "ru_RU.aff|ru_RU.dic|README_ru_RU.txt", "uk_UA.aff|uk_UA.dic", _
     "be_BY.aff|be_BY.dic", "de_DE.aff|de_DE.dic", "fr_FR.aff|fr_FR.dic"}
 
 Type DictJob
