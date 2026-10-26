@@ -21,6 +21,7 @@ Type OverlayClickFn As Sub()
 Type OverlayWindow
     WindowHandle As Any Ptr
     OnClick As OverlayClickFn
+    OnRightClick As OverlayClickFn
     ImageWidth As Long
     ImageHeight As Long
 End Type
@@ -47,6 +48,12 @@ Private Function OverlayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Ms
         Dim Overlay As OverlayWindow Ptr = OverlayFind(WindowHandle)
         If Overlay <> 0 Then
             If Overlay->OnClick <> 0 Then Overlay->OnClick()
+        End If
+        Return 0
+    Case LB_WM_RBUTTONUP
+        Dim Overlay As OverlayWindow Ptr = OverlayFind(WindowHandle)
+        If Overlay <> 0 Then
+            If Overlay->OnRightClick <> 0 Then Overlay->OnRightClick()
         End If
         Return 0
     End Select

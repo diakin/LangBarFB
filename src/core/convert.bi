@@ -178,6 +178,9 @@ Dim Shared WordWindow As Any Ptr
 Dim Shared WordCycleActive As Long
 Dim Shared WordCycleLayoutIdx As Long
 Dim Shared WordCycleShownChars As Long
+' с какой клавиши буфера начинается перенабранный кусок (одно слово или
+' несколько - при удержании Break)
+Dim Shared WordCycleStart As Long
 
 Sub WordBufferReset()
     WordKeyCount = 0
@@ -238,6 +241,20 @@ Function WordLastStart(ByRef TrailingSpaces As Long) As Long
     TrailingSpaces = 0
     While KeyIdx >= 0 AndAlso WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE
         TrailingSpaces += 1
+        KeyIdx -= 1
+    Wend
+    If KeyIdx < 0 Then Return -1
+    While KeyIdx >= 0 AndAlso WordKeys(KeyIdx).VirtualKey <> LB_VK_SPACE
+        KeyIdx -= 1
+    Wend
+    Return KeyIdx + 1
+End Function
+
+' Начало слова перед позицией буфера Position (пробелы между ними
+' пропускаются). -1 - слова там нет.
+Function WordStartBefore(ByVal Position As Long) As Long
+    Dim KeyIdx As Long = Position - 1
+    While KeyIdx >= 0 AndAlso WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE
         KeyIdx -= 1
     Wend
     If KeyIdx < 0 Then Return -1
