@@ -13,6 +13,8 @@
 '  - меню значка (правый щелчок): настройки, автопереключение, звуки,
 '    о программе, помощь, выход; с нажатым Shift - ещё «Окно отладки»;
 '  - окно настроек: общие, горячие клавиши, звуки (langbarfb.ini);
+'  - переключение с клавиатуры (этап 2): одиночные Shift/Ctrl, левый
+'    Ctrl/Alt/Win + цифра, режимы Caps Lock, Num Lock при запуске;
 '  - горячие клавиши (хук WH_KEYBOARD_LL глотает их нажатия): Break -
 '    последнее слово в другой раскладке, Shift+Break - выделенный текст в
 '    другой раскладке, Alt+Break - регистр, Alt+Scroll Lock - транслит.
@@ -29,6 +31,7 @@
 #include once "core/config.bi"
 #include once "core/hotkeys.bi"
 #include once "core/actions.bi"
+#include once "core/switchkeys.bi"
 #include once "ui/gfx.bi"
 #include once "ui/tray.bi"
 #include once "ui/overlay.bi"
@@ -41,6 +44,10 @@ Const KEY_EVENT_MSG = LB_WM_APP + 2
 Const HOTKEY_ACTION_MSG = LB_WM_APP + 3
 Const HOTKEY_CAPTURE_MSG = LB_WM_APP + 4
 Const MOUSE_CLICK_MSG = LB_WM_APP + 5
+Const SWITCH_SOLO_MSG = LB_WM_APP + 6
+Const SWITCH_LAYOUT_MSG = LB_WM_APP + 7
+' двойное нажатие одиночной клавиши - не дольше этого, секунды
+Const DOUBLE_PRESS_SECONDS = 0.4
 Const MAX_LOG_LINES = 300
 Const LB_INFINITE = &hFFFFFFFF
 ' флажок у каретки: ширина и место. CARET_FLAG_BELOW = 1 - под кареткой
@@ -256,6 +263,53 @@ Sub OnKeyEvents()
     EventList.ItemIndex = EventList.ItemCount - 1
 End Sub
 
+' Окно, где менять раскладку: активное, а если активно наше окно или
+' панель задач - то, где работали до них
+Function SwitchTargetWindow() As Any Ptr
+    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+    If IsOwnOrShellWindow(ForegroundWindow) Then Return LastUserWindow
+    Return ForegroundWindow
+End Function
+
+' Одиночный Shift или Ctrl отпущен
+Sub OnSoloKey(ByVal KeyIdx As Long)
+    Static LastKeyIdx As Long = -1
+    Static LastPressTime As Double
+    If KeyIdx < 0 Or KeyIdx >= SOLO_KEY_COUNT Then Exit Sub
+    If Settings.DoublePress Then
+        If KeyIdx <> LastKeyIdx Or Timer - LastPressTime > DOUBLE_PRESS_SECONDS Then
+            LastKeyIdx = KeyIdx
+            LastPressTime = Timer
+            Exit Sub
+        End If
+        LastKeyIdx = -1
+    End If
+    Dim TargetWindow As Any Ptr = SwitchTargetWindow()
+    Dim KeyAction As String = Settings.SoloKeyAction(KeyIdx)
+    Select Case KeyAction
+    Case ""
+    Case "next"
+        LayoutNext(TargetWindow)
+    Case "prev"
+        LayoutPrev(TargetWindow)
+    Case Else
+        Dim LayoutIdx As Long = LayoutIndexOfCode(KeyAction)
+        If LayoutIdx >= 0 Then LayoutRequest(TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
+    End Select
+End Sub
+
+' Раскладка по номеру (левый Ctrl/Alt/Win + цифра) или следующая (Caps Lock)
+Sub OnSwitchLayout(ByVal LayoutIdx As Long)
+    ' после проглоченной цифры отпущенный Alt или Win открыл бы меню
+    If LayoutIdx >= 0 And Settings.LangSelect >= 2 Then SendKeyTap(LB_VK_MENU_MASK)
+    Dim TargetWindow As Any Ptr = SwitchTargetWindow()
+    If LayoutIdx < 0 Then
+        LayoutNext(TargetWindow)
+    ElseIf LayoutIdx < LayoutCount Then
+        LayoutRequest(TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
+    End If
+End Sub
+
 Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
     Select Case Msg
     Case KEY_EVENT_MSG
@@ -266,6 +320,10 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
         RunHotkeyAction(CLng(WParam))
     Case HOTKEY_CAPTURE_MSG
         SettingsCaptureDone()
+    Case SWITCH_SOLO_MSG
+        OnSoloKey(CLng(WParam))
+    Case SWITCH_LAYOUT_MSG
+        OnSwitchLayout(CLng(Cast(Integer, WParam)))
     Case MOUSE_CLICK_MSG
         ' каретка могла уйти - набранное слово больше не перед ней
         WordBufferReset()
@@ -321,6 +379,8 @@ End Sub
 Sub ApplySettings()
     ConfigApplyAutoStart(Settings.AutoStart)
     HotkeysLoadTable()
+    SwitchLoadTable()
+    SwitchFixLockKeys()
     If Settings.CaretFlag = 0 Then OverlayHide(CaretFlag)
 End Sub
 
@@ -447,6 +507,8 @@ If KbHookInstall(TrayWindow, KEY_EVENT_MSG) = 0 Then
     LbMessageBox(0, "Не удалось поставить хук клавиатуры (ошибка " & LbGetLastError() & ").", APP_TITLE, 0)
 End If
 HotkeysStart(TrayWindow, HOTKEY_ACTION_MSG, HOTKEY_CAPTURE_MSG)
+' общий фильтр хука (горячие клавиши и переключение) ставит SwitchStart
+SwitchStart(SWITCH_SOLO_MSG, SWITCH_LAYOUT_MSG)
 KbMouseHookInstall(MOUSE_CLICK_MSG)
 
 PollTimer.Interval = 250

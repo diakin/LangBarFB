@@ -60,6 +60,8 @@ Dim Shared KbCapsOn As Long
 Dim Shared KbCapsHeld As Long
 Dim Shared KbMouseHookHandle As Any Ptr
 Dim Shared KbMouseNotifyMessage As ULong
+' число нажатий кнопок мыши: по нему фильтр видит щелчок между событиями
+Dim Shared KbMouseClicks As ULong
 
 Private Function KbIsKeyDown(ByVal VirtualKey As Long) As Long
     Return IIf((LbGetAsyncKeyState(VirtualKey) And &h8000) <> 0, 1, 0)
@@ -91,7 +93,10 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
             .IsInjected = IIf((HookData->flags And LB_LLKHF_INJECTED) <> 0, 1, 0)
             .Modifiers = KbCurrentModifiers()
         End With
-        If KeyEvent.VirtualKey = LB_VK_CAPITAL And KeyEvent.IsInjected = 0 Then
+        KeyEvent.CapsOn = KbCapsOn
+        If KbKeyFilter <> 0 Then KeyEvent.IsSwallowed = KbKeyFilter(KeyEvent)
+        ' Caps Lock переключается, только если нажатие дошло до Windows
+        If KeyEvent.VirtualKey = LB_VK_CAPITAL And KeyEvent.IsSwallowed = 0 Then
             ' повтор при удержании Caps Lock не переключает
             If KeyEvent.IsKeyUp Then
                 KbCapsHeld = 0
@@ -100,8 +105,6 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
                 KbCapsOn Xor= 1
             End If
         End If
-        KeyEvent.CapsOn = KbCapsOn
-        If KbKeyFilter <> 0 Then KeyEvent.IsSwallowed = KbKeyFilter(KeyEvent)
 
         Dim NextHead As Long = (KbQueueHead + 1) Mod KB_QUEUE_SIZE
         If NextHead = KbQueueTail Then
@@ -147,6 +150,7 @@ Private Function KbMouseHookProc stdcall (ByVal HookCode As Long, _
     If HookCode = LB_HC_ACTION Then
         Select Case CULng(WParam)
         Case LB_WM_LBUTTONDOWN, LB_WM_RBUTTONDOWN, LB_WM_MBUTTONDOWN
+            KbMouseClicks += 1
             If KbNotifyWindow <> 0 Then LbPostMessage(KbNotifyWindow, KbMouseNotifyMessage, 0, 0)
         End Select
     End If
