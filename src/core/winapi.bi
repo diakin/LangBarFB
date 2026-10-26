@@ -417,3 +417,59 @@ Declare Function LbURLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" ( _
 Declare Function LbCoInitialize Lib "ole32" Alias "CoInitialize" (ByVal Reserved As Any Ptr) As Long
 Declare Sub LbCoUninitialize Lib "ole32" Alias "CoUninitialize" ()
 Declare Function LbDeleteFile Lib "kernel32" Alias "DeleteFileA" (ByVal FileName As ZString Ptr) As Long
+
+' запасной источник библиотеки Hunspell - zip (пакет NuGet), его
+' распаковывает cscript со скриптом Shell.Application
+Type LbStartupInfo
+    StructSize As ULong
+    Reserved As Any Ptr
+    Desktop As Any Ptr
+    Title As Any Ptr
+    PosX As ULong
+    PosY As ULong
+    SizeX As ULong
+    SizeY As ULong
+    CountCharsX As ULong
+    CountCharsY As ULong
+    FillAttribute As ULong
+    Flags As ULong
+    ShowWindow As UShort
+    ReservedSize As UShort
+    ReservedBytes As Any Ptr
+    StdInput As Any Ptr
+    StdOutput As Any Ptr
+    StdError As Any Ptr
+End Type
+Type LbProcessInfo
+    ProcessHandle As Any Ptr
+    ThreadHandle As Any Ptr
+    ProcessId As ULong
+    ThreadId As ULong
+End Type
+#ifdef __FB_64BIT__
+#assert SizeOf(LbStartupInfo) = 104
+#assert SizeOf(LbProcessInfo) = 24
+#else
+#assert SizeOf(LbStartupInfo) = 68
+#assert SizeOf(LbProcessInfo) = 16
+#endif
+Const LB_CREATE_NO_WINDOW = &h08000000
+Const LB_INVALID_FILE_ATTRIBUTES = &hFFFFFFFF
+Declare Function LbCreateProcess Lib "kernel32" Alias "CreateProcessA" ( _
+    ByVal ApplicationName As ZString Ptr, ByVal CommandLine As ZString Ptr, _
+    ByVal ProcessAttributes As Any Ptr, ByVal ThreadAttributes As Any Ptr, ByVal InheritHandles As Long, _
+    ByVal CreationFlags As ULong, ByVal Environment As Any Ptr, ByVal CurrentDirectory As ZString Ptr, _
+    ByRef StartupInfo As LbStartupInfo, ByRef ProcessInfo As LbProcessInfo) As Long
+Declare Function LbWaitForSingleObject Lib "kernel32" Alias "WaitForSingleObject" ( _
+    ByVal ObjectHandle As Any Ptr, ByVal Milliseconds As ULong) As ULong
+Declare Function LbGetFileAttributes Lib "kernel32" Alias "GetFileAttributesA" ( _
+    ByVal FileName As ZString Ptr) As ULong
+
+' версия библиотеки Hunspell (spell.bi): у NHunspell 0.9.6 и новее
+' HunspellInit принимает содержимое файлов, а не пути
+Declare Function LbGetFileVersionInfoSize Lib "version" Alias "GetFileVersionInfoSizeA" ( _
+    ByVal FileName As ZString Ptr, ByVal Handle As ULong Ptr) As ULong
+Declare Function LbGetFileVersionInfo Lib "version" Alias "GetFileVersionInfoA" ( _
+    ByVal FileName As ZString Ptr, ByVal Handle As ULong, ByVal BufferLen As ULong, ByVal Buffer As Any Ptr) As Long
+Declare Function LbVerQueryValue Lib "version" Alias "VerQueryValueA" ( _
+    ByVal Block As Any Ptr, ByVal SubBlock As ZString Ptr, ByVal ValuePtr As Any Ptr Ptr, ByVal ValueLen As ULong Ptr) As Long

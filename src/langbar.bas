@@ -406,16 +406,16 @@ End Sub
 
 ' Поток скачивания закончил
 Sub OnDictDone()
-    Dim ErrorText As String = DictDownloadResult()
+    Dim FailedCount As Long
+    Dim ResultText As String = DictDownloadResult(FailedCount)
     LoadSpell()
-    If ErrorText <> "" Then
-        DebugLog("скачивание словарей: " & ErrorText)
-        LbMessageBox(0, ErrorText & Chr(13, 10) & Chr(13, 10) _
+    DebugLog("скачивание словарей: " & ResultText & "Hunspell: " & SpellStatus)
+    If FailedCount > 0 Then
+        LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & "." & Chr(13, 10) & Chr(13, 10) _
             & "Папки hunspell и dict можно скачать вручную: " & DICT_PAGE_URL & Chr(13, 10) _
             & "и положить рядом с программой (" & ExePath & ").", APP_TITLE, LB_MB_ICONWARNING)
     Else
-        DebugLog("словари скачаны, " & SpellStatus)
-        LbMessageBox(0, "Словари скачаны. Hunspell: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
+        LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
     End If
 End Sub
 

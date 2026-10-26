@@ -26,6 +26,9 @@
 ' поэтому результат берётся And &hFF.
 Type HunspellInitFn As Function cdecl (ByVal AffPath As WString Ptr, ByVal DicPath As WString Ptr, _
     ByVal KeyText As Any Ptr) As Any Ptr
+' NHunspell 0.9.6 и новее (пакет NuGet): содержимое файлов и их размеры
+Type HunspellInitDataFn As Function cdecl (ByVal AffData As Any Ptr, ByVal AffSize As UInteger, _
+    ByVal DicData As Any Ptr, ByVal DicSize As UInteger, ByVal KeyText As Any Ptr) As Any Ptr
 Type HunspellWordFn As Function cdecl (ByVal SpellHandle As Any Ptr, ByVal WordText As WString Ptr) As Long
 Type HunspellFreeFn As Sub cdecl (ByVal SpellHandle As Any Ptr)
 
@@ -33,6 +36,9 @@ Const SPELL_MAX_WORD = 64
 
 Dim Shared SpellLibrary As Any Ptr
 Dim Shared HunspellInit As HunspellInitFn
+Dim Shared HunspellInitData As HunspellInitDataFn
+' 1 - библиотека новая, HunspellInit принимает содержимое файлов
+Dim Shared SpellInitByData As Long
 Dim Shared HunspellSpell As HunspellWordFn
 Dim Shared HunspellAdd As HunspellWordFn
 Dim Shared HunspellFree As HunspellFreeFn
@@ -242,6 +248,33 @@ Sub SpellUnload()
     SpellDictCount = 0
 End Sub
 
+' Файл целиком в строку байтов; 0 - не прочитан или пустой
+Private Function SpellReadBytes(ByRef FileName As String, ByRef FileBytes As String) As Long
+    Dim FileNum As Long = FreeFile
+    If Open(FileName For Binary Access Read As #FileNum) <> 0 Then Return 0
+    FileBytes = String(Lof(FileNum), 0)
+    If Len(FileBytes) > 0 Then Get #FileNum, , FileBytes
+    Close #FileNum
+    Return Len(FileBytes)
+End Function
+
+' Версия NHunspell не ниже 0.9.6: HunspellInit принимает содержимое
+' файлов (у 0.9.2 из LangBarXX - пути)
+Private Function SpellDllTakesData(ByRef DllPath As String) As Long
+    Dim InfoSize As ULong = LbGetFileVersionInfoSize(StrPtr(DllPath), 0)
+    If InfoSize = 0 Then Return 0
+    Dim InfoBlock As String = String(InfoSize, 0)
+    If LbGetFileVersionInfo(StrPtr(DllPath), 0, InfoSize, StrPtr(InfoBlock)) = 0 Then Return 0
+    Dim FixedInfo As ULong Ptr, InfoLen As ULong
+    If LbVerQueryValue(StrPtr(InfoBlock), "\", @FixedInfo, @InfoLen) = 0 Or InfoLen < 16 Then Return 0
+    ' VS_FIXEDFILEINFO: [2] - старшая часть версии, [3] - младшая
+    Dim VersionHigh As ULong = FixedInfo[2], VersionLow As ULong = FixedInfo[3]
+    Dim MajorPart As Long = VersionHigh Shr 16, MinorPart As Long = VersionHigh And &hFFFF
+    Dim BuildPart As Long = VersionLow Shr 16
+    If MajorPart > 0 Or MinorPart > 9 Then Return 1
+    Return IIf(MinorPart = 9 And BuildPart >= 6, 1, 0)
+End Function
+
 ' Словарь раскладки LayoutIdx из BaseFolder\dict\<код>\
 Private Sub SpellLoadLayout(ByVal LayoutIdx As Long, ByRef DictFolder As String)
     Dim AffName As String = Dir(DictFolder & "\*.aff")
@@ -251,7 +284,14 @@ Private Sub SpellLoadLayout(ByVal LayoutIdx As Long, ByRef DictFolder As String)
     Dim AffPath() As UShort, DicPath() As UShort
     SpellWideOf(DictFolder & "\" & AffName, AffPath())
     SpellWideOf(DictFolder & "\" & MainDic, DicPath())
-    SpellDict(LayoutIdx) = HunspellInit(Cast(WString Ptr, @AffPath(0)), Cast(WString Ptr, @DicPath(0)), 0)
+    If SpellInitByData Then
+        Dim AffBytes As String, DicBytes As String
+        If SpellReadBytes(DictFolder & "\" & AffName, AffBytes) = 0 Then Exit Sub
+        If SpellReadBytes(DictFolder & "\" & MainDic, DicBytes) = 0 Then Exit Sub
+        SpellDict(LayoutIdx) = HunspellInitData(StrPtr(AffBytes), Len(AffBytes), StrPtr(DicBytes), Len(DicBytes), 0)
+    Else
+        SpellDict(LayoutIdx) = HunspellInit(Cast(WString Ptr, @AffPath(0)), Cast(WString Ptr, @DicPath(0)), 0)
+    End If
     If SpellDict(LayoutIdx) = 0 Then Exit Sub
     SpellDictCount += 1
     ' остальные .dic папки - дополнительные списки слов
@@ -291,6 +331,8 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
             Return 0
         End If
         HunspellInit = LbGetProcAddress(SpellLibrary, "HunspellInit")
+        HunspellInitData = Cast(HunspellInitDataFn, HunspellInit)
+        SpellInitByData = SpellDllTakesData(SpellBaseFolder & "\hunspell\" & SPELL_DLL_NAME)
         HunspellSpell = LbGetProcAddress(SpellLibrary, "HunspellSpell")
         HunspellAdd = LbGetProcAddress(SpellLibrary, "HunspellAdd")
         HunspellFree = LbGetProcAddress(SpellLibrary, "HunspellFree")
