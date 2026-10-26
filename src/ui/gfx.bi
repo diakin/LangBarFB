@@ -80,6 +80,8 @@ Declare Function GdipDrawString Lib "gdiplus" Alias "GdipDrawString" ( _
     ByVal Graphics As Any Ptr, ByVal Text As WString Ptr, ByVal TextLength As Long, _
     ByVal GpFont As Any Ptr, ByRef LayoutRect As GpRectF, ByVal StringFormat As Any Ptr, _
     ByVal Brush As Any Ptr) As Long
+Declare Function GdipCreateHBITMAPFromBitmap Lib "gdiplus" Alias "GdipCreateHBITMAPFromBitmap" ( _
+    ByVal Bitmap As Any Ptr, ByRef BitmapHandle As Any Ptr, ByVal Background As ULong) As Long
 Declare Function GdipCreateHICONFromBitmap Lib "gdiplus" Alias "GdipCreateHICONFromBitmap" ( _
     ByVal Bitmap As Any Ptr, ByRef IconHandle As Any Ptr) As Long
 
@@ -127,57 +129,91 @@ Sub GfxFreeImage(ByRef Image As Any Ptr)
     End If
 End Sub
 
-' Квадратный значок IconSize x IconSize. Флажок - из FlagImage (если не 0)
-' или прямоугольник цвета FlagColor (&hRRGGBB) с подписью Label.
-' Флажок вписывается по ширине с сохранением пропорций и ставится по
-' центру по высоте. Значок освобождать LbDestroyIcon.
-Function GfxMakeFlagIcon(ByVal FlagImage As Any Ptr, ByRef Label As String, _
-        ByVal FlagColor As ULong, ByVal IconSize As Long) As Any Ptr
-    Dim Canvas As Any Ptr, Graphics As Any Ptr, IconHandle As Any Ptr
-    If GdipCreateBitmapFromScan0(IconSize, IconSize, 0, GP_PIXEL_FORMAT_32BPP_ARGB, 0, Canvas) <> 0 Then Return 0
-    GdipGetImageGraphicsContext(Canvas, Graphics)
-    GdipSetInterpolationMode(Graphics, GP_INTERPOLATION_HIGH_QUALITY_BICUBIC)
-    GdipSetSmoothingMode(Graphics, GP_SMOOTHING_ANTIALIAS)
-
+' Высота флажка при ширине FlagWidth: по пропорциям картинки, без неё 3:4
+Function GfxFlagHeight(ByVal FlagImage As Any Ptr, ByVal FlagWidth As Long) As Long
+    Dim FlagHeight As Long = FlagWidth * 3 \ 4
     If FlagImage <> 0 Then
         Dim ImgWidth As ULong, ImgHeight As ULong
         GdipGetImageWidth(FlagImage, ImgWidth)
         GdipGetImageHeight(FlagImage, ImgHeight)
-        Dim DrawHeight As Long = IconSize * 3 \ 4
-        If ImgWidth > 0 Then DrawHeight = CLng(IconSize * ImgHeight \ ImgWidth)
-        If DrawHeight > IconSize Then DrawHeight = IconSize
-        GdipDrawImageRectI(Graphics, FlagImage, 0, (IconSize - DrawHeight) \ 2, IconSize, DrawHeight)
-    Else
-        Dim FillBrush As Any Ptr, TextBrush As Any Ptr
-        Dim FlagHeight As Long = IconSize * 3 \ 4
-        Dim FlagTop As Long = (IconSize - FlagHeight) \ 2
-        GdipCreateSolidFill(&hFF000000 Or (FlagColor And &hFFFFFF), FillBrush)
-        GdipFillRectangleI(Graphics, FillBrush, 0, FlagTop, IconSize, FlagHeight)
-        GdipDeleteBrush(FillBrush)
+        If ImgWidth > 0 Then FlagHeight = CLng(FlagWidth * ImgHeight \ ImgWidth)
+    End If
+    If FlagHeight < 1 Then FlagHeight = 1
+    Return FlagHeight
+End Function
 
-        Dim FontFamily As Any Ptr, LabelFont As Any Ptr, LabelFormat As Any Ptr
-        Dim FamilyName As WString * 8 = "Arial"
-        GdipCreateFontFamilyFromName(@FamilyName, 0, FontFamily)
-        GdipCreateFont(FontFamily, FlagHeight * 0.8, GP_FONT_STYLE_BOLD, GP_UNIT_PIXEL, LabelFont)
-        GdipCreateStringFormat(0, 0, LabelFormat)
-        GdipSetStringFormatAlign(LabelFormat, GP_STRING_ALIGNMENT_CENTER)
-        GdipSetStringFormatLineAlign(LabelFormat, GP_STRING_ALIGNMENT_CENTER)
-        GdipSetTextRenderingHint(Graphics, GP_TEXT_RENDERING_ANTIALIAS_GRIDFIT)
-        GdipCreateSolidFill(&hFFFFFFFF, TextBrush)
-        Dim LabelRect As GpRectF
-        LabelRect.PosX = -2 : LabelRect.PosY = FlagTop
-        LabelRect.RectWidth = IconSize + 4 : LabelRect.RectHeight = FlagHeight
-        Dim WideLabel As WString Ptr = GfxWide(Label)
-        GdipDrawString(Graphics, WideLabel, -1, LabelFont, LabelRect, LabelFormat, TextBrush)
-        Deallocate(WideLabel)
-        GdipDeleteBrush(TextBrush)
-        GdipDeleteStringFormat(LabelFormat)
-        GdipDeleteFont(LabelFont)
-        GdipDeleteFontFamily(FontFamily)
+' Рисует флажок в прямоугольник: картинку FlagImage (если не 0) или
+' прямоугольник цвета FlagColor (&hRRGGBB) с подписью Label
+Sub GfxDrawFlag(ByVal Graphics As Any Ptr, ByVal FlagImage As Any Ptr, ByRef Label As String, _
+        ByVal FlagColor As ULong, ByVal PosX As Long, ByVal PosY As Long, _
+        ByVal FlagWidth As Long, ByVal FlagHeight As Long)
+    GdipSetInterpolationMode(Graphics, GP_INTERPOLATION_HIGH_QUALITY_BICUBIC)
+    GdipSetSmoothingMode(Graphics, GP_SMOOTHING_ANTIALIAS)
+    If FlagImage <> 0 Then
+        GdipDrawImageRectI(Graphics, FlagImage, PosX, PosY, FlagWidth, FlagHeight)
+        Exit Sub
     End If
 
+    Dim FillBrush As Any Ptr, TextBrush As Any Ptr
+    GdipCreateSolidFill(&hFF000000 Or (FlagColor And &hFFFFFF), FillBrush)
+    GdipFillRectangleI(Graphics, FillBrush, PosX, PosY, FlagWidth, FlagHeight)
+    GdipDeleteBrush(FillBrush)
+
+    Dim FontFamily As Any Ptr, LabelFont As Any Ptr, LabelFormat As Any Ptr
+    Dim FamilyName As WString * 8 = "Arial"
+    GdipCreateFontFamilyFromName(@FamilyName, 0, FontFamily)
+    GdipCreateFont(FontFamily, FlagHeight * 0.8, GP_FONT_STYLE_BOLD, GP_UNIT_PIXEL, LabelFont)
+    GdipCreateStringFormat(0, 0, LabelFormat)
+    GdipSetStringFormatAlign(LabelFormat, GP_STRING_ALIGNMENT_CENTER)
+    GdipSetStringFormatLineAlign(LabelFormat, GP_STRING_ALIGNMENT_CENTER)
+    GdipSetTextRenderingHint(Graphics, GP_TEXT_RENDERING_ANTIALIAS_GRIDFIT)
+    GdipCreateSolidFill(&hFFFFFFFF, TextBrush)
+    Dim LabelRect As GpRectF
+    LabelRect.PosX = PosX - FlagWidth * 0.1 : LabelRect.PosY = PosY
+    LabelRect.RectWidth = FlagWidth * 1.2 : LabelRect.RectHeight = FlagHeight
+    Dim WideLabel As WString Ptr = GfxWide(Label)
+    GdipDrawString(Graphics, WideLabel, -1, LabelFont, LabelRect, LabelFormat, TextBrush)
+    Deallocate(WideLabel)
+    GdipDeleteBrush(TextBrush)
+    GdipDeleteStringFormat(LabelFormat)
+    GdipDeleteFont(LabelFont)
+    GdipDeleteFontFamily(FontFamily)
+End Sub
+
+' Пустая прозрачная картинка 32 бит с альфа-каналом; освобождать GfxFreeImage
+Function GfxNewCanvas(ByVal CanvasWidth As Long, ByVal CanvasHeight As Long) As Any Ptr
+    Dim Canvas As Any Ptr
+    If GdipCreateBitmapFromScan0(CanvasWidth, CanvasHeight, 0, GP_PIXEL_FORMAT_32BPP_ARGB, 0, Canvas) <> 0 Then Return 0
+    Return Canvas
+End Function
+
+' Квадратный значок IconSize x IconSize: флажок по ширине значка, по центру
+' по высоте. Освобождать LbDestroyIcon.
+Function GfxMakeFlagIcon(ByVal FlagImage As Any Ptr, ByRef Label As String, _
+        ByVal FlagColor As ULong, ByVal IconSize As Long) As Any Ptr
+    Dim Canvas As Any Ptr = GfxNewCanvas(IconSize, IconSize)
+    If Canvas = 0 Then Return 0
+    Dim Graphics As Any Ptr, IconHandle As Any Ptr
+    GdipGetImageGraphicsContext(Canvas, Graphics)
+    Dim FlagHeight As Long = GfxFlagHeight(FlagImage, IconSize)
+    If FlagHeight > IconSize Then FlagHeight = IconSize
+    GfxDrawFlag(Graphics, FlagImage, Label, FlagColor, 0, (IconSize - FlagHeight) \ 2, IconSize, FlagHeight)
     GdipDeleteGraphics(Graphics)
     If GdipCreateHICONFromBitmap(Canvas, IconHandle) <> 0 Then IconHandle = 0
     GdipDisposeImage(Canvas)
     Return IconHandle
+End Function
+
+' Флажок FlagWidth в ширину как картинка GDI+ (для окон overlay.bi);
+' освобождать GfxFreeImage
+Function GfxMakeFlagImage(ByVal FlagImage As Any Ptr, ByRef Label As String, _
+        ByVal FlagColor As ULong, ByVal FlagWidth As Long) As Any Ptr
+    Dim FlagHeight As Long = GfxFlagHeight(FlagImage, FlagWidth)
+    Dim Canvas As Any Ptr = GfxNewCanvas(FlagWidth, FlagHeight)
+    If Canvas = 0 Then Return 0
+    Dim Graphics As Any Ptr
+    GdipGetImageGraphicsContext(Canvas, Graphics)
+    GfxDrawFlag(Graphics, FlagImage, Label, FlagColor, 0, 0, FlagWidth, FlagHeight)
+    GdipDeleteGraphics(Graphics)
+    Return Canvas
 End Function
