@@ -12,6 +12,9 @@
 '
 '  Режим записи (окно «Назначить»): следующее нажатие не-модификатора
 '  глотается и запоминается в HotkeyCapturedKey / HotkeyCapturedMods.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

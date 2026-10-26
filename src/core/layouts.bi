@@ -5,7 +5,10 @@
 '  код вида ru-RU (имя файла флажка, как flags\ru-RU.png у LangBarXX) и
 '  короткая подпись для текстового флажка (код страны: RU, US, UA).
 '  Раскладка консоли и окон UWP этим способом читается неверно - их разбор
-'  (LangBarXX, Lib/InputLayout.ahk) переносится позже.
+'  (LangBarXX, Lib/InputLayout.ahk) не перенесён.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

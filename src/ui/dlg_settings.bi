@@ -14,6 +14,9 @@
 '
 '  Окно правит копию настроек (EditSettings); «OK» и «Применить» переносят
 '  её в Settings, пишут ini и вызывают SettingsOnApply.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

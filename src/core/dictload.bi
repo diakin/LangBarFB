@@ -20,6 +20,9 @@
 '  главный поток должен разбирать вызовы хука). Поток работает только с
 '  буферами DictJobs и функциями Windows; по окончании он посылает
 '  DictNotifyMessage окну DictNotifyWindow.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

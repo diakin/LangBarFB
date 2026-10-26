@@ -1,6 +1,9 @@
 ' ---------------------------------------------------------------------------
 '  dlg_about.bi - окно «О программе»: версия, дата сборки, разрядность,
 '  откуда программа и ссылка на репозиторий.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once
@@ -9,7 +12,7 @@
 #include once "../core/winapi.bi"
 #include once "../core/lang.bi"
 
-Const APP_VERSION = "0.7"
+Const APP_VERSION = "1.0"
 Const APP_HOME_URL = "https://github.com/diakin/LangBarFB"
 Const APP_BASE_URL = "https://github.com/Krot66/LangBarXX"
 

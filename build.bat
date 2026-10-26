@@ -30,7 +30,7 @@ if errorlevel 1 goto nofbc
 if not exist "%RQLCL%\inc\rqlcl.bi" goto norqlcl
 if not exist bin mkdir bin
 echo Compiler: %FBC%
-rem fbc runs from src: langbar32.rc refers to langbar.ico relative to it
+rem fbc runs from src: langbar32.rc refers to RysLat2.ico relative to it
 for %%I in ("%RQLCL%") do set RQLCL=%%~fI
 pushd src
 "%FBC%" -s gui langbar32.bas langbar32.rc -i "%RQLCL%\inc" -x ..\bin\langbar32.exe

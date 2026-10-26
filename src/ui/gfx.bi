@@ -2,6 +2,9 @@
 '  gfx.bi - картинки через GDI+ (плоский API gdiplus.dll): флажок из png
 '  или текстовый флажок, значок (HICON) нужного размера.
 '  Объявления свои, как в winapi.bi; GpStatus 0 - успех.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

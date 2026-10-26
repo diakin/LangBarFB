@@ -5,6 +5,9 @@
 '  поля ввода Windows, Delphi/Lazarus, Word). Браузеры, Electron, окна
 '  UWP системную каретку не ставят - для них LangBarXX спрашивает Acc и
 '  UIA (Lib/GetCaretLocation.ahk), это следующий шаг.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

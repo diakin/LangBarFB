@@ -5,6 +5,9 @@
 '  с типами rqlcl.bi.
 '  Программа собирается только 32-битной (win32): размеры структур ниже
 '  проверены #assert для неё.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once
@@ -479,7 +482,7 @@ Const LB_GA_ROOT = 2
 Declare Function LbGetAncestor Lib "user32" Alias "GetAncestor" ( _
     ByVal WindowHandle As Any Ptr, ByVal Flags As ULong) As Any Ptr
 
-' --- этап 7: флажок у указателя мыши, сброс настроек, язык интерфейса ---
+' --- флажок у указателя мыши, сброс настроек, язык интерфейса ---
 
 Type LbCursorInfo
     cbSize As ULong

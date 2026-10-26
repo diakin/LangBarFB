@@ -14,7 +14,7 @@
 ; ---------------------------------------------------------------------------
 
 ; та же, что APP_VERSION в src\ui\dlg_about.bi
-#define MyAppVersion "0.7"
+#define MyAppVersion "1.0"
 #define MyAppName "LangBarFB"
 #define MyAppURL "https://github.com/diakin/LangBarFB"
 ; имя класса служебного окна (src\ui\tray.bi): по нему программа
@@ -42,6 +42,8 @@ SolidCompression=yes
 ShowLanguageDialog=auto
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\langbar32.exe
+; LGPL-3.0, как у LangBarXX; COPYING (GPL-3.0) ставится рядом
+LicenseFile=COPYING.LESSER
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -103,6 +105,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "bin\langbar32.exe"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "bin\rqlcl32.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
+Source: "COPYING"; DestDir: "{app}"; Components: program; Flags: ignoreversion
+Source: "COPYING.LESSER"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "help\*"; DestDir: "{app}\help"; Components: program; Flags: ignoreversion
 Source: "sounds\*"; DestDir: "{app}\sounds"; Components: program; Flags: ignoreversion
 #if DirExists("flags")

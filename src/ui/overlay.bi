@@ -7,6 +7,9 @@
 '  активируется (WS_EX_NOACTIVATE, WM_MOUSEACTIVATE), поэтому щелчок по
 '  нему не уводит фокус из окна, где печатают. ClickThrough = 1 - окно
 '  пропускает мышь насквозь (WS_EX_TRANSPARENT).
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once

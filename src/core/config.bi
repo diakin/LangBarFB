@@ -24,7 +24,10 @@
 '             отменили Break, записывать в user_dict.dic (0/1);
 '             Early - проверять начало слова с третьей буквы (0/1);
 '             DictAsked - вопрос о скачивании словарей уже задавали (0/1)
-'  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
+'  Настройки LangBarXX (langbarxx.ini) не читаются: у LangBarFB свой ini.
+'
+'  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
+'  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
 
 #pragma once
