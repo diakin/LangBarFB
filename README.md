@@ -90,7 +90,7 @@ Break подробнее (этап 3):
 
 ### Из unIDE
 
-Откройте `src\langbar.bas`, выберите GUI и разрядность и запустите сборку. Нужна сборка unIDE не старше коммита ec2fa85: она сама добавляет `-i <RqLcl>\inc`, если в исходнике есть `#include "rqlcl.bi"`, и кладёт DLL рядом с exe. Папка RqLcl задаётся в IDE Options → Compilers → RapidQ Basic → RqLcl folder. Exe и DLL появятся в `src\`.
+Откройте `src\langbar.bas`, выберите GUI и разрядность и запустите сборку. Нужна сборка unIDE не старше коммита ec2fa85: она сама добавляет `-i <RqLcl>\inc`, если в исходнике есть `#include "rqlcl.bi"`, и кладёт DLL рядом с exe. Папка RqLcl задаётся в IDE Options → Compilers → RapidQ Basic → RqLcl folder. С unIDE не старше b8cd5b2 (открыт проект LangBarFB) exe и DLL появятся в `bin\` (`bin\langbar.exe`), раньше — в `src\`. Установщик берёт `bin\langbar32.exe` из `build.bat 32`.
 
 ### Через build.bat
 
