@@ -67,7 +67,9 @@ Function OverlayCreate(ByRef Overlay As OverlayWindow, ByVal ClickThrough As Lon
         Dim WindowClass As LbWndClassA
         WindowClass.lpfnWndProc = @OverlayWndProc
         WindowClass.hInstance = InstanceHandle
-        WindowClass.hCursor = 0
+        ' без курсора класса Windows оставляет над окном прежний курсор
+        ' (часики, если он был таким)
+        WindowClass.hCursor = LbLoadCursor(0, Cast(Any Ptr, LB_IDC_ARROW))
         WindowClass.lpszClassName = @ClassName
         If LbRegisterClass(WindowClass) = 0 Then Return 0
         OverlayClassReady = 1

@@ -476,3 +476,7 @@ Declare Function LbVerQueryValue Lib "version" Alias "VerQueryValueA" ( _
 
 Declare Function LbIsChild Lib "user32" Alias "IsChild" ( _
     ByVal ParentHandle As Any Ptr, ByVal WindowHandle As Any Ptr) As Long
+
+Const LB_IDC_ARROW = 32512
+Declare Function LbLoadCursor Lib "user32" Alias "LoadCursorA" ( _
+    ByVal Instance As Any Ptr, ByVal CursorName As Any Ptr) As Any Ptr
