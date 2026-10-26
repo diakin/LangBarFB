@@ -236,7 +236,13 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
     If (HotkeyTable(ActionIdx).Modifiers And (KB_MOD_ALT Or KB_MOD_WIN)) <> 0 Then
         SendKeyTap(LB_VK_MENU_MASK)
     End If
-    If SendWaitModifiersUp(1500) = 0 Then LogAction("модификаторы не отпущены за 1,5 с")
+    ' Shift и т. п. ещё держат (сочетание нажимают несколько раз подряд) -
+    ' для Windows они отпускаются, иначе сложатся с Ctrl+C и текстом
+    If SendWaitModifiersUp(150) = 0 Then
+        LogAction("модификаторы держат - отпускаются программно")
+        SendReleaseModifiers()
+        SendWaitPump(20)
+    End If
     If ActionIdx = ACTION_UNDO_CONVERT Then
         ActionUndoConvert(TargetWindow)
     Else
