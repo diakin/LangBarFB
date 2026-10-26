@@ -15,6 +15,11 @@
 '  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn,
 '             ShiftBackspace, CtrlCapsLock (0/1) - эти сочетания тоже
 '             исправляют последнее слово, как Break
+'  [AutoSwitch] Folder - папка с hunspell\ и dict\ (пусто - рядом с exe
+'             или выше); IgnoreDigits, IgnoreCaps - не переключать слова
+'             с цифрами и из одних заглавных; SingleLetter - переключать
+'             слова из одной буквы; Remember - слово, переключение которого
+'             отменили Break, записывать в user_dict.dic (0/1)
 '  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
 ' ---------------------------------------------------------------------------
 
@@ -30,7 +35,7 @@ Const ACTION_TOGGLE_CASE = 2        ' сменить регистр выделе
 Const ACTION_TRANSLIT = 3           ' транслитерировать выделенный текст
 
 Const SOUND_EVENT_COUNT = 4
-Const SOUND_AUTOSWITCH = 0          ' автопереключение раскладки (этап 5)
+Const SOUND_AUTOSWITCH = 0          ' автопереключение раскладки
 Const SOUND_UNDO_AUTOSWITCH = 1     ' отмена автопереключения / конвертации
 Const SOUND_CONVERT_SELECTION = 2   ' конвертация выделенного текста
 Const SOUND_CONVERT_CLIPBOARD = 3   ' конвертация текста в буфере (позже)
@@ -64,6 +69,11 @@ Type AppSettings
     NumLockOn As Long
     ShiftBackspace As Long
     CtrlCaps As Long
+    SpellFolder As String
+    AutoIgnoreDigits As Long
+    AutoIgnoreCaps As Long
+    AutoSingleLetter As Long
+    AutoRemember As Long
 End Type
 
 Dim Shared Settings As AppSettings
@@ -136,6 +146,11 @@ Sub ConfigLoad()
         .NumLockOn = IniReadFlag("Keys", "NumLockOn", 0)
         .ShiftBackspace = IniReadFlag("Keys", "ShiftBackspace", 0)
         .CtrlCaps = IniReadFlag("Keys", "CtrlCapsLock", 0)
+        .SpellFolder = IniRead("AutoSwitch", "Folder", "")
+        .AutoIgnoreDigits = IniReadFlag("AutoSwitch", "IgnoreDigits", 1)
+        .AutoIgnoreCaps = IniReadFlag("AutoSwitch", "IgnoreCaps", 1)
+        .AutoSingleLetter = IniReadFlag("AutoSwitch", "SingleLetter", 0)
+        .AutoRemember = IniReadFlag("AutoSwitch", "Remember", 1)
     End With
 End Sub
 
@@ -164,6 +179,11 @@ Sub ConfigSave()
         IniWrite("Keys", "NumLockOn", Str(.NumLockOn))
         IniWrite("Keys", "ShiftBackspace", Str(.ShiftBackspace))
         IniWrite("Keys", "CtrlCapsLock", Str(.CtrlCaps))
+        IniWrite("AutoSwitch", "Folder", .SpellFolder)
+        IniWrite("AutoSwitch", "IgnoreDigits", Str(.AutoIgnoreDigits))
+        IniWrite("AutoSwitch", "IgnoreCaps", Str(.AutoIgnoreCaps))
+        IniWrite("AutoSwitch", "SingleLetter", Str(.AutoSingleLetter))
+        IniWrite("AutoSwitch", "Remember", Str(.AutoRemember))
     End With
 End Sub
 

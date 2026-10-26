@@ -2,14 +2,13 @@
 '  dlg_settings.bi - окно настроек (как у Punto Switcher, только нужные
 '  пункты): слева разделы, справа страница раздела.
 '
-'  Общие            - запуск с Windows, автопереключение (пока только
-'                     галка - само автопереключение на этапе 5), флажок
-'                     у каретки
+'  Общие            - запуск с Windows, автопереключение, флажок у каретки
 '  Переключение     - одиночные Shift/Ctrl, раскладка по номеру, режим
 '                     Caps Lock, Num Lock (switchkeys.bi)
 '  Горячие клавиши  - четыре действия; «Назначить...» ждёт нажатия
 '                     сочетания (его ловит хук, hotkeys.bi)
 '  Звуки            - события с галками, файл каждого, сигнал динамика
+'  Автопереключение - какие слова не трогать, папка словарей Hunspell
 '
 '  Окно правит копию настроек (EditSettings); «OK» и «Применить» переносят
 '  её в Settings, пишут ini и вызывают SettingsOnApply.
@@ -22,6 +21,7 @@
 #include once "../core/config.bi"
 #include once "../core/hotkeys.bi"
 #include once "../core/sendkeys.bi"
+#include once "../core/spell.bi"
 
 Type SettingsApplyFn As Sub()
 
@@ -35,6 +35,7 @@ Dim Shared GeneralPage As QPANEL
 Dim Shared SwitchPage As QPANEL
 Dim Shared HotkeysPage As QPANEL
 Dim Shared SoundsPage As QPANEL
+Dim Shared AutoPage As QPANEL
 Dim Shared OkButton As QBUTTON
 Dim Shared CancelButton As QBUTTON
 Dim Shared ApplyButton As QBUTTON
@@ -42,7 +43,6 @@ Dim Shared ApplyButton As QBUTTON
 Dim Shared AutoStartCheck As QCHECKBOX
 Dim Shared AutoSwitchCheck As QCHECKBOX
 Dim Shared CaretFlagCheck As QCHECKBOX
-Dim Shared AutoSwitchNote As QLABEL
 
 Dim Shared SoloLabels(0 To SOLO_KEY_COUNT - 1) As QLABEL
 Dim Shared SoloCombos(0 To SOLO_KEY_COUNT - 1) As QCOMBOBOX
@@ -71,6 +71,19 @@ Dim Shared ChangeSoundButton As QBUTTON
 Dim Shared PlaySoundButton As QBUTTON
 Dim Shared DefaultSoundButton As QBUTTON
 Dim Shared SoundDialog As QOPENDIALOG
+
+Dim Shared AutoDigitsCheck As QCHECKBOX
+Dim Shared AutoCapsCheck As QCHECKBOX
+Dim Shared AutoSingleCheck As QCHECKBOX
+Dim Shared AutoRememberCheck As QCHECKBOX
+Dim Shared SpellFolderLabel As QLABEL
+Dim Shared SpellFolderEdit As QEDIT
+Dim Shared SpellBrowseButton As QBUTTON
+Dim Shared SpellReloadButton As QBUTTON
+Dim Shared UserDictButton As QBUTTON
+Dim Shared SpellStatusLabel As QLABEL
+Dim Shared AutoNote As QLABEL
+Dim Shared SpellDialog As QOPENDIALOG
 
 ' окно «Назначить сочетание»
 Dim Shared CaptureForm As QFORM
@@ -164,6 +177,12 @@ Private Sub FillForm()
     NumLockCheck.Checked = EditSettings.NumLockOn
     ShiftBackspaceCheck.Checked = EditSettings.ShiftBackspace
     CtrlCapsCheck.Checked = EditSettings.CtrlCaps
+    AutoDigitsCheck.Checked = EditSettings.AutoIgnoreDigits
+    AutoCapsCheck.Checked = EditSettings.AutoIgnoreCaps
+    AutoSingleCheck.Checked = EditSettings.AutoSingleLetter
+    AutoRememberCheck.Checked = EditSettings.AutoRemember
+    SpellFolderEdit.Text = EditSettings.SpellFolder
+    SpellStatusLabel.Caption = "Сейчас: " & SpellStatus
     FillHotkeyView()
     FillSoundView()
 End Sub
@@ -184,6 +203,11 @@ Private Sub ReadForm()
     EditSettings.NumLockOn = IIf(NumLockCheck.Checked, 1, 0)
     EditSettings.ShiftBackspace = IIf(ShiftBackspaceCheck.Checked, 1, 0)
     EditSettings.CtrlCaps = IIf(CtrlCapsCheck.Checked, 1, 0)
+    EditSettings.AutoIgnoreDigits = IIf(AutoDigitsCheck.Checked, 1, 0)
+    EditSettings.AutoIgnoreCaps = IIf(AutoCapsCheck.Checked, 1, 0)
+    EditSettings.AutoSingleLetter = IIf(AutoSingleCheck.Checked, 1, 0)
+    EditSettings.AutoRemember = IIf(AutoRememberCheck.Checked, 1, 0)
+    EditSettings.SpellFolder = Trim(SpellFolderEdit.Text)
     Dim EventIdx As Long
     For EventIdx = 0 To SOUND_EVENT_COUNT - 1
         EditSettings.SoundOn(EventIdx) = IIf(SoundView.Item(EventIdx).Checked, 1, 0)
@@ -205,6 +229,7 @@ Private Sub OnSectionClick()
     SwitchPage.Visible = IIf(SectionIdx = 1, 1, 0)
     HotkeysPage.Visible = IIf(SectionIdx = 2, 1, 0)
     SoundsPage.Visible = IIf(SectionIdx = 3, 1, 0)
+    AutoPage.Visible = IIf(SectionIdx = 4, 1, 0)
 End Sub
 
 Private Sub OnOkClick()
@@ -321,6 +346,38 @@ Private Sub OnDefaultSoundClick()
     FillSoundView()
 End Sub
 
+' --- автопереключение ---
+
+' Выбрана Hunspellx86.dll - папка на уровень выше её папки hunspell
+Private Sub OnSpellBrowseClick()
+    SpellDialog.Caption = "Где лежит " & SPELL_DLL_NAME & " (папка hunspell LangBarXX)"
+    SpellDialog.Filter = "Hunspell (Hunspell*.dll)|Hunspell*.dll|Все файлы (*.*)|*.*"
+    SpellDialog.FileName = ""
+    If SpellDialog.Execute() = 0 Then Exit Sub
+    Dim FolderPath As String = SpellDialog.FileName
+    Dim SlashPos As Long = InStrRev(FolderPath, "\")
+    If SlashPos > 0 Then FolderPath = Left(FolderPath, SlashPos - 1)
+    If LCase(Right(FolderPath, 9)) = "\hunspell" Then FolderPath = Left(FolderPath, Len(FolderPath) - 9)
+    SpellFolderEdit.Text = FolderPath
+End Sub
+
+Private Sub OnSpellReloadClick()
+    SpellLoad(Trim(SpellFolderEdit.Text))
+    SpellStatusLabel.Caption = "Сейчас: " & SpellStatus
+End Sub
+
+Private Sub OnUserDictClick()
+    Dim FileName As String = SpellUserDictName()
+    If FileExists(FileName) = 0 Then
+        Dim FileNum As Long = FreeFile
+        If Open(FileName For Output As #FileNum) = 0 Then
+            Print #FileNum, "; слова, которые не надо переключать, по одному в строке (UTF-8)"
+            Close #FileNum
+        End If
+    End If
+    LbShellExecute(0, "open", "notepad.exe", Chr(34) & FileName & Chr(34), 0, LB_SW_SHOWNORMAL)
+End Sub
+
 Private Sub OnSettingsShow()
     LbSetForegroundWindow(Cast(Any Ptr, SettingsForm.Handle))
 End Sub
@@ -376,21 +433,19 @@ Sub SettingsCreate()
     SectionList.Parent = SettingsForm
     SectionList.Left = 8 : SectionList.Top = 8
     SectionList.Width = 156 : SectionList.Height = 344
-    SectionList.AddItems("Общие", "Переключение", "Горячие клавиши", "Звуки")
+    SectionList.AddItems("Общие", "Переключение", "Горячие клавиши", "Звуки", "Автопереключение")
     SectionList.OnClick = @OnSectionClick
 
     PreparePage(GeneralPage)
     PreparePage(SwitchPage)
     PreparePage(HotkeysPage)
     PreparePage(SoundsPage)
+    PreparePage(AutoPage)
 
     ' Общие
     PlaceCheck(AutoStartCheck, GeneralPage, "Запускать при старте Windows", 8)
     PlaceCheck(AutoSwitchCheck, GeneralPage, "Автопереключение", 36)
     PlaceCheck(CaretFlagCheck, GeneralPage, "Показывать флажок у текстового курсора", 64)
-    AutoSwitchNote.Parent = GeneralPage
-    AutoSwitchNote.Left = 8 : AutoSwitchNote.Top = 104
-    AutoSwitchNote.Caption = "Автопереключение пока не работает: галка только запоминается."
 
     ' Переключение
     Dim KeyIdx As Long
@@ -470,6 +525,34 @@ Sub SettingsCreate()
     ChangeSoundButton.OnClick = @OnChangeSoundClick
     PlaySoundButton.OnClick = @OnPlaySoundClick
     DefaultSoundButton.OnClick = @OnDefaultSoundClick
+
+    ' Автопереключение
+    PlaceCheck(AutoDigitsCheck, AutoPage, "Не переключать слова с цифрами", 8)
+    PlaceCheck(AutoCapsCheck, AutoPage, "Не переключать слова из заглавных букв (аббревиатуры)", 32)
+    PlaceCheck(AutoSingleCheck, AutoPage, "Переключать слова из одной буквы", 56)
+    PlaceCheck(AutoRememberCheck, AutoPage, "Слово, переключение которого отменили Break, - в user_dict.dic", 80)
+    SpellFolderLabel.Parent = AutoPage
+    SpellFolderLabel.Left = 8 : SpellFolderLabel.Top = 114
+    SpellFolderLabel.Caption = "Папка с hunspell\ и dict\ (пусто - рядом с программой или выше):"
+    SpellFolderEdit.Parent = AutoPage
+    SpellFolderEdit.Left = 8 : SpellFolderEdit.Top = 134 : SpellFolderEdit.Width = 300
+    PlaceButton(SpellBrowseButton, AutoPage, "Обзор...", 316, 132, 96)
+    PlaceButton(SpellReloadButton, AutoPage, "Перечитать словари", 8, 166, 140)
+    PlaceButton(UserDictButton, AutoPage, "Слова пользователя", 156, 166, 140)
+    SpellBrowseButton.OnClick = @OnSpellBrowseClick
+    SpellReloadButton.OnClick = @OnSpellReloadClick
+    UserDictButton.OnClick = @OnUserDictClick
+    SpellStatusLabel.Parent = AutoPage
+    SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 202
+    SpellStatusLabel.Width = 404 : SpellStatusLabel.Height = 48
+    SpellStatusLabel.WordWrap = 1
+    AutoNote.Parent = AutoPage
+    AutoNote.Left = 8 : AutoNote.Top = 260
+    AutoNote.Width = 404 : AutoNote.Height = 76
+    AutoNote.WordWrap = 1
+    AutoNote.Caption = "Слово проверяется после пробела: если в текущей раскладке его нет в словаре, " _
+        & "а в другой есть, оно перепечатывается и раскладка меняется. Break сразу после этого " _
+        & "возвращает слово. Библиотека и словари - из LangBarXX (папки hunspell и dict)."
 
     ' кнопки окна
     PlaceButton(OkButton, SettingsForm, "OK", 356, 360, 75)

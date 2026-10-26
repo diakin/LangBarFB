@@ -17,7 +17,9 @@
 '    Ctrl/Alt/Win + цифра, режимы Caps Lock, Num Lock при запуске;
 '  - горячие клавиши (хук WH_KEYBOARD_LL глотает их нажатия): Break -
 '    последнее слово в другой раскладке, Shift+Break - выделенный текст в
-'    другой раскладке, Alt+Break - регистр, Alt+Scroll Lock - транслит.
+'    другой раскладке, Alt+Break - регистр, Alt+Scroll Lock - транслит;
+'  - автопереключение (этап 5): слово перед пробелом проверяется по
+'    словарям Hunspell LangBarXX и при ошибке раскладки перепечатывается.
 '
 '  Сборка: build.bat или unIDE (см. README.md).
 ' ---------------------------------------------------------------------------
@@ -32,6 +34,7 @@
 #include once "core/hotkeys.bi"
 #include once "core/actions.bi"
 #include once "core/switchkeys.bi"
+#include once "core/autoswitch.bi"
 #include once "ui/gfx.bi"
 #include once "ui/tray.bi"
 #include once "ui/overlay.bi"
@@ -65,6 +68,7 @@ Dim Shared MainForm As QFORM
 Dim Shared LayoutLabel As QLABEL
 Dim Shared HookLabel As QLABEL
 Dim Shared FlagsLabel As QLABEL
+Dim Shared SpellLabel As QLABEL
 Dim Shared EventList As QLISTBOX
 Dim Shared ClearButton As QBUTTON
 Dim Shared PollTimer As QTIMER
@@ -85,6 +89,8 @@ Dim Shared ShownLayout As UInteger
 Dim Shared ShownLayoutWindow As Any Ptr
 Dim Shared FlagsFolder As String
 Dim Shared FlagImages(0 To MAX_LAYOUTS - 1) As Any Ptr
+' папка словарей из настроек, с которой они загружены
+Dim Shared SpellLoadedFolder As String
 
 Function HexByte(ByVal Value As ULong) As String
     Return Right("0" & Hex(Value), 2)
@@ -121,6 +127,14 @@ Sub LoadFlags()
     Else
         FlagsLabel.Caption = "Флажки: " & FlagsFolder & " - найдено " & FoundCount & " из " & LayoutCount
     End If
+End Sub
+
+' Словари Hunspell - по одному на раскладку списка, поэтому загружаются
+' после него (при запуске, при новой раскладке, при смене папки)
+Sub LoadSpell()
+    SpellLoad(Settings.SpellFolder)
+    SpellLoadedFolder = Settings.SpellFolder
+    SpellLabel.Caption = "Hunspell: " & SpellStatus
 End Sub
 
 Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
@@ -229,6 +243,7 @@ Sub ShowLayoutInTray(ByVal LayoutHandle As UInteger, ByVal WindowHandle As Any P
     If LayoutIdx < 0 Then
         ' раскладку добавили в Windows после запуска
         LoadFlags()
+        LoadSpell()
         LayoutIdx = LayoutIndexOf(LayoutHandle)
         If LayoutIdx < 0 Then Exit Sub
     End If
@@ -275,11 +290,17 @@ Sub OnKeyEvents()
         End If
     Wend
     LastEventTick = Timer
-    If AddedCount = 0 Then Exit Sub
-    While EventList.ItemCount > MAX_LOG_LINES
-        EventList.DelItems(0)
-    Wend
-    EventList.ItemIndex = EventList.ItemCount - 1
+    If AddedCount > 0 Then
+        While EventList.ItemCount > MAX_LOG_LINES
+            EventList.DelItems(0)
+        Wend
+        EventList.ItemIndex = EventList.ItemCount - 1
+    End If
+    ' слово закончено пробелом - автопереключение
+    If WordSpaceFed Then
+        WordSpaceFed = 0
+        AutoSwitchWord()
+    End If
 End Sub
 
 ' Окно, где менять раскладку: активное, а если активно наше окно или
@@ -435,6 +456,8 @@ Sub ApplySettings()
     SwitchLoadTable()
     SwitchFixLockKeys()
     If Settings.CaretFlag = 0 Then OverlayHide(CaretFlag)
+    If Settings.SpellFolder <> SpellLoadedFolder Then LoadSpell()
+    SpellLabel.Caption = "Hunspell: " & SpellStatus
 End Sub
 
 ' --- меню значка (правый щелчок) ---
@@ -476,9 +499,13 @@ Sub OnTrayCommand(ByVal CommandId As Long)
     Case CMD_SETTINGS
         SettingsShow()
     Case CMD_AUTOSWITCH
-        ' само автопереключение - этап 5; пока галка только запоминается
         Settings.AutoSwitch Xor= 1
         ConfigSave()
+        If Settings.AutoSwitch And SpellDictCount = 0 Then
+            LbMessageBox(0, "Автопереключение не будет работать: " & SpellStatus & "." & Chr(13, 10) _
+                & "Нужны папки hunspell и dict из LangBarXX (Настройки - Автопереключение).", _
+                APP_TITLE, LB_MB_ICONINFORMATION)
+        End If
     Case CMD_SOUNDS
         Settings.SoundsOn Xor= 1
         ConfigSave()
@@ -522,6 +549,10 @@ FlagsLabel.Parent = MainForm
 FlagsLabel.Left = 8 : FlagsLabel.Top = 52
 FlagsLabel.Caption = "..."
 
+SpellLabel.Parent = MainForm
+SpellLabel.Left = 116 : SpellLabel.Top = 80
+SpellLabel.Caption = "Hunspell: ..."
+
 ClearButton.Parent = MainForm
 ClearButton.Left = 8 : ClearButton.Top = 76 : ClearButton.Width = 100
 ClearButton.Caption = "Очистить"
@@ -545,6 +576,7 @@ If GfxStart() = 0 Then
     LbMessageBox(0, "Не удалось запустить GDI+: флажков не будет.", APP_TITLE, 0)
 End If
 LoadFlags()
+LoadSpell()
 
 TrayBuildMenu = @BuildTrayMenu
 TrayOnCommand = @OnTrayCommand

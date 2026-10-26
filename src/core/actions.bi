@@ -20,6 +20,7 @@
 #include once "hotkeys.bi"
 #include once "sendkeys.bi"
 #include once "convert.bi"
+#include once "spell.bi"
 
 ' выделение не выделяется заново, если оно длиннее (Shift+Left по одному
 ' символу на длинном тексте идёт заметно долго)
@@ -182,13 +183,17 @@ End Sub
 
 ' Break: последнее слово - в следующей раскладке. Повторное нажатие сразу
 ' после этого - то же слово в следующей раскладке по кругу. Целое
-' предложение исправляют выделением и Shift+Break.
+' предложение исправляют выделением и Shift+Break. Сразу после
+' автопереключения Break возвращает слово в прежнюю раскладку и
+' запоминает его, чтобы больше не переключать.
 Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     If LayoutCount < 2 Then Exit Sub
     Dim RangeStart As Long, SourceIdx As Long
+    Dim UndoAutoSwitch As Long
     If WordCycleActive And TargetWindow = WordWindow Then
         RangeStart = WordCycleStart
         SourceIdx = WordCycleLayoutIdx
+        UndoAutoSwitch = IIf(WordCycleUndoIdx >= 0 And WordCycleUndoIdx < LayoutCount, 1, 0)
     Else
         WordCycleActive = 0
         If WordKeyCount > 0 And TargetWindow = WordWindow Then RangeStart = WordStartBefore(WordKeyCount) Else RangeStart = -1
@@ -203,6 +208,8 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
         WordCycleShownChars = WordKeyCount - RangeStart
     End If
     Dim TargetIdx As Long = (SourceIdx + 1) Mod LayoutCount
+    If UndoAutoSwitch Then TargetIdx = WordCycleUndoIdx
+    WordCycleUndoIdx = -1
     Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
 
     Dim NewChars(0 To WordKeyCount - RangeStart - 1) As UShort
@@ -226,6 +233,14 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     WordCycleStart = RangeStart
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = NewCount
+    If UndoAutoSwitch Then
+        Dim CoreStart As Long, CoreLength As Long
+        If SpellCoreRange(NewChars(), NewCount, CoreStart, CoreLength) > 0 Then
+            SpellRemember(TargetIdx, NewChars(), CoreStart, CoreLength, Settings.AutoRemember)
+            LogAction("автопереключение отменено, слово «" & SpellAnsiOf(NewChars(), CoreStart, CoreLength) _
+                & "» больше не переключается" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
+        End If
+    End If
     PlayEventSound(SOUND_UNDO_AUTOSWITCH)
 End Sub
 

@@ -168,6 +168,8 @@ Type TypedKey
     VirtualKey As ULong
     WithShift As Long
     CapsOn As Long
+    LayoutHandle As UInteger   ' раскладка окна в момент нажатия
+    AfterBackspace As Long     ' нажата сразу после Backspace (слово правили)
 End Type
 
 Dim Shared WordKeys(0 To WORD_BUFFER_SIZE - 1) As TypedKey
@@ -181,11 +183,20 @@ Dim Shared WordCycleShownChars As Long
 ' с какой клавиши буфера начинается перенабранный кусок (одно слово или
 ' несколько - при удержании Break)
 Dim Shared WordCycleStart As Long
+' после автопереключения: в какую раскладку Break возвращает слово (-1 -
+' обычный круг)
+Dim Shared WordCycleUndoIdx As Long = -1
+' в буфер попал пробел - главная программа проверяет слово перед ним
+Dim Shared WordSpaceFed As Long
+' был Backspace - следующая клавиша помечается AfterBackspace
+Dim Shared WordBackspaced As Long
 
 Sub WordBufferReset()
     WordKeyCount = 0
     WordWindow = 0
     WordCycleActive = 0
+    WordSpaceFed = 0
+    WordBackspaced = 0
 End Sub
 
 ' Нажатие из хука. Проглоченные и программные нажатия не считаются.
@@ -206,6 +217,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     If VirtualKey = LB_VK_BACK Then
         If WordKeyCount > 0 Then WordKeyCount -= 1
         WordCycleActive = 0
+        WordBackspaced = 1
         Exit Sub
     End If
     ' символ клавиши в раскладке окна: нет символа (стрелки, F1) или
@@ -228,10 +240,14 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
         .VirtualKey = VirtualKey
         .WithShift = IIf((KeyEvent.Modifiers And KB_MOD_SHIFT) <> 0, 1, 0)
         .CapsOn = KeyEvent.CapsOn
+        .LayoutHandle = Cast(UInteger, LayoutHandle)
+        .AfterBackspace = WordBackspaced
     End With
     WordKeyCount += 1
     WordWindow = ForegroundWindow
     WordCycleActive = 0
+    WordBackspaced = 0
+    If VirtualKey = LB_VK_SPACE Then WordSpaceFed = 1
 End Sub
 
 ' Где начинается последнее слово буфера: пробелы в конце остаются за

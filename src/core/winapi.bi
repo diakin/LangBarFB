@@ -387,3 +387,17 @@ Const LB_LOCALE_SLANGUAGE = &h2
 Const LB_VK_NUMLOCK = &h90
 Const LB_VK_LCONTROL = &hA2
 Const LB_VK_LMENU = &hA4
+
+' --- словари Hunspell (spell.bi) ---
+Const LB_CP_ACP = 0
+Const LB_CP_UTF8 = 65001
+Declare Function LbLoadLibrary Lib "kernel32" Alias "LoadLibraryA" ( _
+    ByVal FileName As ZString Ptr) As Any Ptr
+Declare Function LbGetProcAddress Lib "kernel32" Alias "GetProcAddress" ( _
+    ByVal ModuleHandle As Any Ptr, ByVal ProcName As ZString Ptr) As Any Ptr
+Declare Function LbWideCharToMultiByte Lib "kernel32" Alias "WideCharToMultiByte" ( _
+    ByVal CodePage As ULong, ByVal Flags As ULong, ByVal SourceText As WString Ptr, _
+    ByVal SourceLen As Long, ByVal TargetText As ZString Ptr, ByVal TargetLen As Long, _
+    ByVal DefaultChar As ZString Ptr, ByVal UsedDefault As Long Ptr) As Long
+Declare Function LbIsCharUpper Lib "user32" Alias "IsCharUpperW" (ByVal Character As UShort) As Long
+Declare Function LbIsCharAlphaNumeric Lib "user32" Alias "IsCharAlphaNumericW" (ByVal Character As UShort) As Long
