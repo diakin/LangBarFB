@@ -1,7 +1,9 @@
 ' ---------------------------------------------------------------------------
 '  config.bi - настройки LangBarFB в langbarfb.ini рядом с exe.
 '
-'  [General]  AutoStart, AutoSwitch, CaretFlag, Sounds (0/1)
+'  [General]  AutoStart, AutoSwitch, CaretFlag, Sounds (0/1); MouseFlag -
+'             флажок у указателя мыши (MOUSE_FLAG_...); Language - язык
+'             интерфейса: ru, en (нет - по языку Windows)
 '  [Hotkeys]  Action1..Action4 - сочетание словами: "Shift + Break",
 '             пусто - не назначено
 '  [Sounds]   On1..On4 (0/1), File1..File4, Beep (1 - сигнал динамика
@@ -28,6 +30,7 @@
 #pragma once
 
 #include once "winapi.bi"
+#include once "lang.bi"
 
 Const HOTKEY_ACTION_COUNT = 4
 ' номера действий горячих клавиш (с 0)
@@ -54,6 +57,12 @@ Const CAPS_SWITCH = 2       ' следующая раскладка
 Const CAPS_UNDO_WORD = 3    ' последнее слово в другой раскладке (как Break)
 Const CAPS_INVERT_CASE = 4  ' регистр выделенного текста (как Alt + Break)
 
+' флажок у указателя мыши
+Const MOUSE_FLAG_OFF = 0        ' нет
+Const MOUSE_FLAG_ALWAYS = 1     ' всегда
+Const MOUSE_FLAG_ON_CHANGE = 2  ' несколько секунд после смены раскладки
+Const MOUSE_FLAG_SHOW_MS = 3000 ' сколько секунд - как Cursor_Show LangBarXX
+
 Type AppSettings
     AutoStart As Long
     AutoSwitch As Long
@@ -78,6 +87,8 @@ Type AppSettings
     AutoRemember As Long
     DictAsked As Long
     AutoEarly As Long
+    MouseFlag As Long
+    Language As String
 End Type
 
 Dim Shared Settings As AppSettings
@@ -157,6 +168,18 @@ Sub ConfigLoad()
         .AutoRemember = IniReadFlag("AutoSwitch", "Remember", 1)
         .DictAsked = IniReadFlag("AutoSwitch", "DictAsked", 0)
         .AutoEarly = IniReadFlag("AutoSwitch", "Early", 1)
+        .MouseFlag = ValInt(IniRead("General", "MouseFlag", Str(MOUSE_FLAG_ON_CHANGE)))
+        If .MouseFlag < MOUSE_FLAG_OFF Or .MouseFlag > MOUSE_FLAG_ON_CHANGE Then .MouseFlag = MOUSE_FLAG_ON_CHANGE
+        .Language = LCase(IniRead("General", "Language", ""))
+        If .Language <> "ru" And .Language <> "en" Then
+            ' русский, украинский, белорусский Windows - русский интерфейс
+            Select Case LbGetUserDefaultUILanguage() And &h3FF
+            Case &h19, &h22, &h23
+                .Language = "ru"
+            Case Else
+                .Language = "en"
+            End Select
+        End If
     End With
 End Sub
 
@@ -192,6 +215,8 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "Remember", Str(.AutoRemember))
         IniWrite("AutoSwitch", "DictAsked", Str(.DictAsked))
         IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
+        IniWrite("General", "MouseFlag", Str(.MouseFlag))
+        IniWrite("General", "Language", .Language)
     End With
 End Sub
 
@@ -230,3 +255,29 @@ Sub PlayEventSound(ByVal EventIdx As Long)
     If FullPath = "" Then Exit Sub
     LbPlaySound(StrPtr(FullPath), 0, LB_SND_FILENAME Or LB_SND_ASYNC Or LB_SND_NODEFAULT)
 End Sub
+
+' Сброс к значениям по умолчанию. Прежний langbarfb.ini копируется в
+' backup\langbarfb_ГГГГ.ММ.ДД_ЧЧ.ММ.СС.ini рядом с exe (как бэкап LangBarXX,
+' только без zip). Язык интерфейса и «словари уже предлагали» остаются.
+' Возвращает имя копии ("" - ini не было или копия не записалась).
+Function ConfigReset() As String
+    Dim FileName As String = ConfigFileName()
+    Dim BackupName As String
+    If FileExists(FileName) Then
+        Dim BackupFolder As String = ExePath & "\backup"
+        LbCreateDirectory(StrPtr(BackupFolder), 0)
+        ' Date - мм-дд-гггг, Time - чч:мм:сс
+        Dim DateText As String = Date, TimeText As String = Time
+        BackupName = BackupFolder & "\langbarfb_" & Mid(DateText, 7, 4) & "." & Left(DateText, 2) & "." _
+            & Mid(DateText, 4, 2) & "_" & Left(TimeText, 2) & "." & Mid(TimeText, 4, 2) & "." & Right(TimeText, 2) & ".ini"
+        If LbCopyFile(StrPtr(FileName), StrPtr(BackupName), 0) = 0 Then BackupName = ""
+        LbDeleteFile(StrPtr(FileName))
+    End If
+    Dim KeepLanguage As String = Settings.Language
+    Dim KeepDictAsked As Long = Settings.DictAsked
+    ConfigLoad()
+    Settings.Language = KeepLanguage
+    Settings.DictAsked = KeepDictAsked
+    ConfigSave()
+    Return BackupName
+End Function

@@ -328,13 +328,13 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
         End If
     Next
     If SpellBaseFolder = "" Then
-        SpellStatus = "не найдена hunspell\" & SPELL_DLL_NAME
+        SpellStatus = Tr("не найдена hunspell\") & SPELL_DLL_NAME
         Return 0
     End If
     If SpellLibrary = 0 Then
         SpellLibrary = LbLoadLibrary(SpellBaseFolder & "\hunspell\" & SPELL_DLL_NAME)
         If SpellLibrary = 0 Then
-            SpellStatus = "не загрузилась " & SPELL_DLL_NAME & " (ошибка " & LbGetLastError() & ")"
+            SpellStatus = Tr("не загрузилась ") & SPELL_DLL_NAME & Tr(" (ошибка ") & LbGetLastError() & ")"
             Return 0
         End If
         HunspellInit = LbGetProcAddress(SpellLibrary, "HunspellInit")
@@ -344,7 +344,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
         HunspellAdd = LbGetProcAddress(SpellLibrary, "HunspellAdd")
         HunspellFree = LbGetProcAddress(SpellLibrary, "HunspellFree")
         If HunspellInit = 0 Or HunspellSpell = 0 Or HunspellAdd = 0 Or HunspellFree = 0 Then
-            SpellStatus = "в " & SPELL_DLL_NAME & " нет функций Hunspell"
+            SpellStatus = Tr("в ") & SPELL_DLL_NAME & Tr(" нет функций Hunspell")
             SpellLibrary = 0
             Return 0
         End If
@@ -364,11 +364,11 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     Dim UserWords As Long
     If SpellDictCount > 0 Then UserWords = SpellAddWordsFromFile(SpellUserDictName(), -1)
     If Loaded = "" Then
-        SpellStatus = "словарей нет в " & SpellBaseFolder & "\dict"
+        SpellStatus = Tr("словарей нет в ") & SpellBaseFolder & "\dict"
     Else
-        SpellStatus = "словари: " & Loaded
-        If Missing <> "" Then SpellStatus &= "; нет словаря: " & Missing
-        If UserWords > 0 Then SpellStatus &= "; слов пользователя: " & UserWords
+        SpellStatus = Tr("словари: ") & Loaded
+        If Missing <> "" Then SpellStatus &= Tr("; нет словаря: ") & Missing
+        If UserWords > 0 Then SpellStatus &= Tr("; слов пользователя: ") & UserWords
     End If
     Return SpellDictCount
 End Function

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LangBarFB - help</title>
+<style>
+body { font-family: Segoe UI, Arial, sans-serif; font-size: 15px; max-width: 820px; margin: 24px auto; padding: 0 16px; color: #222; line-height: 1.5; }
+h1 { font-size: 24px; } h2 { font-size: 19px; margin-top: 28px; border-bottom: 1px solid #ddd; }
+table { border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 4px 8px; text-align: left; vertical-align: top; }
+code { background: #f2f2f2; padding: 0 3px; }
+</style>
+</head>
+<body>
+<h1>LangBarFB</h1>
+<p>A keyboard layout switcher: it shows the current layout, fixes text typed in the wrong layout and can switch the layout by itself. A FreeBASIC port of LangBarXX (AutoHotkey, by Krot66).</p>
+
+<h2>Icon and flags</h2>
+<ul>
+<li>The notification area icon shows the flag of the layout of the window you work in. Left click - next layout, right click - menu.</li>
+<li>A flag at the text cursor (if enabled in settings). Click it for the next layout; right click works like Break.</li>
+<li>A flag at the mouse pointer: hidden, always shown, or shown for 3 seconds after a layout change (settings, "General").</li>
+<li>When the layout changes, a large flag briefly appears in the middle of the screen.</li>
+<li>Flag pictures are taken from the <code>flags</code> folder (<code>ru-RU.png</code>, <code>en-US.png</code> ...). Without a picture a colored rectangle with the country code is drawn.</li>
+</ul>
+
+<h2>Hotkeys</h2>
+<table>
+<tr><th>Action</th><th>Default</th></tr>
+<tr><td>Retype the last typed word in another layout; press again for the next layout. Without a typed word - the selected text</td><td>Break</td></tr>
+<tr><td>Change layout of selected text</td><td>Shift + Break</td></tr>
+<tr><td>Change case of selected text</td><td>Alt + Break</td></tr>
+<tr><td>Transliterate selected text</td><td>Alt + Scroll Lock</td></tr>
+</table>
+<p>Hotkeys are changed in settings, "Hotkeys". There you can also make left Shift + Backspace and Ctrl + Caps Lock fix the last word.</p>
+
+<h2>Layout switching</h2>
+<ul>
+<li>A single press of left or right Shift or Ctrl - next, previous or a chosen layout. Double press can be required instead.</li>
+<li>Left Ctrl, Alt or Win + digit 1-9 - the layout with that number.</li>
+<li>Caps Lock: normal, disabled, next layout, last word in another layout, case of selected text.</li>
+</ul>
+
+<h2>Auto switching</h2>
+<p>Needs the Hunspell library and dictionaries (the <code>hunspell</code> and <code>dict</code> folders). If they are missing, the program offers to download them at first start; the "Download dictionaries" menu item does the same.</p>
+<ul>
+<li>The start of a word is checked at the third letter, the whole word after a space. If the word is not in the current layout but is in another one, it is retyped and the layout changes.</li>
+<li>Break right after an auto switch restores the word. That word is not switched again and, if enabled, is saved to <code>user_dict.dic</code>.</li>
+<li>Words with digits, in capitals, or of one letter are not switched (configurable).</li>
+</ul>
+
+<h2>Settings</h2>
+<ul>
+<li>Stored in <code>langbarfb.ini</code> next to the program.</li>
+<li>"Reset settings..." (icon menu or a button on the "General" page) restores defaults. The previous file is copied to the <code>backup</code> folder with the date and time in its name.</li>
+<li>Interface language - Russian or English, changes after the program restarts.</li>
+<li>"Start with Windows" writes to <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code>.</li>
+</ul>
+
+<h2>Links</h2>
+<p><a href="https://github.com/diakin/LangBarFB">github.com/diakin/LangBarFB</a></p>
+</body>
+</html>

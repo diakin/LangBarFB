@@ -244,7 +244,7 @@ Function DictDownloadStart(ByRef TargetFolder As String, ByVal NotifyWindow As A
     For SoundIdx = 0 To 2
         DictAddJob("sounds\" & SoundNames(SoundIdx), DICT_SOUNDS_MIRROR & SoundNames(SoundIdx), 0, TargetFolder)
     Next
-    DictEndGroup("звуки", FirstSound)
+    DictEndGroup(Tr("звуки"), FirstSound)
     Dim LayoutIdx As Long, LangIdx As Long
     For LayoutIdx = 0 To LayoutCount - 1
         For LangIdx = 0 To DICT_LANG_COUNT - 1
@@ -295,11 +295,11 @@ Function DictDownloadResult(ByRef Failed As Long) As String
         Dim LineText As String = DictGroupNames(GroupIdx) & ": "
         Select Case DictGroupResult(GroupIdx)
         Case 1
-            LineText &= "скачано"
+            LineText &= Tr("скачано")
         Case 2
-            LineText &= "скачано из запасного источника (основной: ошибка 0x" & Hex(DictGroupError(GroupIdx)) & ")"
+            LineText &= Tr("скачано из запасного источника (основной: ошибка 0x") & Hex(DictGroupError(GroupIdx)) & ")"
         Case Else
-            LineText &= "НЕ скачано (ошибка 0x" & Hex(DictGroupError(GroupIdx)) & ")"
+            LineText &= Tr("НЕ скачано (ошибка 0x") & Hex(DictGroupError(GroupIdx)) & ")"
             Failed += 1
         End Select
         ResultText &= LineText & Chr(13, 10)

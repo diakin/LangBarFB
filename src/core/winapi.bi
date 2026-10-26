@@ -490,3 +490,22 @@ Declare Function LbGetWindowRect Lib "user32" Alias "GetWindowRect" ( _
 Const LB_GA_ROOT = 2
 Declare Function LbGetAncestor Lib "user32" Alias "GetAncestor" ( _
     ByVal WindowHandle As Any Ptr, ByVal Flags As ULong) As Any Ptr
+
+' --- этап 7: флажок у указателя мыши, сброс настроек, язык интерфейса ---
+
+Type LbCursorInfo
+    cbSize As ULong
+    flags As ULong
+    hCursor As Any Ptr
+    ptScreenPos As LbPoint
+End Type
+Const LB_CURSOR_SHOWING = 1
+Declare Function LbGetCursorInfo Lib "user32" Alias "GetCursorInfo" ( _
+    ByRef CursorInfo As LbCursorInfo) As Long
+
+Declare Function LbGetUserDefaultUILanguage Lib "kernel32" Alias "GetUserDefaultUILanguage" () As UShort
+
+Declare Function LbCreateDirectory Lib "kernel32" Alias "CreateDirectoryA" ( _
+    ByVal PathName As ZString Ptr, ByVal Security As Any Ptr) As Long
+Declare Function LbCopyFile Lib "kernel32" Alias "CopyFileA" ( _
+    ByVal ExistingName As ZString Ptr, ByVal NewName As ZString Ptr, ByVal FailIfExists As Long) As Long
