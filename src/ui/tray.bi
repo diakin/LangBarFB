@@ -25,6 +25,9 @@ Type TrayCommandFn As Sub(ByVal CommandId As Long)
 Dim Shared TrayWindow As Any Ptr
 Dim Shared TrayIconData As LbNotifyIconDataA
 Dim Shared TrayOnClick As TrayHandlerFn
+' WM_CLOSE служебному окну - просьба завершить программу (так её
+' останавливают среды разработки и taskkill без /F)
+Dim Shared TrayOnClose As TrayHandlerFn
 Dim Shared TrayIconHandle As Any Ptr
 Dim Shared TrayBuildMenu As TrayMenuBuilderFn
 Dim Shared TrayOnCommand As TrayCommandFn
@@ -56,6 +59,10 @@ Private Function TrayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Msg A
         Case LB_WM_LBUTTONUP
             If TrayOnClick <> 0 Then TrayOnClick()
         End Select
+        Return 0
+    End If
+    If Msg = LB_WM_CLOSE Then
+        If TrayOnClose <> 0 Then TrayOnClose()
         Return 0
     End If
     If Msg > TRAY_CALLBACK_MSG And Msg < LB_WM_APP + &h100 Then

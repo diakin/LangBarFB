@@ -644,6 +644,7 @@ LoadSpell()
 TrayBuildMenu = @BuildTrayMenu
 TrayOnCommand = @OnTrayCommand
 TrayOnClick = @OnTrayClick
+TrayOnClose = @OnTrayExit
 TrayOnAppMessage = @OnAppMessage
 If TrayCreate(APP_TITLE) = 0 Then
     LbMessageBox(0, "Не удалось создать значок в области уведомлений.", APP_TITLE, 0)

@@ -56,6 +56,10 @@ Private Function OverlayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Ms
             If Overlay->OnRightClick <> 0 Then Overlay->OnRightClick()
         End If
         Return 0
+    Case LB_WM_CLOSE
+        ' окно закрывает программа сама (OverlayDestroy); WM_CLOSE снаружи
+        ' (останов из среды разработки) приходит и в служебное окно
+        Return 0
     End Select
     Return LbDefWindowProc(WindowHandle, Msg, WParam, LParam)
 End Function

@@ -14,6 +14,7 @@ Const LB_HC_ACTION = 0
 
 Const LB_WM_NULL = &h0000
 Const LB_WM_DESTROY = &h0002
+Const LB_WM_CLOSE = &h0010
 Const LB_WM_COMMAND = &h0111
 Const LB_WM_KEYDOWN = &h0100
 Const LB_WM_KEYUP = &h0101

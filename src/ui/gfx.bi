@@ -187,17 +187,16 @@ Function GfxNewCanvas(ByVal CanvasWidth As Long, ByVal CanvasHeight As Long) As 
     Return Canvas
 End Function
 
-' Квадратный значок IconSize x IconSize: флажок по ширине значка, по центру
-' по высоте. Освобождать LbDestroyIcon.
+' Квадратный значок IconSize x IconSize: флажок растянут на весь значок.
+' Освобождать LbDestroyIcon.
 Function GfxMakeFlagIcon(ByVal FlagImage As Any Ptr, ByRef Label As String, _
         ByVal FlagColor As ULong, ByVal IconSize As Long) As Any Ptr
     Dim Canvas As Any Ptr = GfxNewCanvas(IconSize, IconSize)
     If Canvas = 0 Then Return 0
     Dim Graphics As Any Ptr, IconHandle As Any Ptr
     GdipGetImageGraphicsContext(Canvas, Graphics)
-    Dim FlagHeight As Long = GfxFlagHeight(FlagImage, IconSize)
-    If FlagHeight > IconSize Then FlagHeight = IconSize
-    GfxDrawFlag(Graphics, FlagImage, Label, FlagColor, 0, (IconSize - FlagHeight) \ 2, IconSize, FlagHeight)
+    ' флажок растягивается на весь квадрат значка: так он крупнее в трее
+    GfxDrawFlag(Graphics, FlagImage, Label, FlagColor, 0, 0, IconSize, IconSize)
     GdipDeleteGraphics(Graphics)
     If GdipCreateHICONFromBitmap(Canvas, IconHandle) <> 0 Then IconHandle = 0
     GdipDisposeImage(Canvas)
