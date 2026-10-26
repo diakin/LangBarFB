@@ -1,7 +1,7 @@
 ' ---------------------------------------------------------------------------
 '  LangBarFB - переключатель раскладки на FreeBASIC (перенос LangBarXX).
 '
-'  Сейчас (этап 1):
+'  Сейчас (этап 1 и часть этапа 4):
 '  - одна копия программы (мьютекс);
 '  - значок в области уведомлений - флажок раскладки активного окна:
 '    flags\<код>.png (ru-RU.png, en-US.png - как у LangBarXX), а если
@@ -10,8 +10,12 @@
 '    флажок посреди экрана на 0,7 с при смене раскладки;
 '  - щелчок по значку или флажку у каретки - следующая раскладка в окне,
 '    где работали;
-'  - меню значка: «Окно отладки» (нажатия, хук, раскладка), «Выход»;
-'  - хук WH_KEYBOARD_LL: нажатия только наблюдаются, не меняются.
+'  - меню значка (правый щелчок): настройки, автопереключение, звуки,
+'    о программе, помощь, выход; с нажатым Shift - ещё «Окно отладки»;
+'  - окно настроек: общие, горячие клавиши, звуки (langbarfb.ini);
+'  - горячие клавиши (хук WH_KEYBOARD_LL глотает их нажатия): Break -
+'    последнее слово в другой раскладке, Shift+Break - выделенный текст в
+'    другой раскладке, Alt+Break - регистр, Alt+Scroll Lock - транслит.
 '
 '  Сборка: build.bat или unIDE (см. README.md).
 ' ---------------------------------------------------------------------------
@@ -22,13 +26,21 @@
 #include once "core/kbhook.bi"
 #include once "core/layouts.bi"
 #include once "core/caret.bi"
+#include once "core/config.bi"
+#include once "core/hotkeys.bi"
+#include once "core/actions.bi"
 #include once "ui/gfx.bi"
 #include once "ui/tray.bi"
 #include once "ui/overlay.bi"
+#include once "ui/dlg_settings.bi"
 
 Const APP_TITLE = "LangBarFB"
 Const MUTEX_NAME = "LangBarFB_SingleInstance"
+' сообщения служебному окну (tray.bi передаёт их в OnAppMessage)
 Const KEY_EVENT_MSG = LB_WM_APP + 2
+Const HOTKEY_ACTION_MSG = LB_WM_APP + 3
+Const HOTKEY_CAPTURE_MSG = LB_WM_APP + 4
+Const MOUSE_CLICK_MSG = LB_WM_APP + 5
 Const MAX_LOG_LINES = 300
 Const LB_INFINITE = &hFFFFFFFF
 ' флажок у каретки: ширина и место. CARET_FLAG_BELOW = 1 - под кареткой
@@ -109,6 +121,8 @@ Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
     If WindowHandle = TrayWindow Then Return 1
     If WindowHandle = CaretFlag.WindowHandle Or WindowHandle = NoteFlag.WindowHandle Then Return 1
     If WindowHandle = Cast(Any Ptr, MainForm.Handle) Then Return 1
+    If WindowHandle = Cast(Any Ptr, SettingsForm.Handle) Then Return 1
+    If WindowHandle = Cast(Any Ptr, CaptureForm.Handle) Then Return 1
     Dim ClassBuffer As ZString * 64
     LbGetClassName(WindowHandle, @ClassBuffer, 64)
     Select Case ClassBuffer
@@ -147,7 +161,7 @@ End Sub
 Sub OnCaretTimer()
     Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
     Dim CaretPos As LbPoint, CaretHeight As Long
-    If IsOwnOrShellWindow(ForegroundWindow) Or _
+    If Settings.CaretFlag = 0 Or IsOwnOrShellWindow(ForegroundWindow) Or _
             CaretOfWindow(ForegroundWindow, CaretPos, CaretHeight) = 0 Then
         If OverlayVisible(CaretFlag) Then OverlayHide(CaretFlag)
         Exit Sub
@@ -218,15 +232,16 @@ Function DescribeEvent(ByRef KeyEvent As KbEvent) As String
     If (KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0 Then LineText &= "  ext"
     If (KeyEvent.KeyFlags And LB_LLKHF_ALTDOWN) <> 0 Then LineText &= "  alt"
     If KeyEvent.IsInjected Then LineText &= "  программная"
+    If KeyEvent.IsSwallowed Then LineText &= "  проглочена (сочетание)"
     Return LineText
 End Function
 
 ' Сигнал хука: разбираем всё, что накопилось в буфере
-Sub OnAppMessage(ByVal Msg As ULong)
-    If Msg <> KEY_EVENT_MSG Then Exit Sub
+Sub OnKeyEvents()
     Dim KeyEvent As KbEvent
     Dim AddedCount As Long
     While KbHookTakeEvent(KeyEvent)
+        WordBufferFeed(KeyEvent)
         ' список ведётся, только пока окно отладки открыто
         If MainForm.Visible Then
             EventList.AddItems(DescribeEvent(KeyEvent))
@@ -239,6 +254,22 @@ Sub OnAppMessage(ByVal Msg As ULong)
         EventList.DelItems(0)
     Wend
     EventList.ItemIndex = EventList.ItemCount - 1
+End Sub
+
+Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
+    Select Case Msg
+    Case KEY_EVENT_MSG
+        OnKeyEvents()
+    Case HOTKEY_ACTION_MSG
+        ' нажатия, пришедшие до сочетания, должны попасть в буфер слова
+        OnKeyEvents()
+        RunHotkeyAction(CLng(WParam))
+    Case HOTKEY_CAPTURE_MSG
+        SettingsCaptureDone()
+    Case MOUSE_CLICK_MSG
+        ' каретка могла уйти - набранное слово больше не перед ней
+        WordBufferReset()
+    End Select
 End Sub
 
 Sub OnPollTimer()
@@ -286,22 +317,40 @@ Sub OnTrayExit()
     LbPostMessage(TrayWindow, LB_WM_NULL, 0, 0)
 End Sub
 
+' Настройки поменялись (окно настроек, меню значка)
+Sub ApplySettings()
+    ConfigApplyAutoStart(Settings.AutoStart)
+    HotkeysLoadTable()
+    If Settings.CaretFlag = 0 Then OverlayHide(CaretFlag)
+End Sub
+
 ' --- меню значка (правый щелчок) ---
 Const CMD_SETTINGS = 101
-Const CMD_DEBUG_WINDOW = 102
-Const CMD_ABOUT = 103
-Const CMD_EXIT = 104
+Const CMD_AUTOSWITCH = 102
+Const CMD_SOUNDS = 103
+Const CMD_ABOUT = 104
+Const CMD_HELP = 105
+Const CMD_EXIT = 106
+Const CMD_DEBUG_WINDOW = 107
+Const HELP_URL = "https://github.com/diakin/LangBarFB#readme"
+
+Private Function CheckedFlag(ByVal IsOn As Long) As ULong
+    Return IIf(IsOn, LB_MF_CHECKED, 0)
+End Function
 
 Function BuildTrayMenu() As Any Ptr
     Dim MainMenu As Any Ptr = LbCreatePopupMenu()
-    Dim ExtraMenu As Any Ptr = LbCreatePopupMenu()
-    LbAppendMenu(ExtraMenu, LB_MF_STRING, CMD_DEBUG_WINDOW, "Окно отладки")
-
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_SETTINGS, "Настройки...")
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING Or LB_MF_POPUP, Cast(UInteger, ExtraMenu), "Дополнительно")
+    LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.AutoSwitch), CMD_AUTOSWITCH, "Автопереключение")
+    LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.SoundsOn), CMD_SOUNDS, "Звуковые эффекты")
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, "О LangBarFB")
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_HELP, "Помощь")
+    ' окно отладки - только если меню открыли с нажатым Shift
+    If (LbGetAsyncKeyState(LB_VK_SHIFT) And &h8000) <> 0 Then
+        LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DEBUG_WINDOW, "Окно отладки")
+    End If
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_EXIT, "Выход")
     ' пункт по умолчанию Windows рисует жирным
@@ -312,14 +361,22 @@ End Function
 Sub OnTrayCommand(ByVal CommandId As Long)
     Select Case CommandId
     Case CMD_SETTINGS
-        ' окно настроек - этап 4 плана
-        LbMessageBox(0, "Окно настроек будет на этапе 4.", APP_TITLE, LB_MB_ICONINFORMATION)
-    Case CMD_DEBUG_WINDOW
-        OnTrayShow()
+        SettingsShow()
+    Case CMD_AUTOSWITCH
+        ' само автопереключение - этап 5; пока галка только запоминается
+        Settings.AutoSwitch Xor= 1
+        ConfigSave()
+    Case CMD_SOUNDS
+        Settings.SoundsOn Xor= 1
+        ConfigSave()
     Case CMD_ABOUT
         LbMessageBox(0, "LangBarFB - переключатель раскладки на FreeBASIC." & Chr(13, 10) _
             & "Перенос LangBarXX (AutoHotkey, автор Krot66)." & Chr(13, 10) _
             & "https://github.com/diakin/LangBarFB", APP_TITLE, LB_MB_ICONINFORMATION)
+    Case CMD_HELP
+        LbShellExecute(0, "open", HELP_URL, 0, 0, LB_SW_SHOWNORMAL)
+    Case CMD_DEBUG_WINDOW
+        OnTrayShow()
     Case CMD_EXIT
         OnTrayExit()
     End Select
@@ -362,6 +419,13 @@ EventList.Left = 8 : EventList.Top = 110
 EventList.Width = MainForm.ClientWidth - 16
 EventList.Height = MainForm.ClientHeight - 118
 
+' --- настройки ---
+ConfigLoad()
+' путь в автозапуске - к этому exe (программу могли перенести)
+If Settings.AutoStart Then ConfigApplyAutoStart(1)
+SettingsCreate()
+SettingsOnApply = @ApplySettings
+
 ' --- значок, флажки, хук ---
 If GfxStart() = 0 Then
     LbMessageBox(0, "Не удалось запустить GDI+: флажков не будет.", APP_TITLE, 0)
@@ -382,6 +446,8 @@ OnPollTimer()
 If KbHookInstall(TrayWindow, KEY_EVENT_MSG) = 0 Then
     LbMessageBox(0, "Не удалось поставить хук клавиатуры (ошибка " & LbGetLastError() & ").", APP_TITLE, 0)
 End If
+HotkeysStart(TrayWindow, HOTKEY_ACTION_MSG, HOTKEY_CAPTURE_MSG)
+KbMouseHookInstall(MOUSE_CLICK_MSG)
 
 PollTimer.Interval = 250
 PollTimer.OnTimer = @OnPollTimer
@@ -409,6 +475,7 @@ CaretTimer.Enabled = 0
 NoteTimer.Enabled = 0
 OverlayDestroy(CaretFlag)
 OverlayDestroy(NoteFlag)
+KbMouseHookRemove()
 KbHookRemove()
 TrayDestroy()
 Dim FlagIdx As Long

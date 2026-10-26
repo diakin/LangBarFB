@@ -253,3 +253,123 @@ Declare Function LbClientToScreen Lib "user32" Alias "ClientToScreen" ( _
     ByVal WindowHandle As Any Ptr, ByRef ClientPos As LbPoint) As Long
 Declare Function LbSetMenuDefaultItem Lib "user32" Alias "SetMenuDefaultItem" ( _
     ByVal MenuHandle As Any Ptr, ByVal ItemId As ULong, ByVal ByPosition As ULong) As Long
+
+' --- ввод, буфер обмена, настройки, звук ---
+Const LB_INPUT_KEYBOARD = 1
+Const LB_KEYEVENTF_KEYUP = &h0002
+Const LB_KEYEVENTF_UNICODE = &h0004
+Const LB_CF_UNICODETEXT = 13
+Const LB_GMEM_MOVEABLE = &h0002
+Const LB_HKEY_CURRENT_USER = &h80000001
+Const LB_KEY_SET_VALUE = &h0002
+Const LB_REG_SZ = 1
+Const LB_SND_ASYNC = &h0001
+Const LB_SND_NODEFAULT = &h0002
+Const LB_SND_FILENAME = &h00020000
+Const LB_SW_SHOWNORMAL = 1
+Const LB_MAPVK_VK_TO_VSC = 0
+Const LB_MAPVK_VK_TO_CHAR = 2
+Const LB_VK_SHIFT = &h10
+Const LB_VK_CONTROL = &h11
+Const LB_VK_MENU = &h12
+Const LB_VK_CAPITAL = &h14
+Const LB_VK_BACK = &h08
+Const LB_VK_RETURN = &h0D
+
+' INPUT для клавиатуры. Размер и смещения должны совпадать с INPUT Windows
+' (28 байт в win32, 40 в win64): union там по самому большому члену -
+' MOUSEINPUT, поэтому в конце запас, а в win64 union выровнен на 8
+Type LbKeybdInput
+    InputType As ULong
+#ifdef __FB_64BIT__
+    UnionAlign As ULong
+#endif
+    wVk As UShort
+    wScan As UShort
+    dwFlags As ULong
+    time As ULong
+    dwExtraInfo As UInteger
+    Padding As ULongInt
+End Type
+
+Declare Function LbSendInput Lib "user32" Alias "SendInput" ( _
+    ByVal InputCount As ULong, ByVal Inputs As LbKeybdInput Ptr, ByVal InputSize As Long) As ULong
+Declare Function LbGetAsyncKeyState Lib "user32" Alias "GetAsyncKeyState" (ByVal VirtualKey As Long) As Short
+Declare Function LbGetKeyState Lib "user32" Alias "GetKeyState" (ByVal VirtualKey As Long) As Short
+Declare Function LbMapVirtualKeyEx Lib "user32" Alias "MapVirtualKeyExW" ( _
+    ByVal Code As ULong, ByVal MapType As ULong, ByVal LayoutHandle As Any Ptr) As ULong
+Declare Function LbVkKeyScanEx Lib "user32" Alias "VkKeyScanExW" ( _
+    ByVal Character As UShort, ByVal LayoutHandle As Any Ptr) As Short
+Declare Function LbToUnicodeEx Lib "user32" Alias "ToUnicodeEx" ( _
+    ByVal VirtualKey As ULong, ByVal ScanCode As ULong, ByVal KeyState As UByte Ptr, _
+    ByVal Buffer As UShort Ptr, ByVal BufferLen As Long, ByVal Flags As ULong, _
+    ByVal LayoutHandle As Any Ptr) As Long
+Declare Function LbGetKeyNameText Lib "user32" Alias "GetKeyNameTextA" ( _
+    ByVal LParam As Long, ByVal Buffer As ZString Ptr, ByVal BufferLen As Long) As Long
+Declare Function LbIsCharAlpha Lib "user32" Alias "IsCharAlphaW" (ByVal Character As UShort) As Long
+Declare Function LbIsCharLower Lib "user32" Alias "IsCharLowerW" (ByVal Character As UShort) As Long
+Declare Function LbCharUpperBuff Lib "user32" Alias "CharUpperBuffW" ( _
+    ByVal Buffer As UShort Ptr, ByVal BufferLen As ULong) As ULong
+Declare Function LbCharLowerBuff Lib "user32" Alias "CharLowerBuffW" ( _
+    ByVal Buffer As UShort Ptr, ByVal BufferLen As ULong) As ULong
+
+Declare Function LbOpenClipboard Lib "user32" Alias "OpenClipboard" (ByVal OwnerWindow As Any Ptr) As Long
+Declare Function LbCloseClipboard Lib "user32" Alias "CloseClipboard" () As Long
+Declare Function LbEmptyClipboard Lib "user32" Alias "EmptyClipboard" () As Long
+Declare Function LbGetClipboardData Lib "user32" Alias "GetClipboardData" (ByVal Format As ULong) As Any Ptr
+Declare Function LbSetClipboardData Lib "user32" Alias "SetClipboardData" ( _
+    ByVal Format As ULong, ByVal MemHandle As Any Ptr) As Any Ptr
+Declare Function LbGetClipboardSequenceNumber Lib "user32" Alias "GetClipboardSequenceNumber" () As ULong
+Declare Function LbGlobalAlloc Lib "kernel32" Alias "GlobalAlloc" ( _
+    ByVal Flags As ULong, ByVal ByteCount As UInteger) As Any Ptr
+Declare Function LbGlobalLock Lib "kernel32" Alias "GlobalLock" (ByVal MemHandle As Any Ptr) As Any Ptr
+Declare Function LbGlobalUnlock Lib "kernel32" Alias "GlobalUnlock" (ByVal MemHandle As Any Ptr) As Long
+Declare Function LbGlobalFree Lib "kernel32" Alias "GlobalFree" (ByVal MemHandle As Any Ptr) As Any Ptr
+Declare Function LbGlobalSize Lib "kernel32" Alias "GlobalSize" (ByVal MemHandle As Any Ptr) As UInteger
+
+Declare Function LbGetPrivateProfileString Lib "kernel32" Alias "GetPrivateProfileStringA" ( _
+    ByVal Section As ZString Ptr, ByVal KeyName As ZString Ptr, ByVal DefaultValue As ZString Ptr, _
+    ByVal Buffer As ZString Ptr, ByVal BufferLen As ULong, ByVal FileName As ZString Ptr) As ULong
+Declare Function LbWritePrivateProfileString Lib "kernel32" Alias "WritePrivateProfileStringA" ( _
+    ByVal Section As ZString Ptr, ByVal KeyName As ZString Ptr, ByVal Value As ZString Ptr, _
+    ByVal FileName As ZString Ptr) As Long
+
+Declare Function LbRegOpenKeyEx Lib "advapi32" Alias "RegOpenKeyExA" ( _
+    ByVal RootKey As UInteger, ByVal SubKey As ZString Ptr, ByVal Options As ULong, _
+    ByVal Access As ULong, ByRef ResultKey As Any Ptr) As Long
+Declare Function LbRegSetValueEx Lib "advapi32" Alias "RegSetValueExA" ( _
+    ByVal KeyHandle As Any Ptr, ByVal ValueName As ZString Ptr, ByVal Reserved As ULong, _
+    ByVal ValueType As ULong, ByVal ValueData As Any Ptr, ByVal DataSize As ULong) As Long
+Declare Function LbRegDeleteValue Lib "advapi32" Alias "RegDeleteValueA" ( _
+    ByVal KeyHandle As Any Ptr, ByVal ValueName As ZString Ptr) As Long
+Declare Function LbRegCloseKey Lib "advapi32" Alias "RegCloseKey" (ByVal KeyHandle As Any Ptr) As Long
+
+Declare Function LbPlaySound Lib "winmm" Alias "PlaySoundA" ( _
+    ByVal SoundName As ZString Ptr, ByVal ModuleHandle As Any Ptr, ByVal Flags As ULong) As Long
+Declare Function LbMessageBeep Lib "user32" Alias "MessageBeep" (ByVal BeepType As ULong) As Long
+Declare Function LbShellExecute Lib "shell32" Alias "ShellExecuteA" ( _
+    ByVal WindowHandle As Any Ptr, ByVal Operation As ZString Ptr, ByVal FileName As ZString Ptr, _
+    ByVal Parameters As ZString Ptr, ByVal Directory As ZString Ptr, ByVal ShowCommand As Long) As Any Ptr
+
+Const LB_VK_CANCEL = &h03
+Const LB_VK_TAB = &h09
+Const LB_VK_PAUSE = &h13
+Const LB_VK_ESCAPE = &h1B
+Const LB_VK_SPACE = &h20
+Const LB_VK_LEFT = &h25
+Const LB_VK_LWIN = &h5B
+Const LB_VK_RWIN = &h5C
+Const LB_VK_SCROLL = &h91
+Const LB_VK_LSHIFT = &hA0
+Const LB_VK_RMENU = &hA5
+' клавиша без назначения: её нажатие после Alt или Win не даёт открыться
+' меню окна или меню «Пуск» (так делает AutoHotkey, vkE8)
+Const LB_VK_MENU_MASK = &hE8
+
+Const LB_WH_MOUSE_LL = 14
+Const LB_WM_LBUTTONDOWN = &h0201
+Const LB_WM_RBUTTONDOWN = &h0204
+Const LB_WM_MBUTTONDOWN = &h0207
+
+Declare Function LbGetModuleFileName Lib "kernel32" Alias "GetModuleFileNameA" ( _
+    ByVal ModuleHandle As Any Ptr, ByVal Buffer As ZString Ptr, ByVal BufferLen As ULong) As ULong
