@@ -128,11 +128,11 @@ End Sub
 
 Private Sub OnOkClick()
     ApplyEdits()
-    SettingsForm.ModalResult = 1
+    SettingsForm.Close
 End Sub
 
 Private Sub OnCancelClick()
-    SettingsForm.ModalResult = 2
+    SettingsForm.Close
 End Sub
 
 Private Sub OnApplyClick()
@@ -143,7 +143,7 @@ End Sub
 
 Private Sub OnCaptureCancelClick()
     HotkeyCaptureMode = 0
-    CaptureForm.ModalResult = 2
+    CaptureForm.Close
 End Sub
 
 ' Хук поймал сочетание (сообщение HotkeyCaptureMessage)
@@ -152,7 +152,7 @@ Sub SettingsCaptureDone()
     ' клавиша проглочена - без лишнего нажатия отпущенный Win открыл бы «Пуск»
     If (HotkeyCapturedMods And (KB_MOD_ALT Or KB_MOD_WIN)) <> 0 Then SendKeyTap(LB_VK_MENU_MASK)
     If HotkeyCapturedKey = LB_VK_ESCAPE And HotkeyCapturedMods = 0 Then
-        CaptureForm.ModalResult = 2
+        CaptureForm.Close
         Exit Sub
     End If
     Dim ComboText As String = HotkeyFormat(HotkeyCapturedKey, HotkeyCapturedMods)
@@ -164,7 +164,7 @@ Sub SettingsCaptureDone()
         End If
     Next
     EditSettings.Hotkey(CaptureActionIdx) = ComboText
-    CaptureForm.ModalResult = 1
+    CaptureForm.Close
 End Sub
 
 Private Function SelectedHotkey() As Long
