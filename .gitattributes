@@ -37,3 +37,5 @@
 *.ico  binary
 *.png  binary
 *.chm  binary
+*.aff  binary
+*.dic  binary

@@ -401,3 +401,19 @@ Declare Function LbWideCharToMultiByte Lib "kernel32" Alias "WideCharToMultiByte
     ByVal DefaultChar As ZString Ptr, ByVal UsedDefault As Long Ptr) As Long
 Declare Function LbIsCharUpper Lib "user32" Alias "IsCharUpperW" (ByVal Character As UShort) As Long
 Declare Function LbIsCharAlphaNumeric Lib "user32" Alias "IsCharAlphaNumericW" (ByVal Character As UShort) As Long
+
+' --- скачивание словарей (dictload.bi) ---
+Const LB_MB_YESNO = &h4
+Const LB_MB_ICONQUESTION = &h20
+Const LB_MB_ICONWARNING = &h30
+Const LB_IDYES = 6
+Type LbThreadStartFn As Function stdcall (ByVal Param As Any Ptr) As ULong
+Declare Function LbCreateThread Lib "kernel32" Alias "CreateThread" ( _
+    ByVal Attributes As Any Ptr, ByVal StackSize As UInteger, ByVal StartAddress As LbThreadStartFn, _
+    ByVal Param As Any Ptr, ByVal CreationFlags As ULong, ByVal ThreadId As ULong Ptr) As Any Ptr
+Declare Function LbURLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" ( _
+    ByVal Caller As Any Ptr, ByVal SourceUrl As ZString Ptr, ByVal TargetFile As ZString Ptr, _
+    ByVal Reserved As ULong, ByVal Callback As Any Ptr) As Long
+Declare Function LbCoInitialize Lib "ole32" Alias "CoInitialize" (ByVal Reserved As Any Ptr) As Long
+Declare Sub LbCoUninitialize Lib "ole32" Alias "CoUninitialize" ()
+Declare Function LbDeleteFile Lib "kernel32" Alias "DeleteFileA" (ByVal FileName As ZString Ptr) As Long

@@ -35,6 +35,7 @@
 #include once "core/actions.bi"
 #include once "core/switchkeys.bi"
 #include once "core/autoswitch.bi"
+#include once "core/dictload.bi"
 #include once "ui/gfx.bi"
 #include once "ui/tray.bi"
 #include once "ui/overlay.bi"
@@ -49,6 +50,7 @@ Const HOTKEY_CAPTURE_MSG = LB_WM_APP + 4
 Const MOUSE_CLICK_MSG = LB_WM_APP + 5
 Const SWITCH_SOLO_MSG = LB_WM_APP + 6
 Const SWITCH_LAYOUT_MSG = LB_WM_APP + 7
+Const DICT_DONE_MSG = LB_WM_APP + 8
 ' двойное нажатие одиночной клавиши - не дольше этого, секунды
 Const DOUBLE_PRESS_SECONDS = 0.4
 Const MAX_LOG_LINES = 300
@@ -381,6 +383,52 @@ Sub OnSwitchLayout(ByVal LayoutIdx As Long)
     End If
 End Sub
 
+' --- словари ---
+
+' Скачать библиотеку Hunspell и словари раскладок в папку exe
+Sub StartDictDownload()
+    Dim FileCount As Long = DictDownloadStart(ExePath, TrayWindow, DICT_DONE_MSG)
+    Select Case FileCount
+    Case -1
+        LbMessageBox(0, "Словари уже скачиваются.", APP_TITLE, LB_MB_ICONINFORMATION)
+    Case 0
+        LoadSpell()
+        If SpellDictCount > 0 Then
+            LbMessageBox(0, "Скачивать нечего: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
+        Else
+            LbMessageBox(0, "Для раскладок Windows нет словарей в LangBarFB." & Chr(13, 10) _
+                & "Словари других языков: меню «Словари других языков...».", APP_TITLE, LB_MB_ICONINFORMATION)
+        End If
+    Case Else
+        DebugLog("скачивание словарей: " & FileCount & " файлов, языки " & DictLangList)
+    End Select
+End Sub
+
+' Поток скачивания закончил
+Sub OnDictDone()
+    Dim ErrorText As String = DictDownloadResult()
+    LoadSpell()
+    If ErrorText <> "" Then
+        DebugLog("скачивание словарей: " & ErrorText)
+        LbMessageBox(0, ErrorText & Chr(13, 10) & Chr(13, 10) _
+            & "Папки hunspell и dict можно скачать вручную: " & DICT_PAGE_URL & Chr(13, 10) _
+            & "и положить рядом с программой (" & ExePath & ").", APP_TITLE, LB_MB_ICONWARNING)
+    Else
+        DebugLog("словари скачаны, " & SpellStatus)
+        LbMessageBox(0, "Словари скачаны. Hunspell: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
+    End If
+End Sub
+
+' Словарей нет - предложить скачать. 1 - пользователь согласился.
+Function AskDictDownload() As Long
+    Dim Answer As Long = LbMessageBox(0, "Для автопереключения нужны словари Hunspell (" & SpellStatus & ")." _
+        & Chr(13, 10) & "Скачать их сейчас? Это несколько мегабайт, только языки ваших раскладок.", _
+        APP_TITLE, LB_MB_YESNO Or LB_MB_ICONQUESTION)
+    If Answer <> LB_IDYES Then Return 0
+    StartDictDownload()
+    Return 1
+End Function
+
 Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
     Select Case Msg
     Case KEY_EVENT_MSG
@@ -397,6 +445,8 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
         OnSoloKey(CLng(WParam))
     Case SWITCH_LAYOUT_MSG
         OnSwitchLayout(CLng(Cast(Integer, WParam)))
+    Case DICT_DONE_MSG
+        OnDictDone()
     Case MOUSE_CLICK_MSG
         ' каретка могла уйти - набранное слово больше не перед ней. Щелчок
         ' по флажку у каретки каретку не двигает (правый - исправляет слово)
@@ -468,6 +518,8 @@ Const CMD_ABOUT = 104
 Const CMD_HELP = 105
 Const CMD_EXIT = 106
 Const CMD_DEBUG_WINDOW = 107
+Const CMD_DICT_DOWNLOAD = 108
+Const CMD_DICT_MORE = 109
 Const HELP_URL = "https://github.com/diakin/LangBarFB#readme"
 
 Private Function CheckedFlag(ByVal IsOn As Long) As ULong
@@ -480,6 +532,9 @@ Function BuildTrayMenu() As Any Ptr
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.AutoSwitch), CMD_AUTOSWITCH, "Автопереключение")
     LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.SoundsOn), CMD_SOUNDS, "Звуковые эффекты")
+    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_DOWNLOAD, "Скачать словари")
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_MORE, "Словари других языков...")
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, "О LangBarFB")
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_HELP, "Помощь")
@@ -501,11 +556,11 @@ Sub OnTrayCommand(ByVal CommandId As Long)
     Case CMD_AUTOSWITCH
         Settings.AutoSwitch Xor= 1
         ConfigSave()
-        If Settings.AutoSwitch And SpellDictCount = 0 Then
-            LbMessageBox(0, "Автопереключение не будет работать: " & SpellStatus & "." & Chr(13, 10) _
-                & "Нужны папки hunspell и dict из LangBarXX (Настройки - Автопереключение).", _
-                APP_TITLE, LB_MB_ICONINFORMATION)
-        End If
+        If Settings.AutoSwitch And SpellDictCount = 0 Then AskDictDownload()
+    Case CMD_DICT_DOWNLOAD
+        StartDictDownload()
+    Case CMD_DICT_MORE
+        LbShellExecute(0, "open", DICT_MORE_URL, 0, 0, LB_SW_SHOWNORMAL)
     Case CMD_SOUNDS
         Settings.SoundsOn Xor= 1
         ConfigSave()
@@ -609,6 +664,13 @@ NoteTimer.Interval = NOTE_DURATION_MS
 NoteTimer.OnTimer = @OnNoteTimer
 CaretTimer.Interval = 50
 CaretTimer.OnTimer = @OnCaretTimer
+
+' первый запуск без словарей - предложить их скачать (один раз)
+If SpellDictCount = 0 And Settings.DictAsked = 0 Then
+    Settings.DictAsked = 1
+    ConfigSave()
+    AskDictDownload()
+End If
 
 ' --- цикл сообщений: окно не нужно, программа живёт в трее ---
 ' DoEvents (Application.ProcessMessages) разбирает всё, что пришло, в том
