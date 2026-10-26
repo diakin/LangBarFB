@@ -36,6 +36,7 @@ Dim Shared SwitchPage As QPANEL
 Dim Shared HotkeysPage As QPANEL
 Dim Shared SoundsPage As QPANEL
 Dim Shared AutoPage As QPANEL
+Dim Shared RulesPage As QPANEL
 Dim Shared OkButton As QBUTTON
 Dim Shared CancelButton As QBUTTON
 Dim Shared ApplyButton As QBUTTON
@@ -85,6 +86,15 @@ Dim Shared UserDictButton As QBUTTON
 Dim Shared SpellStatusLabel As QLABEL
 Dim Shared AutoNote As QLABEL
 Dim Shared SpellDialog As QOPENDIALOG
+' Правила переключения - пока только вид страницы, правил и их обработки нет
+Dim Shared RulesNote As QLABEL
+Dim Shared RulesView As QLISTVIEW
+Dim Shared AddRuleButton As QBUTTON
+Dim Shared EditRuleButton As QBUTTON
+Dim Shared DeleteRuleButton As QBUTTON
+Dim Shared SuggestRuleCheck As QCHECKBOX
+Dim Shared SuggestCountEdit As QEDIT
+Dim Shared SuggestCountLabel As QLABEL
 
 ' окно «Назначить сочетание»
 Dim Shared CaptureForm As QFORM
@@ -233,6 +243,7 @@ Private Sub OnSectionClick()
     HotkeysPage.Visible = IIf(SectionIdx = 2, 1, 0)
     SoundsPage.Visible = IIf(SectionIdx = 3, 1, 0)
     AutoPage.Visible = IIf(SectionIdx = 4, 1, 0)
+    RulesPage.Visible = IIf(SectionIdx = 5, 1, 0)
 End Sub
 
 Private Sub OnOkClick()
@@ -436,7 +447,8 @@ Sub SettingsCreate()
     SectionList.Parent = SettingsForm
     SectionList.Left = 8 : SectionList.Top = 8
     SectionList.Width = 156 : SectionList.Height = 344
-    SectionList.AddItems("Общие", "Переключение", "Горячие клавиши", "Звуки", "Автопереключение")
+    SectionList.AddItems("Общие", "Переключение", "Горячие клавиши", "Звуки", "Автопереключение", _
+        "Правила переключения")
     SectionList.OnClick = @OnSectionClick
 
     PreparePage(GeneralPage)
@@ -444,6 +456,7 @@ Sub SettingsCreate()
     PreparePage(HotkeysPage)
     PreparePage(SoundsPage)
     PreparePage(AutoPage)
+    PreparePage(RulesPage)
 
     ' Общие
     PlaceCheck(AutoStartCheck, GeneralPage, "Запускать при старте Windows", 8)
@@ -557,6 +570,43 @@ Sub SettingsCreate()
     AutoNote.Caption = "Слово проверяется на третьей букве (по началам слов словаря) и после пробела " _
         & "(по словарю): если в текущей раскладке его нет, а в другой есть, оно перепечатывается " _
         & "и раскладка меняется. Break сразу после этого возвращает слово."
+
+    ' Правила переключения (пока не действуют)
+    RulesNote.Parent = RulesPage
+    RulesNote.Left = 0 : RulesNote.Top = 0
+    RulesNote.Width = 420 : RulesNote.Height = 32
+    RulesNote.WordWrap = 1
+    RulesNote.Caption = "Правила автопереключения: при наборе каких слов переключать раскладку, " _
+        & "а при каких нет. Пока не действуют."
+    RulesView.Parent = RulesPage
+    RulesView.Left = 0 : RulesView.Top = 36
+    RulesView.Width = 420 : RulesView.Height = 234
+    RulesView.ViewStyle = 3
+    RulesView.RowSelect = 1
+    RulesView.ReadOnly = 1
+    RulesView.HideSelection = 0
+    RulesView.AddColumns("Сочетание", "Условие", "Регистр", "Действие")
+    RulesView.Column(0).Width = 100
+    RulesView.Column(1).Width = 100
+    RulesView.Column(2).Width = 100
+    RulesView.Column(3).Width = 110
+    PlaceButton(AddRuleButton, RulesPage, "Добавить...", 0, 278, 100)
+    PlaceButton(EditRuleButton, RulesPage, "Изменить...", 108, 278, 100)
+    PlaceButton(DeleteRuleButton, RulesPage, "Удалить", 216, 278, 100)
+    AddRuleButton.Enabled = 0
+    EditRuleButton.Enabled = 0
+    DeleteRuleButton.Enabled = 0
+    SuggestRuleCheck.Parent = RulesPage
+    SuggestRuleCheck.Left = 0 : SuggestRuleCheck.Top = 316 : SuggestRuleCheck.Width = 250
+    SuggestRuleCheck.Caption = "Предлагать добавить правило после"
+    SuggestRuleCheck.Enabled = 0
+    SuggestCountEdit.Parent = RulesPage
+    SuggestCountEdit.Left = 254 : SuggestCountEdit.Top = 314 : SuggestCountEdit.Width = 36
+    SuggestCountEdit.Text = "2"
+    SuggestCountEdit.Enabled = 0
+    SuggestCountLabel.Parent = RulesPage
+    SuggestCountLabel.Left = 296 : SuggestCountLabel.Top = 317
+    SuggestCountLabel.Caption = "отмен подряд"
 
     ' кнопки окна
     PlaceButton(OkButton, SettingsForm, "OK", 356, 360, 75)
