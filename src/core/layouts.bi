@@ -133,6 +133,15 @@ Sub LayoutRequest(ByVal WindowHandle As Any Ptr, ByVal LayoutHandle As UInteger)
     LbPostMessage(TargetWindow, LB_WM_INPUTLANGCHANGEREQUEST, 0, Cast(Integer, LayoutHandle))
 End Sub
 
+' Раскладка, следующая (Shift = 1) или предыдущая (Shift = -1) после
+' раскладки окна
+Function LayoutShifted(ByVal WindowHandle As Any Ptr, ByVal Shift As Long) As UInteger
+    If LayoutCount < 1 Then Return 0
+    Dim CurrentIdx As Long = LayoutIndexOf(LayoutOfWindow(WindowHandle).LayoutHandle)
+    If CurrentIdx < 0 Then CurrentIdx = 0
+    Return LayoutList((CurrentIdx + Shift + LayoutCount) Mod LayoutCount).LayoutHandle
+End Function
+
 ' Следующая раскладка по кругу после той, что сейчас у окна
 Sub LayoutNext(ByVal WindowHandle As Any Ptr)
     If LayoutCount < 2 Then Exit Sub
