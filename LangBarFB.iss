@@ -1,23 +1,24 @@
-п»ї; ---------------------------------------------------------------------------
-;  LangBarFB.iss - СѓСЃС‚Р°РЅРѕРІС‰РёРє LangBarFB (Inno Setup 6).
+; ---------------------------------------------------------------------------
+;  LangBarFB.iss - установщик LangBarFB (Inno Setup 5: 6-й не работает
+;  в Windows 7). Файл в кодировке windows-1251.
 ;
-;  РћСЃРЅРѕРІР°РЅ РЅР° LangBarXX.iss (https://github.com/Krot66/LangBarXX).
-;  РџРµСЂРµРґ СЃР±РѕСЂРєРѕР№: build.bat 32 Рё build.bat 64 (bin\langbar32.exe,
-;  bin\langbar64.exe, bin\rqlcl32.dll, bin\rqlcl64.dll). РџР°РїРєР° flags
-;  (РєР°СЂС‚РёРЅРєРё С„Р»Р°РіРѕРІ LangBarXX) РїРѕРїР°РґР°РµС‚ РІ СѓСЃС‚Р°РЅРѕРІС‰РёРє, РµСЃР»Рё Р»РµР¶РёС‚ СЂСЏРґРѕРј.
-;  Р РµР·СѓР»СЊС‚Р°С‚: bin\LangBarFB_setup_<РІРµСЂСЃРёСЏ>.exe
+;  Основан на LangBarXX.iss (https://github.com/Krot66/LangBarXX).
+;  Перед сборкой: build.bat 32 (bin\langbar32.exe, bin\rqlcl32.dll).
+;  64-битная сборка пока в установку не входит. Папка flags
+;  (картинки флагов LangBarXX) попадает в установщик, если лежит рядом.
+;  Результат: bin\LangBarFB_setup_<версия>.exe
 ;
-;  РџСЂРѕРіСЂР°РјРјР° РїРёС€РµС‚ langbarfb.ini, СЃР»РѕРІР°СЂРё, user_dict.dic Рё backup\ РІ СЃРІРѕСЋ
-;  РїР°РїРєСѓ, РїРѕСЌС‚РѕРјСѓ СЃС‚Р°РІРёС‚СЃСЏ РІ РїСЂРѕС„РёР»СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ (%LOCALAPPDATA%), Р° РЅРµ РІ
-;  Program Files: С‚СѓРґР° Р±РµР· РїСЂР°РІ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР° РїРёСЃР°С‚СЊ РЅРµР»СЊР·СЏ.
+;  Программа пишет langbarfb.ini, словари, user_dict.dic и backup\ в свою
+;  папку, поэтому ставится в профиль пользователя (%LOCALAPPDATA%), а не в
+;  Program Files: туда без прав администратора писать нельзя.
 ; ---------------------------------------------------------------------------
 
-; С‚Р° Р¶Рµ, С‡С‚Рѕ APP_VERSION РІ src\ui\dlg_about.bi
+; та же, что APP_VERSION в src\ui\dlg_about.bi
 #define MyAppVersion "0.7"
 #define MyAppName "LangBarFB"
 #define MyAppURL "https://github.com/diakin/LangBarFB"
-; РёРјСЏ РєР»Р°СЃСЃР° СЃР»СѓР¶РµР±РЅРѕРіРѕ РѕРєРЅР° (src\ui\tray.bi): РїРѕ РЅРµРјСѓ РїСЂРѕРіСЂР°РјРјР°
-; Р·Р°РєСЂС‹РІР°РµС‚СЃСЏ РїРµСЂРµРґ СѓСЃС‚Р°РЅРѕРІРєРѕР№ Рё СѓРґР°Р»РµРЅРёРµРј
+; имя класса служебного окна (src\ui\tray.bi): по нему программа
+; закрывается перед установкой и удалением
 #define ServiceClass "LangBarFB_Service"
 
 [Setup]
@@ -33,13 +34,11 @@ UsePreviousAppDir=yes
 DisableDirPage=auto
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-ArchitecturesInstallIn64BitMode=x64
-Uninstallable=not WizardIsTaskSelected('portablemode')
+Uninstallable=not IsTaskSelected('portablemode')
 OutputDir=bin
 OutputBaseFilename=LangBarFB_setup_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
 ShowLanguageDialog=auto
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\langbar32.exe
@@ -49,21 +48,21 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-russian.TypeStandard=РЎС‚Р°РЅРґР°СЂС‚РЅР°СЏ (СЂСѓСЃСЃРєРёР№ Рё Р°РЅРіР»РёР№СЃРєРёР№ СЃР»РѕРІР°СЂРё)
-russian.TypeFull=РџРѕР»РЅР°СЏ (РІСЃРµ СЃР»РѕРІР°СЂРё)
-russian.TypeMinimal=РњРёРЅРёРјР°Р»СЊРЅР°СЏ (Р±РµР· Р°РІС‚РѕРїРµСЂРµРєР»СЋС‡РµРЅРёСЏ)
-russian.TypeCustom=Р’С‹Р±РѕСЂРѕС‡РЅР°СЏ
-russian.CompProgram=РџСЂРѕРіСЂР°РјРјР°
-russian.CompHunspell=РђРІС‚РѕРїРµСЂРµРєР»СЋС‡РµРЅРёРµ (Р±РёР±Р»РёРѕС‚РµРєР° Hunspell)
-russian.CompDictEn=РђРЅРіР»РёР№СЃРєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.CompDictRu=Р СѓСЃСЃРєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.CompDictUk=РЈРєСЂР°РёРЅСЃРєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.CompDictBe=Р‘РµР»РѕСЂСѓСЃСЃРєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.CompDictDe=РќРµРјРµС†РєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.CompDictFr=Р¤СЂР°РЅС†СѓР·СЃРєРёР№ СЃР»РѕРІР°СЂСЊ
-russian.TaskPortable=РџРµСЂРµРЅРѕСЃРЅР°СЏ РІРµСЂСЃРёСЏ (Р±РµР· СѓРґР°Р»РµРЅРёСЏ С‡РµСЂРµР· РџР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ Рё Р±РµР· СЏСЂР»С‹РєРѕРІ)
-russian.TaskAutostart=Р—Р°РїСѓСЃРєР°С‚СЊ РїСЂРё СЃС‚Р°СЂС‚Рµ Windows
-russian.HelpShortcut=РЎРїСЂР°РІРєР°
+russian.TypeStandard=Стандартная (русский и английский словари)
+russian.TypeFull=Полная (все словари)
+russian.TypeMinimal=Минимальная (без автопереключения)
+russian.TypeCustom=Выборочная
+russian.CompProgram=Программа
+russian.CompHunspell=Автопереключение (библиотека Hunspell)
+russian.CompDictEn=Английский словарь
+russian.CompDictRu=Русский словарь
+russian.CompDictUk=Украинский словарь
+russian.CompDictBe=Белорусский словарь
+russian.CompDictDe=Немецкий словарь
+russian.CompDictFr=Французский словарь
+russian.TaskPortable=Переносная версия (без удаления через Панель управления и без ярлыков)
+russian.TaskAutostart=Запускать при старте Windows
+russian.HelpShortcut=Справка
 english.TypeStandard=Standard (English and Russian dictionaries)
 english.TypeFull=Full (all dictionaries)
 english.TypeMinimal=Minimal (no auto switching)
@@ -104,8 +103,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "bin\langbar32.exe"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "bin\rqlcl32.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
-Source: "bin\langbar64.exe"; DestDir: "{app}"; Components: program; Check: Is64BitInstallMode; Flags: ignoreversion
-Source: "bin\rqlcl64.dll"; DestDir: "{app}"; Components: program; Check: Is64BitInstallMode; Flags: ignoreversion
+; 64-битная сборка - позже
+;Source: "bin\langbar64.exe"; DestDir: "{app}"; Components: program; Flags: ignoreversion
+;Source: "bin\rqlcl64.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "help\*"; DestDir: "{app}\help"; Components: program; Flags: ignoreversion
 Source: "sounds\*"; DestDir: "{app}\sounds"; Components: program; Flags: ignoreversion
 #if DirExists("flags")
@@ -121,32 +121,32 @@ Source: "dict\be-BY\*"; DestDir: "{app}\dict\be-BY"; Components: hunspell\be; Fl
 Source: "dict\de-DE\*"; DestDir: "{app}\dict\de-DE"; Components: hunspell\de; Flags: ignoreversion recursesubdirs
 Source: "dict\fr-FR\*"; DestDir: "{app}\dict\fr-FR"; Components: hunspell\fr; Flags: ignoreversion recursesubdirs
 
-; РїРµСЂРµРЅРѕСЃ СЃРѕ СЃС‚Р°СЂРѕР№ РєРѕРїРёРё: РїР°РїРєРё СЂСЏРґРѕРј СЃ СѓСЃС‚Р°РЅРѕРІС‰РёРєРѕРј
+; перенос со старой копии: папки рядом с установщиком
 Source: "{src}\flags\*"; DestDir: "{app}\flags"; Flags: external skipifsourcedoesntexist ignoreversion
 Source: "{src}\dict\*"; DestDir: "{app}\dict"; Flags: external skipifsourcedoesntexist ignoreversion recursesubdirs
 Source: "{src}\langbarfb.ini"; DestDir: "{app}"; Flags: external skipifsourcedoesntexist onlyifdoesntexist
 Source: "{src}\user_dict.dic"; DestDir: "{app}"; Flags: external skipifsourcedoesntexist onlyifdoesntexist
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{code:MainExe}"; Check: not WizardIsTaskSelected('portablemode')
-Name: "{group}\{cm:HelpShortcut}"; Filename: "{app}\help\langbarfb.ru.html"; Languages: russian; Check: not WizardIsTaskSelected('portablemode')
-Name: "{group}\{cm:HelpShortcut}"; Filename: "{app}\help\langbarfb.en.html"; Languages: english; Check: not WizardIsTaskSelected('portablemode')
-Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; Check: not WizardIsTaskSelected('portablemode')
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{code:MainExe}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\langbar32.exe"; Check: not IsTaskSelected('portablemode')
+Name: "{group}\{cm:HelpShortcut}"; Filename: "{app}\help\langbarfb.ru.html"; Languages: russian; Check: not IsTaskSelected('portablemode')
+Name: "{group}\{cm:HelpShortcut}"; Filename: "{app}\help\langbarfb.en.html"; Languages: english; Check: not IsTaskSelected('portablemode')
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"; Check: not IsTaskSelected('portablemode')
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\langbar32.exe"; Tasks: desktopicon
 
 [Registry]
-; С‚Рѕ Р¶Рµ Р·РЅР°С‡РµРЅРёРµ РїРёС€РµС‚ СЃР°РјР° РїСЂРѕРіСЂР°РјРјР° (РіР°Р»РєР° В«Р—Р°РїСѓСЃРєР°С‚СЊ РїСЂРё СЃС‚Р°СЂС‚Рµ WindowsВ»)
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "LangBarFB"; ValueData: """{app}\{code:MainExe}"""; Tasks: autostart and not portablemode; Flags: uninsdeletevalue
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "LangBarFB"; Flags: uninsdeletevalue dontcreatekey; Check: not WizardIsTaskSelected('portablemode')
+; то же значение пишет сама программа (галка «Запускать при старте Windows»)
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "LangBarFB"; ValueData: """{app}\langbar32.exe"""; Tasks: autostart and not portablemode; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "LangBarFB"; Flags: uninsdeletevalue dontcreatekey; Check: not IsTaskSelected('portablemode')
 
 [INI]
-; СЏР·С‹Рє РёРЅС‚РµСЂС„РµР№СЃР° - РєР°Рє Сѓ СѓСЃС‚Р°РЅРѕРІС‰РёРєР°, РµСЃР»Рё ini РµС‰С‘ РЅРµ Р±С‹Р»Рѕ
+; язык интерфейса - как у установщика, если ini ещё не было
 Filename: "{app}\langbarfb.ini"; Section: "General"; Key: "Language"; String: "ru"; Languages: russian; Flags: createkeyifdoesntexist
 Filename: "{app}\langbarfb.ini"; Section: "General"; Key: "Language"; String: "en"; Languages: english; Flags: createkeyifdoesntexist
 Filename: "{app}\langbarfb.ini"; Section: "General"; Key: "AutoStart"; String: "1"; Tasks: autostart and not portablemode
 
 [Run]
-Filename: "{app}\{code:MainExe}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\langbar32.exe"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: files; Name: "{app}\langbarfb.ini"
@@ -154,17 +154,8 @@ Type: filesandordirs; Name: "{app}\backup"
 Type: dirifempty; Name: "{app}"
 
 [Code]
-// 64-Р±РёС‚РЅС‹Р№ exe РЅР° 64-Р±РёС‚РЅРѕР№ Windows, РёРЅР°С‡Рµ 32-Р±РёС‚РЅС‹Р№
-function MainExe(Param: String): String;
-begin
-  if Is64BitInstallMode then
-    Result := 'langbar64.exe'
-  else
-    Result := 'langbar32.exe';
-end;
-
-// Р—Р°РєСЂС‹С‚СЊ Р·Р°РїСѓС‰РµРЅРЅС‹Р№ LangBarFB: WM_CLOSE СЃР»СѓР¶РµР±РЅРѕРјСѓ РѕРєРЅСѓ - РїСЂРѕРіСЂР°РјРјР°
-// Р·Р°РІРµСЂС€Р°РµС‚СЃСЏ СЃР°РјР° Рё СѓР±РёСЂР°РµС‚ Р·РЅР°С‡РѕРє РёР· С‚СЂРµСЏ. РќРµ Р·Р°РєСЂС‹Р»Р°СЃСЊ Р·Р° 3 СЃ -
+// Закрыть запущенный LangBarFB: WM_CLOSE служебному окну - программа
+// завершается сама и убирает значок из трея. Не закрылась за 3 с -
 // taskkill.
 procedure CloseLangBarFB();
 var
@@ -185,7 +176,6 @@ begin
   if FindWindowByClassName('{#ServiceClass}') <> 0 then
   begin
     Exec('taskkill', '/im langbar32.exe /f', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-    Exec('taskkill', '/im langbar64.exe /f', '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
   end;
 end;
 
