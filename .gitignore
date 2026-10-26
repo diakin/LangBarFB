@@ -8,4 +8,6 @@ build_local.bat
 /src/langbarfb.ini
 !hunspell/*.dll
 /src/*_compile.bat
+/src/*_compile.log
 /src/*_res.rc
+/src/dict/
