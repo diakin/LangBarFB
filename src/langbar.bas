@@ -6,7 +6,7 @@
 '  - значок в области уведомлений - флажок раскладки активного окна:
 '    flags\<код>.png (ru-RU.png, en-US.png - как у LangBarXX), а если
 '    файла нет - цветной прямоугольник с кодом страны;
-'  - флажок у текстовой каретки (окна с системной кареткой) и крупный
+'  - флажок у текстовой каретки (под ней; окна с системной кареткой) и крупный
 '    флажок посреди экрана на 0,7 с при смене раскладки;
 '  - щелчок по значку или флажку у каретки - следующая раскладка в окне,
 '    где работали;
@@ -31,11 +31,14 @@ Const MUTEX_NAME = "LangBarFB_SingleInstance"
 Const KEY_EVENT_MSG = LB_WM_APP + 2
 Const MAX_LOG_LINES = 300
 Const LB_INFINITE = &hFFFFFFFF
-' флажок у каретки и уведомление - значения по умолчанию LangBarXX
-' ([Flag] DX, DY, Width; [LangNote] Note_Size, Note_Duration)
-Const CARET_FLAG_WIDTH = 22
-Const CARET_FLAG_DX = 16
-Const CARET_FLAG_DY = -12
+' флажок у каретки: ширина и место. CARET_FLAG_BELOW = 1 - под кареткой
+' (от её левого края), 0 - правее каретки в той же строке, по центру
+' её высоты. Зазор - от каретки до флажка.
+Const CARET_FLAG_WIDTH = 16
+Const CARET_FLAG_BELOW = 1
+Const CARET_FLAG_GAP = 2
+' уведомление - значения по умолчанию LangBarXX ([LangNote] Note_Size,
+' Note_Duration)
 Const NOTE_SIZE_PERCENT = 8
 Const NOTE_DURATION_MS = 700
 
@@ -150,8 +153,15 @@ Sub OnCaretTimer()
         Exit Sub
     End If
     Dim NewPos As LbPoint
-    NewPos.PosX = CaretPos.PosX + CARET_FLAG_DX
-    NewPos.PosY = CaretPos.PosY + CARET_FLAG_DY
+    If CARET_FLAG_BELOW Then
+        NewPos.PosX = CaretPos.PosX
+        NewPos.PosY = CaretPos.PosY + CaretHeight + CARET_FLAG_GAP
+    Else
+        ' высота флажка 3:4 от ширины; у картинки другой пропорции
+        ' центр сместится на пару точек
+        NewPos.PosX = CaretPos.PosX + CARET_FLAG_GAP + 1
+        NewPos.PosY = CaretPos.PosY + (CaretHeight - CARET_FLAG_WIDTH * 3 \ 4) \ 2
+    End If
 
     Dim Current As LayoutInfo = LayoutOfWindow(ForegroundWindow)
     If Current.LayoutHandle <> CaretFlagLayout Or OverlayVisible(CaretFlag) = 0 Then
