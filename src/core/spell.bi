@@ -1,7 +1,7 @@
 ' ---------------------------------------------------------------------------
 '  spell.bi - проверка слов по словарям Hunspell, как Lib/Spell.ahk у
-'  LangBarXX: та же библиотека NHunspell (hunspell\Hunspellx86.dll или
-'  Hunspellx64.dll) и те же словари (dict\ru-RU\*.aff и *.dic).
+'  LangBarXX: та же библиотека NHunspell (hunspell\Hunspellx86.dll, сборка
+'  только 32-битная) и те же словари (dict\ru-RU\*.aff и *.dic).
 '
 '  Папка, где лежат hunspell\ и dict\, ищется так: из настроек
 '  ([AutoSwitch] Folder), рядом с exe, на уровень выше. Для каждой
@@ -50,11 +50,7 @@ Dim Shared SpellDictCount As Long
 Dim Shared SpellBaseFolder As String
 Dim Shared SpellStatus As String
 
-#ifdef __FB_64BIT__
-Const SPELL_DLL_NAME = "Hunspellx64.dll"
-#else
 Const SPELL_DLL_NAME = "Hunspellx86.dll"
-#endif
 
 ' --- строки ---
 

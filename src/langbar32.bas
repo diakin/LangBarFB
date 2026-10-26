@@ -21,8 +21,14 @@
 '  - автопереключение (этап 5): слово перед пробелом проверяется по
 '    словарям Hunspell LangBarXX и при ошибке раскладки перепечатывается.
 '
-'  Сборка: build.bat или unIDE (см. README.md).
+'  Сборка: build.bat или unIDE (см. README.md). Только 32-битная: 64-битный
+'  вариант не нужен (хуки LL, GetGUIThreadInfo, SendInput работают с окнами
+'  любой разрядности).
 ' ---------------------------------------------------------------------------
+
+#ifdef __FB_64BIT__
+#error "LangBarFB собирается только 32-битным fbc (win32)"
+#endif
 
 #include once "dir.bi"
 #include once "rqlcl.bi"
@@ -87,6 +93,14 @@ Dim Shared CaretFlag As OverlayWindow
 Dim Shared NoteFlag As OverlayWindow
 Dim Shared MouseFlag As OverlayWindow
 Dim Shared MouseTimer As QTIMER
+' быстрая перепроверка раскладки после нажатий и переключений: значок и
+' флажки не ждут PollTimer (250 мс). QUICK_REFRESH_TICKS раз по
+' QUICK_REFRESH_MS - окно меняет раскладку не мгновенно
+Const QUICK_REFRESH_MS = 30
+Const QUICK_REFRESH_TICKS = 6
+Dim Shared QuickTimer As QTIMER
+Dim Shared QuickTicksLeft As Long
+Declare Sub StartQuickRefresh()
 ' раскладка во флажке у мыши, его место и до какого Timer его показывать
 Dim Shared MouseFlagLayout As UInteger
 Dim Shared MouseFlagPos As LbPoint
@@ -386,6 +400,7 @@ Sub OnKeyEvents()
         WordSpaceFed = 0
         AutoSwitchWord()
     End If
+    StartQuickRefresh()
 End Sub
 
 ' Окно, где менять раскладку: активное, а если активно наше окно или
@@ -410,6 +425,7 @@ Sub SwitchFromKeyboard(ByRef Reason As String, ByVal TargetWindow As Any Ptr, By
     SwitchBusy = 1
     ' 30 мс - чтобы окно успело получить отпускание клавиши
     Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, LayoutHandle, 30)
+    StartQuickRefresh()
     Dim TargetIdx As Long = LayoutIndexOf(LayoutHandle)
     Dim TargetCode As String = IIf(TargetIdx >= 0, LayoutList(TargetIdx).LocaleCode, Hex(LayoutHandle))
     Dim ResultText As String
@@ -520,6 +536,7 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
         ' нажатия, пришедшие до сочетания, должны попасть в буфер слова
         OnKeyEvents()
         RunHotkeyAction(CLng(WParam))
+        StartQuickRefresh()
     Case HOTKEY_CAPTURE_MSG
         SettingsCaptureDone()
     Case SWITCH_SOLO_MSG
@@ -559,6 +576,21 @@ Sub OnPollTimer()
         & ";  в обработчике: среднее " & KbHookAverageMicros() & " мкс, наибольшее " & KbMaxHookMicros & " мкс" _
         & ";  потеряно: " & KbLostEvents & ";  последнее нажатие: " & SinceLast
     FlagsLabel.Caption = FlagsLabelText & ";  " & CaretDebugText
+End Sub
+
+' Раскладку, значок и флажки - сразу и ещё несколько раз подряд
+Sub OnQuickTimer()
+    OnPollTimer()
+    OnCaretTimer()
+    QuickTicksLeft -= 1
+    If QuickTicksLeft <= 0 Then QuickTimer.Enabled = 0
+End Sub
+
+Sub StartQuickRefresh()
+    QuickTicksLeft = QUICK_REFRESH_TICKS
+    OnPollTimer()
+    OnCaretTimer()
+    QuickTimer.Enabled = 1
 End Sub
 
 Sub OnClearClick()
@@ -795,6 +827,9 @@ NoteTimer.Enabled = 0
 NoteTimer.Interval = NOTE_DURATION_MS
 NoteTimer.OnTimer = @OnNoteTimer
 CaretTimer.Interval = 50
+QuickTimer.Enabled = 0
+QuickTimer.Interval = QUICK_REFRESH_MS
+QuickTimer.OnTimer = @OnQuickTimer
 CaretTimer.OnTimer = @OnCaretTimer
 
 ' первый запуск без словарей - предложить их скачать (один раз)
@@ -819,6 +854,7 @@ NoteTimer.Enabled = 0
 OverlayDestroy(CaretFlag)
 OverlayDestroy(NoteFlag)
 MouseTimer.Enabled = 0
+QuickTimer.Enabled = 0
 OverlayDestroy(MouseFlag)
 KbMouseHookRemove()
 KbHookRemove()

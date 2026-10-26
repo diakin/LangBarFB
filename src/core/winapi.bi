@@ -3,8 +3,8 @@
 '  Объявлены здесь со своими именами (префикс Lb), а не через windows.bi:
 '  так же сделано в RqLcl (rqrt.bi, rqtimer.bi), и имена не пересекаются
 '  с типами rqlcl.bi.
-'  Integer в FreeBASIC - размер указателя: 32 бита в win32, 64 в win64,
-'  как WPARAM, LPARAM и LRESULT.
+'  Программа собирается только 32-битной (win32): размеры структур ниже
+'  проверены #assert для неё.
 ' ---------------------------------------------------------------------------
 
 #pragma once
@@ -278,13 +278,10 @@ Const LB_VK_BACK = &h08
 Const LB_VK_RETURN = &h0D
 
 ' INPUT для клавиатуры. Размер и смещения должны совпадать с INPUT Windows
-' (28 байт в win32, 40 в win64): union там по самому большому члену -
-' MOUSEINPUT, поэтому в конце запас, а в win64 union выровнен на 8
+' (28 байт): union там по самому большому члену - MOUSEINPUT, поэтому в
+' конце запас
 Type LbKeybdInput
     InputType As ULong
-#ifdef __FB_64BIT__
-    UnionAlign As ULong
-#endif
     wVk As UShort
     wScan As UShort
     dwFlags As ULong
@@ -296,11 +293,7 @@ Type LbKeybdInput
     PaddingHigh As ULong
 End Type
 
-#ifdef __FB_64BIT__
-#assert SizeOf(LbKeybdInput) = 40
-#else
 #assert SizeOf(LbKeybdInput) = 28
-#endif
 
 Declare Function LbSendInput Lib "user32" Alias "SendInput" ( _
     ByVal InputCount As ULong, ByVal Inputs As LbKeybdInput Ptr, ByVal InputSize As Long) As ULong
@@ -447,13 +440,8 @@ Type LbProcessInfo
     ProcessId As ULong
     ThreadId As ULong
 End Type
-#ifdef __FB_64BIT__
-#assert SizeOf(LbStartupInfo) = 104
-#assert SizeOf(LbProcessInfo) = 24
-#else
 #assert SizeOf(LbStartupInfo) = 68
 #assert SizeOf(LbProcessInfo) = 16
-#endif
 Const LB_CREATE_NO_WINDOW = &h08000000
 Const LB_INVALID_FILE_ATTRIBUTES = &hFFFFFFFF
 Declare Function LbCreateProcess Lib "kernel32" Alias "CreateProcessA" ( _

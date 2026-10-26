@@ -3,8 +3,8 @@
 ;  в Windows 7). Файл в кодировке windows-1251.
 ;
 ;  Основан на LangBarXX.iss (https://github.com/Krot66/LangBarXX).
-;  Перед сборкой: build.bat 32 (bin\langbar32.exe, bin\rqlcl32.dll).
-;  64-битная сборка пока в установку не входит. Папка flags
+;  Перед сборкой: build.bat (bin\langbar32.exe, bin\rqlcl32.dll).
+;  Программа только 32-битная. Папка flags
 ;  (картинки флагов LangBarXX) попадает в установщик, если лежит рядом.
 ;  Результат: bin\LangBarFB_setup_<версия>.exe
 ;
@@ -103,9 +103,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "bin\langbar32.exe"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "bin\rqlcl32.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
-; 64-битная сборка - позже
-;Source: "bin\langbar64.exe"; DestDir: "{app}"; Components: program; Flags: ignoreversion
-;Source: "bin\rqlcl64.dll"; DestDir: "{app}"; Components: program; Flags: ignoreversion
 Source: "help\*"; DestDir: "{app}\help"; Components: program; Flags: ignoreversion
 Source: "sounds\*"; DestDir: "{app}\sounds"; Components: program; Flags: ignoreversion
 #if DirExists("flags")
