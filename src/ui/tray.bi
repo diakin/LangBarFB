@@ -16,7 +16,7 @@ Const TRAY_ICON_ID = 1
 Const TRAY_CALLBACK_MSG = LB_WM_APP + 1
 
 Type TrayHandlerFn As Sub()
-Type MessageHandlerFn As Sub(ByVal Msg As ULong)
+Type MessageHandlerFn As Sub(ByVal Msg As ULong, ByVal WParam As UInteger)
 ' меню значка строит программа (TrayBuildMenu, меню освобождает tray.bi),
 ' выбранный пункт приходит в TrayOnCommand
 Type TrayMenuBuilderFn As Function() As Any Ptr
@@ -28,7 +28,7 @@ Dim Shared TrayOnClick As TrayHandlerFn
 Dim Shared TrayIconHandle As Any Ptr
 Dim Shared TrayBuildMenu As TrayMenuBuilderFn
 Dim Shared TrayOnCommand As TrayCommandFn
-' сообщения LB_WM_APP + 2 и дальше уходят сюда (сигнал хука и т. п.)
+' сообщения LB_WM_APP + 2 и дальше уходят сюда (сигналы хуков и т. п.)
 Dim Shared TrayOnAppMessage As MessageHandlerFn
 
 Private Sub TrayShowMenu()
@@ -59,7 +59,7 @@ Private Function TrayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Msg A
         Return 0
     End If
     If Msg > TRAY_CALLBACK_MSG And Msg < LB_WM_APP + &h100 Then
-        If TrayOnAppMessage <> 0 Then TrayOnAppMessage(Msg)
+        If TrayOnAppMessage <> 0 Then TrayOnAppMessage(Msg, WParam)
         Return 0
     End If
     Return LbDefWindowProc(WindowHandle, Msg, WParam, LParam)

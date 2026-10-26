@@ -1,0 +1,153 @@
+' ---------------------------------------------------------------------------
+'  config.bi - настройки LangBarFB в langbarfb.ini рядом с exe.
+'
+'  [General]  AutoStart, AutoSwitch, CaretFlag, Sounds (0/1)
+'  [Hotkeys]  Action1..Action4 - сочетание словами: "Shift + Break",
+'             пусто - не назначено
+'  [Sounds]   On1..On4 (0/1), File1..File4, Beep (1 - сигнал динамика
+'             вместо файла)
+'  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
+' ---------------------------------------------------------------------------
+
+#pragma once
+
+#include once "winapi.bi"
+
+Const HOTKEY_ACTION_COUNT = 4
+' номера действий горячих клавиш (с 0)
+Const ACTION_UNDO_CONVERT = 0       ' отменить конвертацию раскладки
+Const ACTION_CONVERT_SELECTION = 1  ' сменить раскладку выделенного текста
+Const ACTION_TOGGLE_CASE = 2        ' сменить регистр выделенного текста
+Const ACTION_TRANSLIT = 3           ' транслитерировать выделенный текст
+
+Const SOUND_EVENT_COUNT = 4
+Const SOUND_AUTOSWITCH = 0          ' автопереключение раскладки (этап 5)
+Const SOUND_UNDO_AUTOSWITCH = 1     ' отмена автопереключения / конвертации
+Const SOUND_CONVERT_SELECTION = 2   ' конвертация выделенного текста
+Const SOUND_CONVERT_CLIPBOARD = 3   ' конвертация текста в буфере (позже)
+
+Type AppSettings
+    AutoStart As Long
+    AutoSwitch As Long
+    CaretFlag As Long
+    SoundsOn As Long
+    SoundBeep As Long
+    Hotkey(0 To HOTKEY_ACTION_COUNT - 1) As String
+    SoundOn(0 To SOUND_EVENT_COUNT - 1) As Long
+    SoundFile(0 To SOUND_EVENT_COUNT - 1) As String
+End Type
+
+Dim Shared Settings As AppSettings
+
+Dim Shared HotkeyActionNames(0 To HOTKEY_ACTION_COUNT - 1) As ZString * 48 = { _
+    "Отменить конвертацию раскладки", _
+    "Сменить раскладку выделенного текста", _
+    "Сменить регистр выделенного текста", _
+    "Транслитерировать выделенный текст"}
+Dim Shared HotkeyDefaults(0 To HOTKEY_ACTION_COUNT - 1) As ZString * 32 = { _
+    "Break", "Shift + Break", "Alt + Break", "Alt + Scroll Lock"}
+
+Dim Shared SoundEventNames(0 To SOUND_EVENT_COUNT - 1) As ZString * 48 = { _
+    "Автопереключение раскладки", _
+    "Отмена автопереключения", _
+    "Конвертация выделенного текста", _
+    "Конвертация текста в буфере"}
+' файлы - из папки sounds LangBarXX
+Dim Shared SoundDefaults(0 To SOUND_EVENT_COUNT - 1) As ZString * 48 = { _
+    "sounds\autocorrect.wav", "sounds\undo.wav", "sounds\autoreplace.wav", "sounds\autoreplace.wav"}
+
+Function ConfigFileName() As String
+    Return ExePath & "\langbarfb.ini"
+End Function
+
+Private Function IniRead(ByRef Section As String, ByRef KeyName As String, ByRef DefaultValue As String) As String
+    Dim ValueBuffer As ZString * 1024
+    Dim FileName As String = ConfigFileName()
+    LbGetPrivateProfileString(StrPtr(Section), StrPtr(KeyName), StrPtr(DefaultValue), _
+        @ValueBuffer, 1024, StrPtr(FileName))
+    Return ValueBuffer
+End Function
+
+Private Sub IniWrite(ByRef Section As String, ByRef KeyName As String, ByRef Value As String)
+    Dim FileName As String = ConfigFileName()
+    LbWritePrivateProfileString(StrPtr(Section), StrPtr(KeyName), StrPtr(Value), StrPtr(FileName))
+End Sub
+
+Private Function IniReadFlag(ByRef Section As String, ByRef KeyName As String, ByVal DefaultValue As Long) As Long
+    Return IIf(Val(IniRead(Section, KeyName, Str(DefaultValue))) <> 0, 1, 0)
+End Function
+
+Sub ConfigLoad()
+    With Settings
+        .AutoStart = IniReadFlag("General", "AutoStart", 0)
+        .AutoSwitch = IniReadFlag("General", "AutoSwitch", 1)
+        .CaretFlag = IniReadFlag("General", "CaretFlag", 1)
+        .SoundsOn = IniReadFlag("General", "Sounds", 1)
+        .SoundBeep = IniReadFlag("Sounds", "Beep", 0)
+        Dim ItemIdx As Long
+        For ItemIdx = 0 To HOTKEY_ACTION_COUNT - 1
+            ' "-" в файле - сочетание снято пользователем (пустое значение
+            ' GetPrivateProfileString не отличает от отсутствующего)
+            .Hotkey(ItemIdx) = IniRead("Hotkeys", "Action" & (ItemIdx + 1), HotkeyDefaults(ItemIdx))
+            If .Hotkey(ItemIdx) = "-" Then .Hotkey(ItemIdx) = ""
+        Next
+        For ItemIdx = 0 To SOUND_EVENT_COUNT - 1
+            .SoundOn(ItemIdx) = IniReadFlag("Sounds", "On" & (ItemIdx + 1), 1)
+            .SoundFile(ItemIdx) = IniRead("Sounds", "File" & (ItemIdx + 1), SoundDefaults(ItemIdx))
+        Next
+    End With
+End Sub
+
+Sub ConfigSave()
+    With Settings
+        IniWrite("General", "AutoStart", Str(.AutoStart))
+        IniWrite("General", "AutoSwitch", Str(.AutoSwitch))
+        IniWrite("General", "CaretFlag", Str(.CaretFlag))
+        IniWrite("General", "Sounds", Str(.SoundsOn))
+        IniWrite("Sounds", "Beep", Str(.SoundBeep))
+        Dim ItemIdx As Long
+        For ItemIdx = 0 To HOTKEY_ACTION_COUNT - 1
+            IniWrite("Hotkeys", "Action" & (ItemIdx + 1), IIf(.Hotkey(ItemIdx) = "", "-", .Hotkey(ItemIdx)))
+        Next
+        For ItemIdx = 0 To SOUND_EVENT_COUNT - 1
+            IniWrite("Sounds", "On" & (ItemIdx + 1), Str(.SoundOn(ItemIdx)))
+            IniWrite("Sounds", "File" & (ItemIdx + 1), .SoundFile(ItemIdx))
+        Next
+    End With
+End Sub
+
+' Запуск при входе в Windows: значение LangBarFB в HKCU\...\Run
+Sub ConfigApplyAutoStart(ByVal Enabled As Long)
+    Dim RunKey As Any Ptr
+    If LbRegOpenKeyEx(LB_HKEY_CURRENT_USER, "Software\Microsoft\Windows\CurrentVersion\Run", _
+            0, LB_KEY_SET_VALUE, RunKey) <> 0 Then Exit Sub
+    If Enabled Then
+        Dim ExeName As ZString * 1024
+        LbGetModuleFileName(0, @ExeName, 1024)
+        Dim CommandLine As String = """" & ExeName & """"
+        LbRegSetValueEx(RunKey, "LangBarFB", 0, LB_REG_SZ, StrPtr(CommandLine), Len(CommandLine) + 1)
+    Else
+        LbRegDeleteValue(RunKey, "LangBarFB")
+    End If
+    LbRegCloseKey(RunKey)
+End Sub
+
+' Полный путь к звуковому файлу: относительный - от папки exe, а если там
+' нет - на уровень выше (как папка flags)
+Function SoundPath(ByRef FileName As String) As String
+    If FileName = "" Then Return ""
+    If Mid(FileName, 2, 1) = ":" Or Left(FileName, 2) = "\\" Then Return FileName
+    If FileExists(ExePath & "\" & FileName) Then Return ExePath & "\" & FileName
+    Return ExePath & "\..\" & FileName
+End Function
+
+Sub PlayEventSound(ByVal EventIdx As Long)
+    If Settings.SoundsOn = 0 Or Settings.SoundOn(EventIdx) = 0 Then Exit Sub
+    If Settings.SoundBeep Then
+        LbMessageBeep(&hFFFFFFFF)
+        Exit Sub
+    End If
+    Dim FullPath As String = SoundPath(Settings.SoundFile(EventIdx))
+    If FullPath = "" Then Exit Sub
+    LbPlaySound(StrPtr(FullPath), 0, LB_SND_FILENAME Or LB_SND_ASYNC Or LB_SND_NODEFAULT)
+End Sub
