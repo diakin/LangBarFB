@@ -51,14 +51,9 @@ Sub AboutCreate()
     AboutTitle.Font.Size = 14
     AboutTitle.Caption = "LangBarFB"
 
-    #ifdef __FB_64BIT__
-        Const ABOUT_BITS = "64"
-    #else
-        Const ABOUT_BITS = "32"
-    #endif
     AboutVersion.Parent = AboutForm
     AboutVersion.Left = 16 : AboutVersion.Top = 48
-    AboutVersion.Caption = Tr("Версия ") & APP_VERSION & ", " & ABOUT_BITS & Tr(" бит, сборка ") & __DATE_ISO__
+    AboutVersion.Caption = Tr("Версия ") & APP_VERSION & Tr(", сборка ") & __DATE_ISO__
 
     ' строки - отдельными метками: перенос в метке LCL с AutoSize не работает
     AboutText.Parent = AboutForm

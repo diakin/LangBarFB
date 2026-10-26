@@ -36,7 +36,7 @@ End Function
 Private Sub LangFillTable()
     LangAdd(" (ошибка ", " (error ")
     LangAdd(" (папка hunspell LangBarXX)", " (LangBarXX hunspell folder)")
-    LangAdd(" бит, сборка ", "-bit, built ")
+    LangAdd(", сборка ", ", built ")
     LangAdd(" нет функций Hunspell", " has no Hunspell functions")
     LangAdd("(нет)", "(none)")
     LangAdd("(по словарю): если в текущей раскладке его нет, а в другой есть, оно перепечатывается ", "(by dictionary): if it is not in the current layout but is in another one, it is retyped ")
