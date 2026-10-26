@@ -373,3 +373,8 @@ Const LB_WM_MBUTTONDOWN = &h0207
 
 Declare Function LbGetModuleFileName Lib "kernel32" Alias "GetModuleFileNameA" ( _
     ByVal ModuleHandle As Any Ptr, ByVal Buffer As ZString Ptr, ByVal BufferLen As ULong) As ULong
+
+Const LB_LOCALE_SLANGUAGE = &h2
+Const LB_VK_NUMLOCK = &h90
+Const LB_VK_LCONTROL = &hA2
+Const LB_VK_LMENU = &hA4

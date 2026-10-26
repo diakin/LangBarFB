@@ -6,6 +6,13 @@
 '             пусто - не назначено
 '  [Sounds]   On1..On4 (0/1), File1..File4, Beep (1 - сигнал динамика
 '             вместо файла)
+'  [Switch]   LShift, RShift, LCtrl, RCtrl - что делает одиночное нажатие:
+'             пусто - ничего, next / prev - следующая / предыдущая
+'             раскладка, код раскладки (ru-RU) - эта раскладка;
+'             DoublePress (0/1) - срабатывать по двойному нажатию;
+'             LangSelect - раскладка по номеру: 0 нет, 1 левый Ctrl + N,
+'             2 левый Alt + N, 3 левый Win + N
+'  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn
 '  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
 ' ---------------------------------------------------------------------------
 
@@ -26,6 +33,18 @@ Const SOUND_UNDO_AUTOSWITCH = 1     ' отмена автопереключен�
 Const SOUND_CONVERT_SELECTION = 2   ' конвертация выделенного текста
 Const SOUND_CONVERT_CLIPBOARD = 3   ' конвертация текста в буфере (позже)
 
+' одиночные клавиши (номер = VK_LSHIFT..VK_RCONTROL - &hA0)
+Const SOLO_KEY_COUNT = 4
+Dim Shared SoloKeyIniNames(0 To SOLO_KEY_COUNT - 1) As ZString * 8 = {"LShift", "RShift", "LCtrl", "RCtrl"}
+Dim Shared SoloKeyTitles(0 To SOLO_KEY_COUNT - 1) As ZString * 16 = {"Левый Shift", "Правый Shift", "Левый Ctrl", "Правый Ctrl"}
+
+' режимы Caps Lock
+Const CAPS_NORMAL = 0       ' как обычно
+Const CAPS_OFF = 1          ' не действует
+Const CAPS_SWITCH = 2       ' следующая раскладка
+Const CAPS_UNDO_WORD = 3    ' последнее слово в другой раскладке (как Break)
+Const CAPS_INVERT_CASE = 4  ' регистр выделенного текста (как Alt + Break)
+
 Type AppSettings
     AutoStart As Long
     AutoSwitch As Long
@@ -35,6 +54,12 @@ Type AppSettings
     Hotkey(0 To HOTKEY_ACTION_COUNT - 1) As String
     SoundOn(0 To SOUND_EVENT_COUNT - 1) As Long
     SoundFile(0 To SOUND_EVENT_COUNT - 1) As String
+    SoloKeyAction(0 To SOLO_KEY_COUNT - 1) As String
+    DoublePress As Long
+    LangSelect As Long
+    CapsMode As Long
+    ShiftCaps As Long
+    NumLockOn As Long
 End Type
 
 Dim Shared Settings As AppSettings
@@ -95,6 +120,16 @@ Sub ConfigLoad()
             .SoundOn(ItemIdx) = IniReadFlag("Sounds", "On" & (ItemIdx + 1), 1)
             .SoundFile(ItemIdx) = IniRead("Sounds", "File" & (ItemIdx + 1), SoundDefaults(ItemIdx))
         Next
+        For ItemIdx = 0 To SOLO_KEY_COUNT - 1
+            .SoloKeyAction(ItemIdx) = IniRead("Switch", SoloKeyIniNames(ItemIdx), "")
+        Next
+        .DoublePress = IniReadFlag("Switch", "DoublePress", 0)
+        .LangSelect = ValInt(IniRead("Switch", "LangSelect", "0"))
+        If .LangSelect < 0 Or .LangSelect > 3 Then .LangSelect = 0
+        .CapsMode = ValInt(IniRead("Keys", "CapsLock", "0"))
+        If .CapsMode < CAPS_NORMAL Or .CapsMode > CAPS_INVERT_CASE Then .CapsMode = CAPS_NORMAL
+        .ShiftCaps = IniReadFlag("Keys", "ShiftCapsLock", 1)
+        .NumLockOn = IniReadFlag("Keys", "NumLockOn", 0)
     End With
 End Sub
 
@@ -113,6 +148,14 @@ Sub ConfigSave()
             IniWrite("Sounds", "On" & (ItemIdx + 1), Str(.SoundOn(ItemIdx)))
             IniWrite("Sounds", "File" & (ItemIdx + 1), .SoundFile(ItemIdx))
         Next
+        For ItemIdx = 0 To SOLO_KEY_COUNT - 1
+            IniWrite("Switch", SoloKeyIniNames(ItemIdx), .SoloKeyAction(ItemIdx))
+        Next
+        IniWrite("Switch", "DoublePress", Str(.DoublePress))
+        IniWrite("Switch", "LangSelect", Str(.LangSelect))
+        IniWrite("Keys", "CapsLock", Str(.CapsMode))
+        IniWrite("Keys", "ShiftCapsLock", Str(.ShiftCaps))
+        IniWrite("Keys", "NumLockOn", Str(.NumLockOn))
     End With
 End Sub
 

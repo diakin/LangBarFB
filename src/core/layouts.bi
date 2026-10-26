@@ -19,6 +19,7 @@ Type LayoutEntry
     LanguageId As ULong
     LocaleCode As String     ' ru-RU
     ShortLabel As String     ' RU
+    LanguageName As String   ' название языка в языке Windows (CP1251)
     FlagColor As ULong       ' &hRRGGBB текстового флажка
 End Type
 
@@ -62,9 +63,24 @@ Function LayoutsLoad() As Long
                 .ShortLabel = "??"
             End If
             .FlagColor = LayoutDefaultColors(LayoutIdx Mod 8)
+            Dim NameBuffer As ZString * 80
+            If LbGetLocaleInfo(.LanguageId, LB_LOCALE_SLANGUAGE, @NameBuffer, 80) > 0 Then
+                .LanguageName = NameBuffer
+            Else
+                .LanguageName = .LocaleCode
+            End If
         End With
     Next
     Return LayoutCount
+End Function
+
+' Номер раскладки по коду (ru-RU); -1 - такой нет
+Function LayoutIndexOfCode(ByRef LocaleCode As String) As Long
+    Dim LayoutIdx As Long
+    For LayoutIdx = 0 To LayoutCount - 1
+        If LCase(LayoutList(LayoutIdx).LocaleCode) = LCase(LocaleCode) Then Return LayoutIdx
+    Next
+    Return -1
 End Function
 
 ' Номер раскладки в списке по HKL; -1 - нет в списке
@@ -123,4 +139,13 @@ Sub LayoutNext(ByVal WindowHandle As Any Ptr)
     Dim Current As LayoutInfo = LayoutOfWindow(WindowHandle)
     Dim CurrentIdx As Long = LayoutIndexOf(Current.LayoutHandle)
     LayoutRequest(WindowHandle, LayoutList((CurrentIdx + 1) Mod LayoutCount).LayoutHandle)
+End Sub
+
+' Предыдущая раскладка по кругу
+Sub LayoutPrev(ByVal WindowHandle As Any Ptr)
+    If LayoutCount < 2 Then Exit Sub
+    Dim Current As LayoutInfo = LayoutOfWindow(WindowHandle)
+    Dim CurrentIdx As Long = LayoutIndexOf(Current.LayoutHandle)
+    If CurrentIdx < 0 Then CurrentIdx = 0
+    LayoutRequest(WindowHandle, LayoutList((CurrentIdx + LayoutCount - 1) Mod LayoutCount).LayoutHandle)
 End Sub

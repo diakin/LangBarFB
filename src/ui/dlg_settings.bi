@@ -5,6 +5,8 @@
 '  Общие            - запуск с Windows, автопереключение (пока только
 '                     галка - само автопереключение на этапе 5), флажок
 '                     у каретки
+'  Переключение     - одиночные Shift/Ctrl, раскладка по номеру, режим
+'                     Caps Lock, Num Lock (switchkeys.bi)
 '  Горячие клавиши  - четыре действия; «Назначить...» ждёт нажатия
 '                     сочетания (его ловит хук, hotkeys.bi)
 '  Звуки            - события с галками, файл каждого, сигнал динамика
@@ -30,6 +32,7 @@ Dim Shared SettingsOpen As Long
 Dim Shared SettingsForm As QFORM
 Dim Shared SectionList As QLISTBOX
 Dim Shared GeneralPage As QPANEL
+Dim Shared SwitchPage As QPANEL
 Dim Shared HotkeysPage As QPANEL
 Dim Shared SoundsPage As QPANEL
 Dim Shared OkButton As QBUTTON
@@ -40,6 +43,17 @@ Dim Shared AutoStartCheck As QCHECKBOX
 Dim Shared AutoSwitchCheck As QCHECKBOX
 Dim Shared CaretFlagCheck As QCHECKBOX
 Dim Shared AutoSwitchNote As QLABEL
+
+Dim Shared SoloLabels(0 To SOLO_KEY_COUNT - 1) As QLABEL
+Dim Shared SoloCombos(0 To SOLO_KEY_COUNT - 1) As QCOMBOBOX
+Dim Shared DoublePressCheck As QCHECKBOX
+Dim Shared LangSelectLabel As QLABEL
+Dim Shared LangSelectCombo As QCOMBOBOX
+Dim Shared CapsLabel As QLABEL
+Dim Shared CapsCombo As QCOMBOBOX
+Dim Shared ShiftCapsCheck As QCHECKBOX
+Dim Shared NumLockCheck As QCHECKBOX
+Dim Shared SoloNote As QLABEL
 
 Dim Shared HotkeyView As QLISTVIEW
 Dim Shared AssignButton As QBUTTON
@@ -85,6 +99,53 @@ Private Sub FillSoundView()
     Next
 End Sub
 
+' Пункты одиночной клавиши: Выкл., следующая, предыдущая, раскладки
+' Windows (список мог измениться с прошлого раза)
+Private Sub FillSoloCombos()
+    Dim KeyIdx As Long, LayoutIdx As Long
+    For KeyIdx = 0 To SOLO_KEY_COUNT - 1
+        SoloCombos(KeyIdx).Clear
+        SoloCombos(KeyIdx).AddItems("Выкл.", "Следующая раскладка", "Предыдущая раскладка")
+        For LayoutIdx = 0 To LayoutCount - 1
+            With LayoutList(LayoutIdx)
+                SoloCombos(KeyIdx).AddItems(.LanguageName & " (" & .LocaleCode & ")")
+            End With
+        Next
+        Dim KeyAction As String = EditSettings.SoloKeyAction(KeyIdx)
+        Dim ShownIdx As Long
+        Select Case KeyAction
+        Case ""
+            ShownIdx = 0
+        Case "next"
+            ShownIdx = 1
+        Case "prev"
+            ShownIdx = 2
+        Case Else
+            ' раскладки, которой уже нет в Windows, - «Выкл.»
+            ShownIdx = LayoutIndexOfCode(KeyAction) + 3
+            If ShownIdx < 3 Then ShownIdx = 0
+        End Select
+        SoloCombos(KeyIdx).ItemIndex = ShownIdx
+    Next
+End Sub
+
+Private Sub ReadSoloCombos()
+    Dim KeyIdx As Long
+    For KeyIdx = 0 To SOLO_KEY_COUNT - 1
+        Dim ShownIdx As Long = SoloCombos(KeyIdx).ItemIndex
+        Select Case ShownIdx
+        Case 1
+            EditSettings.SoloKeyAction(KeyIdx) = "next"
+        Case 2
+            EditSettings.SoloKeyAction(KeyIdx) = "prev"
+        Case 3 To LayoutCount + 2
+            EditSettings.SoloKeyAction(KeyIdx) = LayoutList(ShownIdx - 3).LocaleCode
+        Case Else
+            EditSettings.SoloKeyAction(KeyIdx) = ""
+        End Select
+    Next
+End Sub
+
 Private Sub FillForm()
     AutoStartCheck.Checked = EditSettings.AutoStart
     AutoSwitchCheck.Checked = EditSettings.AutoSwitch
@@ -92,6 +153,12 @@ Private Sub FillForm()
     SoundsOnCheck.Checked = EditSettings.SoundsOn
     SoundFileRadio.Checked = IIf(EditSettings.SoundBeep = 0, 1, 0)
     SoundBeepRadio.Checked = EditSettings.SoundBeep
+    FillSoloCombos()
+    DoublePressCheck.Checked = EditSettings.DoublePress
+    LangSelectCombo.ItemIndex = EditSettings.LangSelect
+    CapsCombo.ItemIndex = EditSettings.CapsMode
+    ShiftCapsCheck.Checked = EditSettings.ShiftCaps
+    NumLockCheck.Checked = EditSettings.NumLockOn
     FillHotkeyView()
     FillSoundView()
 End Sub
@@ -104,6 +171,12 @@ Private Sub ReadForm()
     EditSettings.CaretFlag = IIf(CaretFlagCheck.Checked, 1, 0)
     EditSettings.SoundsOn = IIf(SoundsOnCheck.Checked, 1, 0)
     EditSettings.SoundBeep = IIf(SoundBeepRadio.Checked, 1, 0)
+    ReadSoloCombos()
+    EditSettings.DoublePress = IIf(DoublePressCheck.Checked, 1, 0)
+    If LangSelectCombo.ItemIndex >= 0 Then EditSettings.LangSelect = LangSelectCombo.ItemIndex
+    If CapsCombo.ItemIndex >= 0 Then EditSettings.CapsMode = CapsCombo.ItemIndex
+    EditSettings.ShiftCaps = IIf(ShiftCapsCheck.Checked, 1, 0)
+    EditSettings.NumLockOn = IIf(NumLockCheck.Checked, 1, 0)
     Dim EventIdx As Long
     For EventIdx = 0 To SOUND_EVENT_COUNT - 1
         EditSettings.SoundOn(EventIdx) = IIf(SoundView.Item(EventIdx).Checked, 1, 0)
@@ -122,8 +195,9 @@ End Sub
 Private Sub OnSectionClick()
     Dim SectionIdx As Long = SectionList.ItemIndex
     GeneralPage.Visible = IIf(SectionIdx = 0, 1, 0)
-    HotkeysPage.Visible = IIf(SectionIdx = 1, 1, 0)
-    SoundsPage.Visible = IIf(SectionIdx = 2, 1, 0)
+    SwitchPage.Visible = IIf(SectionIdx = 1, 1, 0)
+    HotkeysPage.Visible = IIf(SectionIdx = 2, 1, 0)
+    SoundsPage.Visible = IIf(SectionIdx = 3, 1, 0)
 End Sub
 
 Private Sub OnOkClick()
@@ -273,6 +347,18 @@ Private Sub PreparePage(ByRef Page As QPANEL)
     Page.Caption = ""
 End Sub
 
+Private Sub PlaceCombo(ByRef Combo As QCOMBOBOX, ByRef Caption As QLABEL, ByRef CaptionText As String, _
+        ByVal PosY As Long, ByVal ComboLeft As Long)
+    Caption.Parent = SwitchPage
+    Caption.Left = 8 : Caption.Top = PosY + 3
+    Caption.Caption = CaptionText
+    Combo.Parent = SwitchPage
+    Combo.Left = ComboLeft : Combo.Top = PosY
+    Combo.Width = 412 - ComboLeft
+    ' только выбор из списка
+    Combo.Style = 2
+End Sub
+
 Sub SettingsCreate()
     SettingsForm.Caption = "Настройки LangBarFB"
     SettingsForm.BorderStyle = 3
@@ -283,10 +369,11 @@ Sub SettingsCreate()
     SectionList.Parent = SettingsForm
     SectionList.Left = 8 : SectionList.Top = 8
     SectionList.Width = 156 : SectionList.Height = 344
-    SectionList.AddItems("Общие", "Горячие клавиши", "Звуки")
+    SectionList.AddItems("Общие", "Переключение", "Горячие клавиши", "Звуки")
     SectionList.OnClick = @OnSectionClick
 
     PreparePage(GeneralPage)
+    PreparePage(SwitchPage)
     PreparePage(HotkeysPage)
     PreparePage(SoundsPage)
 
@@ -297,6 +384,25 @@ Sub SettingsCreate()
     AutoSwitchNote.Parent = GeneralPage
     AutoSwitchNote.Left = 8 : AutoSwitchNote.Top = 104
     AutoSwitchNote.Caption = "Автопереключение пока не работает: галка только запоминается."
+
+    ' Переключение
+    Dim KeyIdx As Long
+    For KeyIdx = 0 To SOLO_KEY_COUNT - 1
+        PlaceCombo(SoloCombos(KeyIdx), SoloLabels(KeyIdx), SoloKeyTitles(KeyIdx), 8 + KeyIdx * 30, 120)
+    Next
+    PlaceCheck(DoublePressCheck, SwitchPage, "Срабатывать по двойному нажатию", 128)
+    PlaceCombo(LangSelectCombo, LangSelectLabel, "Раскладка по номеру", 162, 160)
+    LangSelectCombo.AddItems("Выкл.", "Левый Ctrl + 1...9", "Левый Alt + 1...9", "Левый Win + 1...9")
+    PlaceCombo(CapsCombo, CapsLabel, "Caps Lock", 196, 160)
+    CapsCombo.AddItems("Обычный", "Не действует", "Следующая раскладка", _
+        "Последнее слово в другой раскладке", "Регистр выделенного текста")
+    PlaceCheck(ShiftCapsCheck, SwitchPage, "Shift + Caps Lock включает и выключает Caps Lock", 228)
+    PlaceCheck(NumLockCheck, SwitchPage, "Включать Num Lock при запуске", 256)
+    SoloNote.Parent = SwitchPage
+    SoloNote.Left = 8 : SoloNote.Top = 292
+    SoloNote.Width = 404 : SoloNote.Height = 44
+    SoloNote.WordWrap = 1
+    SoloNote.Caption = "Одиночная клавиша срабатывает, если её нажали и отпустили без других клавиш и щелчков мыши."
 
     ' Горячие клавиши
     HotkeyView.Parent = HotkeysPage
