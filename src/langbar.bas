@@ -286,6 +286,45 @@ Sub OnTrayExit()
     LbPostMessage(TrayWindow, LB_WM_NULL, 0, 0)
 End Sub
 
+' --- меню значка (правый щелчок) ---
+Const CMD_SETTINGS = 101
+Const CMD_DEBUG_WINDOW = 102
+Const CMD_ABOUT = 103
+Const CMD_EXIT = 104
+
+Function BuildTrayMenu() As Any Ptr
+    Dim MainMenu As Any Ptr = LbCreatePopupMenu()
+    Dim ExtraMenu As Any Ptr = LbCreatePopupMenu()
+    LbAppendMenu(ExtraMenu, LB_MF_STRING, CMD_DEBUG_WINDOW, "Окно отладки")
+
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_SETTINGS, "Настройки...")
+    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+    LbAppendMenu(MainMenu, LB_MF_STRING Or LB_MF_POPUP, Cast(UInteger, ExtraMenu), "Дополнительно")
+    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, "О LangBarFB")
+    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_EXIT, "Выход")
+    ' пункт по умолчанию Windows рисует жирным
+    LbSetMenuDefaultItem(MainMenu, CMD_SETTINGS, 0)
+    Return MainMenu
+End Function
+
+Sub OnTrayCommand(ByVal CommandId As Long)
+    Select Case CommandId
+    Case CMD_SETTINGS
+        ' окно настроек - этап 4 плана
+        LbMessageBox(0, "Окно настроек будет на этапе 4.", APP_TITLE, LB_MB_ICONINFORMATION)
+    Case CMD_DEBUG_WINDOW
+        OnTrayShow()
+    Case CMD_ABOUT
+        LbMessageBox(0, "LangBarFB - переключатель раскладки на FreeBASIC." & Chr(13, 10) _
+            & "Перенос LangBarXX (AutoHotkey, автор Krot66)." & Chr(13, 10) _
+            & "https://github.com/diakin/LangBarFB", APP_TITLE, LB_MB_ICONINFORMATION)
+    Case CMD_EXIT
+        OnTrayExit()
+    End Select
+End Sub
+
 ' --- одна копия ---
 Dim Shared InstanceMutex As Any Ptr
 InstanceMutex = LbCreateMutex(0, 0, MUTEX_NAME)
@@ -329,9 +368,9 @@ If GfxStart() = 0 Then
 End If
 LoadFlags()
 
-TrayOnShow = @OnTrayShow
+TrayBuildMenu = @BuildTrayMenu
+TrayOnCommand = @OnTrayCommand
 TrayOnClick = @OnTrayClick
-TrayOnExit = @OnTrayExit
 TrayOnAppMessage = @OnAppMessage
 If TrayCreate(APP_TITLE) = 0 Then
     LbMessageBox(0, "Не удалось создать значок в области уведомлений.", APP_TITLE, 0)

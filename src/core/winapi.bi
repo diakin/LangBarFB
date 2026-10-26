@@ -38,6 +38,9 @@ Const LB_NIF_TIP = 4
 
 Const LB_MF_STRING = &h0000
 Const LB_MF_SEPARATOR = &h0800
+Const LB_MF_GRAYED = &h0001
+Const LB_MF_CHECKED = &h0008
+Const LB_MF_POPUP = &h0010
 Const LB_TPM_RIGHTBUTTON = &h0002
 Const LB_TPM_RETURNCMD = &h0100
 
@@ -248,3 +251,5 @@ Declare Function LbIsWindowVisible Lib "user32" Alias "IsWindowVisible" ( _
     ByVal WindowHandle As Any Ptr) As Long
 Declare Function LbClientToScreen Lib "user32" Alias "ClientToScreen" ( _
     ByVal WindowHandle As Any Ptr, ByRef ClientPos As LbPoint) As Long
+Declare Function LbSetMenuDefaultItem Lib "user32" Alias "SetMenuDefaultItem" ( _
+    ByVal MenuHandle As Any Ptr, ByVal ItemId As ULong, ByVal ByPosition As ULong) As Long
