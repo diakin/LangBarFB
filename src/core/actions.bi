@@ -24,9 +24,6 @@
 ' выделение не выделяется заново, если оно длиннее (Shift+Left по одному
 ' символу на длинном тексте идёт заметно долго)
 Const RESELECT_MAX_CHARS = 2000
-' удержание Break: через столько секунд добавляется следующее слово
-' (WordInt у LangBarXX - 750 мс)
-Const WORD_HOLD_SECONDS = 0.75
 
 Type ActionLogFn As Sub(ByRef LineText As String)
 ' запись хода действий в окно отладки (ставит главная программа)
@@ -183,11 +180,10 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
     PlayEventSound(SOUND_CONVERT_SELECTION)
 End Sub
 
-' Break: последнее слово - в следующей раскладке. Пока Break держат,
-' каждые WORD_HOLD_SECONDS выделяется ещё одно слово слева (Shift+Left),
-' по отпусканию все выделенные слова набираются заново. Повторное
-' нажатие сразу после этого - тот же кусок в следующей раскладке.
-Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr, ByVal HeldKey As ULong)
+' Break: последнее слово - в следующей раскладке. Повторное нажатие сразу
+' после этого - то же слово в следующей раскладке по кругу. Целое
+' предложение исправляют выделением и Shift+Break.
+Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     If LayoutCount < 2 Then Exit Sub
     Dim RangeStart As Long, SourceIdx As Long
     If WordCycleActive And TargetWindow = WordWindow Then
@@ -205,31 +201,6 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr, ByVal HeldKey As UL
         SourceIdx = LayoutIndexOf(LayoutOfWindow(TargetWindow).LayoutHandle)
         If SourceIdx < 0 Then SourceIdx = 0
         WordCycleShownChars = WordKeyCount - RangeStart
-
-        ' удержание: слово за словом влево
-        Dim Selected As Long, WordCount As Long = 1
-        Dim HoldStart As Double = Timer
-        While HeldKey <> 0 And HotkeyHeldKey = HeldKey
-            SendWaitPump(20)
-            If Timer - HoldStart >= WORD_HOLD_SECONDS * WordCount Then
-                Dim PrevStart As Long = WordStartBefore(RangeStart)
-                If PrevStart < 0 Then Exit While
-                If Selected Then
-                    SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, RangeStart - PrevStart)
-                Else
-                    SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, WordKeyCount - PrevStart)
-                    Selected = 1
-                End If
-                RangeStart = PrevStart
-                WordCount += 1
-            End If
-        Wend
-        WordCycleShownChars = WordKeyCount - RangeStart
-        If Selected Then
-            ' выделение заменится набранным текстом - стирать не нужно
-            WordCycleShownChars = 0
-            LogAction("Break удержан: слов " & WordCount)
-        End If
     End If
     Dim TargetIdx As Long = (SourceIdx + 1) Mod LayoutCount
     Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
@@ -263,8 +234,6 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
     If ActionBusy Then Exit Sub
     ActionBusy = 1
     Dim TargetWindow As Any Ptr = LbGetForegroundWindow()
-    ' клавиша сочетания, если её ещё держат (удержание Break)
-    Dim HeldKey As ULong = HotkeyHeldKey
     ' после Alt или Win, нажатых без другой клавиши, окно открыло бы
     ' своё меню или меню «Пуск» - лишнее нажатие это отменяет
     If (HotkeyTable(ActionIdx).Modifiers And (KB_MOD_ALT Or KB_MOD_WIN)) <> 0 Then
@@ -278,7 +247,7 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
         SendWaitPump(20)
     End If
     If ActionIdx = ACTION_UNDO_CONVERT Then
-        ActionUndoConvert(TargetWindow, HeldKey)
+        ActionUndoConvert(TargetWindow)
     Else
         ActionSelection(ActionIdx, TargetWindow)
     End If
