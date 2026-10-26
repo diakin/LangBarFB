@@ -11,6 +11,9 @@
 '    слова, регистр выделенного текста. Shift + Caps Lock при этом
 '    переключает Caps Lock как обычно (если включено в настройках).
 '
+'  - Левый Shift + Backspace и Ctrl + Caps Lock - как Break (если
+'    включено), как у LangBarXX.
+'
 '  SwitchFilter вызывается в обработчике хука; сами действия - в главной
 '  программе по сообщениям SwitchSoloMessage и SwitchLayoutMessage.
 ' ---------------------------------------------------------------------------
@@ -31,6 +34,8 @@ Dim Shared SwitchSoloOn(0 To SOLO_KEY_COUNT - 1) As Long
 Dim Shared SwitchLangSelect As Long
 Dim Shared SwitchCapsMode As Long
 Dim Shared SwitchShiftCaps As Long
+Dim Shared SwitchShiftBackspace As Long
+Dim Shared SwitchCtrlCaps As Long
 ' нажатая одиночная клавиша-кандидат и число щелчков мыши в тот момент
 Dim Shared SwitchSoloKey As ULong
 Dim Shared SwitchSoloClicks As ULong
@@ -45,6 +50,8 @@ Sub SwitchLoadTable()
     SwitchLangSelect = Settings.LangSelect
     SwitchCapsMode = Settings.CapsMode
     SwitchShiftCaps = Settings.ShiftCaps
+    SwitchShiftBackspace = Settings.ShiftBackspace
+    SwitchCtrlCaps = Settings.CtrlCaps
     SwitchSoloKey = 0
 End Sub
 
@@ -82,6 +89,16 @@ Function SwitchFilter(ByRef KeyEvent As KbEvent) As Long
         Return 1
     End If
     If KeyEvent.IsKeyUp Then Return 0
+
+    ' --- левый Shift + Backspace, Ctrl + Caps Lock: как Break ---
+    If SwitchShiftBackspace And VirtualKey = LB_VK_BACK And KeyEvent.HeldMask = 1 Then
+        SwitchHeldKey = VirtualKey
+        Return SwitchPost(HotkeyActionMessage, ACTION_UNDO_CONVERT)
+    End If
+    If SwitchCtrlCaps And VirtualKey = LB_VK_CAPITAL And KeyEvent.Modifiers = KB_MOD_CTRL Then
+        SwitchHeldKey = VirtualKey
+        Return SwitchPost(HotkeyActionMessage, ACTION_UNDO_CONVERT)
+    End If
 
     ' --- левый Ctrl / Alt / Win + цифра ---
     If SwitchLangSelect <> 0 And VirtualKey >= Asc("1") And VirtualKey <= Asc("9") Then

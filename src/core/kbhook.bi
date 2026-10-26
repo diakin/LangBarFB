@@ -63,6 +63,8 @@ Dim Shared KbMouseHookHandle As Any Ptr
 Dim Shared KbMouseNotifyMessage As ULong
 ' число нажатий кнопок мыши: по нему фильтр видит щелчок между событиями
 Dim Shared KbMouseClicks As ULong
+' где нажали кнопку мыши последний раз (экранные координаты)
+Dim Shared KbLastClickPos As LbPoint
 
 ' Нажатые модификаторы по событиям хука - по биту на клавишу: LShift,
 ' RShift, LCtrl, RCtrl, LAlt, RAlt (vk A0..A5), LWin, RWin. GetAsyncKeyState
@@ -218,6 +220,8 @@ Private Function KbMouseHookProc stdcall (ByVal HookCode As Long, _
         Select Case CULng(WParam)
         Case LB_WM_LBUTTONDOWN, LB_WM_RBUTTONDOWN, LB_WM_MBUTTONDOWN
             KbMouseClicks += 1
+            ' MSLLHOOKSTRUCT начинается с POINT
+            KbLastClickPos = *Cast(LbPoint Ptr, LParam)
             If KbNotifyWindow <> 0 Then LbPostMessage(KbNotifyWindow, KbMouseNotifyMessage, 0, 0)
         End Select
     End If

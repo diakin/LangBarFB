@@ -204,6 +204,19 @@ Sub OnCaretTimer()
 End Sub
 
 ' Флажок не активируется, поэтому активным остаётся окно с кареткой
+Function IsClickOnCaretFlag() As Long
+    If OverlayVisible(CaretFlag) = 0 Then Return 0
+    With KbLastClickPos
+        Return IIf(.PosX >= CaretFlagPos.PosX And .PosX < CaretFlagPos.PosX + CaretFlag.ImageWidth _
+            And .PosY >= CaretFlagPos.PosY And .PosY < CaretFlagPos.PosY + CaretFlag.ImageHeight, 1, 0)
+    End With
+End Function
+
+' Правый щелчок по флажку у каретки - как Break (ПКМ по флажку у LangBarXX)
+Sub OnCaretFlagRightClick()
+    RunHotkeyAction(ACTION_UNDO_CONVERT)
+End Sub
+
 Sub OnCaretFlagClick()
     Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
     If IsOwnOrShellWindow(ForegroundWindow) Then ForegroundWindow = LastUserWindow
@@ -364,8 +377,9 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
     Case SWITCH_LAYOUT_MSG
         OnSwitchLayout(CLng(Cast(Integer, WParam)))
     Case MOUSE_CLICK_MSG
-        ' каретка могла уйти - набранное слово больше не перед ней
-        WordBufferReset()
+        ' каретка могла уйти - набранное слово больше не перед ней. Щелчок
+        ' по флажку у каретки каретку не двигает (правый - исправляет слово)
+        If IsClickOnCaretFlag() = 0 Then WordBufferReset()
     End Select
 End Sub
 
@@ -555,6 +569,7 @@ PollTimer.Interval = 250
 PollTimer.OnTimer = @OnPollTimer
 
 CaretFlag.OnClick = @OnCaretFlagClick
+CaretFlag.OnRightClick = @OnCaretFlagRightClick
 OverlayCreate(CaretFlag, 0)
 OverlayCreate(NoteFlag, 1)
 NoteTimer.Enabled = 0

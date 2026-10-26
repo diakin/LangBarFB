@@ -56,6 +56,9 @@ Dim Shared NumLockCheck As QCHECKBOX
 Dim Shared SoloNote As QLABEL
 
 Dim Shared HotkeyView As QLISTVIEW
+Dim Shared ExtraUndoLabel As QLABEL
+Dim Shared ShiftBackspaceCheck As QCHECKBOX
+Dim Shared CtrlCapsCheck As QCHECKBOX
 Dim Shared AssignButton As QBUTTON
 Dim Shared ClearHotkeyButton As QBUTTON
 Dim Shared DefaultHotkeyButton As QBUTTON
@@ -159,6 +162,8 @@ Private Sub FillForm()
     CapsCombo.ItemIndex = EditSettings.CapsMode
     ShiftCapsCheck.Checked = EditSettings.ShiftCaps
     NumLockCheck.Checked = EditSettings.NumLockOn
+    ShiftBackspaceCheck.Checked = EditSettings.ShiftBackspace
+    CtrlCapsCheck.Checked = EditSettings.CtrlCaps
     FillHotkeyView()
     FillSoundView()
 End Sub
@@ -177,6 +182,8 @@ Private Sub ReadForm()
     If CapsCombo.ItemIndex >= 0 Then EditSettings.CapsMode = CapsCombo.ItemIndex
     EditSettings.ShiftCaps = IIf(ShiftCapsCheck.Checked, 1, 0)
     EditSettings.NumLockOn = IIf(NumLockCheck.Checked, 1, 0)
+    EditSettings.ShiftBackspace = IIf(ShiftBackspaceCheck.Checked, 1, 0)
+    EditSettings.CtrlCaps = IIf(CtrlCapsCheck.Checked, 1, 0)
     Dim EventIdx As Long
     For EventIdx = 0 To SOUND_EVENT_COUNT - 1
         EditSettings.SoundOn(EventIdx) = IIf(SoundView.Item(EventIdx).Checked, 1, 0)
@@ -407,7 +414,7 @@ Sub SettingsCreate()
     ' Горячие клавиши
     HotkeyView.Parent = HotkeysPage
     HotkeyView.Left = 0 : HotkeyView.Top = 0
-    HotkeyView.Width = 420 : HotkeyView.Height = 300
+    HotkeyView.Width = 420 : HotkeyView.Height = 200
     HotkeyView.ViewStyle = 3
     HotkeyView.RowSelect = 1
     HotkeyView.ReadOnly = 1
@@ -420,6 +427,11 @@ Sub SettingsCreate()
         HotkeyView.AddItems(HotkeyActionNames(ItemIdx))
     Next
     HotkeyView.OnDblClick = @OnAssignClick
+    ExtraUndoLabel.Parent = HotkeysPage
+    ExtraUndoLabel.Left = 0 : ExtraUndoLabel.Top = 212
+    ExtraUndoLabel.Caption = "Последнее слово исправляют также:"
+    PlaceCheck(ShiftBackspaceCheck, HotkeysPage, "Левый Shift + Backspace", 234)
+    PlaceCheck(CtrlCapsCheck, HotkeysPage, "Ctrl + Caps Lock", 258)
     PlaceButton(AssignButton, HotkeysPage, "Назначить...", 0, 310, 100)
     PlaceButton(ClearHotkeyButton, HotkeysPage, "Снять", 108, 310, 100)
     PlaceButton(DefaultHotkeyButton, HotkeysPage, "По умолчанию", 216, 310, 110)

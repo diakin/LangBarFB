@@ -12,7 +12,9 @@
 '             DoublePress (0/1) - срабатывать по двойному нажатию;
 '             LangSelect - раскладка по номеру: 0 нет, 1 левый Ctrl + N,
 '             2 левый Alt + N, 3 левый Win + N
-'  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn
+'  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn,
+'             ShiftBackspace, CtrlCapsLock (0/1) - эти сочетания тоже
+'             исправляют последнее слово, как Break
 '  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
 ' ---------------------------------------------------------------------------
 
@@ -60,6 +62,8 @@ Type AppSettings
     CapsMode As Long
     ShiftCaps As Long
     NumLockOn As Long
+    ShiftBackspace As Long
+    CtrlCaps As Long
 End Type
 
 Dim Shared Settings As AppSettings
@@ -130,6 +134,8 @@ Sub ConfigLoad()
         If .CapsMode < CAPS_NORMAL Or .CapsMode > CAPS_INVERT_CASE Then .CapsMode = CAPS_NORMAL
         .ShiftCaps = IniReadFlag("Keys", "ShiftCapsLock", 1)
         .NumLockOn = IniReadFlag("Keys", "NumLockOn", 0)
+        .ShiftBackspace = IniReadFlag("Keys", "ShiftBackspace", 0)
+        .CtrlCaps = IniReadFlag("Keys", "CtrlCapsLock", 0)
     End With
 End Sub
 
@@ -156,6 +162,8 @@ Sub ConfigSave()
         IniWrite("Keys", "CapsLock", Str(.CapsMode))
         IniWrite("Keys", "ShiftCapsLock", Str(.ShiftCaps))
         IniWrite("Keys", "NumLockOn", Str(.NumLockOn))
+        IniWrite("Keys", "ShiftBackspace", Str(.ShiftBackspace))
+        IniWrite("Keys", "CtrlCapsLock", Str(.CtrlCaps))
     End With
 End Sub
 
