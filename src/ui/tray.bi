@@ -23,13 +23,15 @@ Type MessageHandlerFn As Sub(ByVal Msg As ULong)
 Dim Shared TrayWindow As Any Ptr
 Dim Shared TrayIconData As LbNotifyIconDataA
 Dim Shared TrayOnShow As TrayHandlerFn
+Dim Shared TrayOnClick As TrayHandlerFn
+Dim Shared TrayIconHandle As Any Ptr
 Dim Shared TrayOnExit As TrayHandlerFn
 ' сообщения LB_WM_APP + 2 и дальше уходят сюда (сигнал хука и т. п.)
 Dim Shared TrayOnAppMessage As MessageHandlerFn
 
 Private Sub TrayShowMenu()
     Dim MenuHandle As Any Ptr = LbCreatePopupMenu()
-    LbAppendMenu(MenuHandle, LB_MF_STRING, TRAY_CMD_SHOW, "Показать окно")
+    LbAppendMenu(MenuHandle, LB_MF_STRING, TRAY_CMD_SHOW, "Окно отладки")
     LbAppendMenu(MenuHandle, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MenuHandle, LB_MF_STRING, TRAY_CMD_EXIT, "Выход")
     Dim CursorPos As LbPoint
@@ -54,8 +56,8 @@ Private Function TrayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Msg A
         Select Case CULng(LParam)
         Case LB_WM_RBUTTONUP
             TrayShowMenu()
-        Case LB_WM_LBUTTONDBLCLK
-            If TrayOnShow <> 0 Then TrayOnShow()
+        Case LB_WM_LBUTTONUP
+            If TrayOnClick <> 0 Then TrayOnClick()
         End Select
         Return 0
     End If
@@ -66,9 +68,9 @@ Private Function TrayWndProc stdcall (ByVal WindowHandle As Any Ptr, ByVal Msg A
     Return LbDefWindowProc(WindowHandle, Msg, WParam, LParam)
 End Function
 
-' Создаёт служебное окно и значок. Значок пока стандартный, флажки -
-' на этапе 1.
-Function TrayCreate(ByRef TipText As String) As Long
+' Создаёт служебное окно и значок. IconHandle 0 - стандартный значок
+' приложения (его заменит TraySetIcon)
+Function TrayCreate(ByRef TipText As String, ByVal IconHandle As Any Ptr = 0) As Long
     Dim InstanceHandle As Any Ptr = LbGetModuleHandle(0)
     Dim WindowClass As LbWndClassA
     Dim ClassName As ZString * 32 = "LangBarFB_Service"
@@ -84,7 +86,8 @@ Function TrayCreate(ByRef TipText As String) As Long
     TrayIconData.uID = TRAY_ICON_ID
     TrayIconData.uFlags = LB_NIF_MESSAGE Or LB_NIF_ICON Or LB_NIF_TIP
     TrayIconData.uCallbackMessage = TRAY_CALLBACK_MSG
-    TrayIconData.hIcon = LbLoadIcon(0, Cast(Any Ptr, LB_IDI_APPLICATION))
+    If IconHandle = 0 Then IconHandle = LbLoadIcon(0, Cast(Any Ptr, LB_IDI_APPLICATION))
+    TrayIconData.hIcon = IconHandle
     TrayIconData.szTip = Left(TipText, 63)
     Return LbShell_NotifyIcon(LB_NIM_ADD, TrayIconData)
 End Function
@@ -96,9 +99,23 @@ Sub TraySetTip(ByRef TipText As String)
     LbShell_NotifyIcon(LB_NIM_MODIFY, TrayIconData)
 End Sub
 
+' Новый значок; прежний, если его дала программа, освобождается
+Sub TraySetIcon(ByVal IconHandle As Any Ptr)
+    If TrayWindow = 0 Or IconHandle = 0 Then Exit Sub
+    TrayIconData.uFlags = LB_NIF_ICON
+    TrayIconData.hIcon = IconHandle
+    LbShell_NotifyIcon(LB_NIM_MODIFY, TrayIconData)
+    If TrayIconHandle <> 0 Then LbDestroyIcon(TrayIconHandle)
+    TrayIconHandle = IconHandle
+End Sub
+
 Sub TrayDestroy()
     If TrayWindow = 0 Then Exit Sub
     LbShell_NotifyIcon(LB_NIM_DELETE, TrayIconData)
     LbDestroyWindow(TrayWindow)
     TrayWindow = 0
+    If TrayIconHandle <> 0 Then
+        LbDestroyIcon(TrayIconHandle)
+        TrayIconHandle = 0
+    End If
 End Sub

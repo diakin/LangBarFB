@@ -19,6 +19,7 @@ Const LB_WM_KEYDOWN = &h0100
 Const LB_WM_KEYUP = &h0101
 Const LB_WM_SYSKEYDOWN = &h0104
 Const LB_WM_SYSKEYUP = &h0105
+Const LB_WM_LBUTTONUP = &h0202
 Const LB_WM_LBUTTONDBLCLK = &h0203
 Const LB_WM_RBUTTONUP = &h0205
 Const LB_WM_APP = &h8000
@@ -44,6 +45,11 @@ Const LB_IDI_APPLICATION = 32512
 Const LB_ERROR_ALREADY_EXISTS = 183
 Const LB_LOCALE_SISO639LANGNAME = &h59
 Const LB_MB_ICONINFORMATION = &h40
+Const LB_LOCALE_SISO3166CTRYNAME = &h5A
+Const LB_WM_INPUTLANGCHANGEREQUEST = &h0050
+Const LB_SM_CXSMICON = 49
+Const LB_QS_ALLINPUT = &h04FF
+Const LB_CP_ACP = 0
 
 Type LbKbdLLHookStruct
     vkCode As ULong
@@ -56,6 +62,25 @@ End Type
 Type LbPoint
     PosX As Long
     PosY As Long
+End Type
+
+Type LbRect
+    RectLeft As Long
+    RectTop As Long
+    RectRight As Long
+    RectBottom As Long
+End Type
+
+Type LbGuiThreadInfo
+    cbSize As ULong
+    flags As ULong
+    hwndActive As Any Ptr
+    hwndFocus As Any Ptr
+    hwndCapture As Any Ptr
+    hwndMenuOwner As Any Ptr
+    hwndMoveSize As Any Ptr
+    hwndCaret As Any Ptr
+    rcCaret As LbRect
 End Type
 
 Type LbWndClassA
@@ -155,3 +180,18 @@ Declare Function LbGetCursorPos Lib "user32" Alias "GetCursorPos" ( _
 Declare Function LbMessageBox Lib "user32" Alias "MessageBoxA" ( _
     ByVal WindowHandle As Any Ptr, ByVal Text As ZString Ptr, _
     ByVal Caption As ZString Ptr, ByVal Flags As ULong) As Long
+
+Declare Function LbGetKeyboardLayoutList Lib "user32" Alias "GetKeyboardLayoutList" ( _
+    ByVal ListSize As Long, ByVal LayoutList As Any Ptr Ptr) As Long
+Declare Function LbGetGUIThreadInfo Lib "user32" Alias "GetGUIThreadInfo" ( _
+    ByVal ThreadId As ULong, ByRef ThreadInfo As LbGuiThreadInfo) As Long
+Declare Function LbGetSystemMetrics Lib "user32" Alias "GetSystemMetrics" ( _
+    ByVal MetricIndex As Long) As Long
+Declare Function LbDestroyIcon Lib "user32" Alias "DestroyIcon" ( _
+    ByVal IconHandle As Any Ptr) As Long
+Declare Function LbMsgWaitForMultipleObjects Lib "user32" Alias "MsgWaitForMultipleObjects" ( _
+    ByVal HandleCount As ULong, ByVal HandleList As Any Ptr, ByVal WaitAll As Long, _
+    ByVal Milliseconds As ULong, ByVal WakeMask As ULong) As ULong
+Declare Function LbMultiByteToWideChar Lib "kernel32" Alias "MultiByteToWideChar" ( _
+    ByVal CodePage As ULong, ByVal Flags As ULong, ByVal SourceText As ZString Ptr, _
+    ByVal SourceLen As Long, ByVal TargetText As WString Ptr, ByVal TargetLen As Long) As Long
