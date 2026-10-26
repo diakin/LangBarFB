@@ -96,17 +96,24 @@ Private Sub AutoRetype(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, B
         TargetChars() As UShort, ByVal CharCount As Long, ByVal SourceIdx As Long, ByVal TargetIdx As Long, _
         ByRef LogText As String)
     ActionBusy = 1
+    Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
+    Dim VirtualKeys() As UShort, ShiftFlags() As Long
+    Dim KeyCount As Long = WordKeysFor(WordStart, WordStart + CharCount - 1, TargetHandle, VirtualKeys(), ShiftFlags())
     SendKeyTap(LB_VK_BACK, ShownChars)
-    SendUnicodeText(TargetChars(), CharCount)
+    ' сначала раскладка, потом нажатия (как Break, actions.bi)
+    Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, TargetHandle, 30)
+    If SwitchResult Then
+        SendKeysWithShift(VirtualKeys(), ShiftFlags(), KeyCount)
+    Else
+        SendUnicodeText(TargetChars(), CharCount)
+    End If
     WordCycleActive = 1
     WordCycleStart = WordStart
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = CharCount
     WordCycleUndoIdx = SourceIdx
     PlayEventSound(SOUND_AUTOSWITCH)
-    Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
-    LogAction(LogText & " -> автопереключение, раскладка: " _
-        & SwitchResultText(LayoutSwitchChecked(TargetWindow, TargetHandle, 30)))
+    LogAction(LogText & " -> автопереключение, раскладка: " & SwitchResultText(SwitchResult))
     ActionBusy = 0
 End Sub
 

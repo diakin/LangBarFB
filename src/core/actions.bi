@@ -167,8 +167,8 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
         LastResultCount = CharCount
     End If
 
-    Dim Positions As Long = SendUnicodeText(TextChars(), CharCount)
-    If Positions <= RESELECT_MAX_CHARS Then SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, Positions)
+    ' раскладка - до печати: окна без Unicode переводят символ в кодировку
+    ' текущей раскладки
     If NewLayout = 0 Then
         ' регистр: раскладка не меняется
     ElseIf NewLayout = WindowLayout Then
@@ -177,6 +177,8 @@ Private Sub ActionSelection(ByVal ActionIdx As Long, ByVal TargetWindow As Any P
         LogAction("раскладка " & LayoutCodeOf(WindowLayout) & " -> " & LayoutCodeOf(NewLayout) & ": " _
             & SwitchResultText(LayoutSwitchChecked(TargetWindow, NewLayout, 50)))
     End If
+    Dim Positions As Long = SendUnicodeText(TextChars(), CharCount)
+    If Positions <= RESELECT_MAX_CHARS Then SendKeyWithModifier(LB_VK_SHIFT, LB_VK_LEFT, Positions)
     WordBufferReset()
     PlayEventSound(SOUND_CONVERT_SELECTION)
 End Sub
@@ -225,10 +227,22 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
         End If
     Next
 
+    ' клавиши - до ожидания смены раскладки: пока ждём, буфер может измениться
+    Dim VirtualKeys() As UShort, ShiftFlags() As Long
+    Dim KeyCount As Long = WordKeysFor(RangeStart, WordKeyCount - 1, TargetHandle, VirtualKeys(), ShiftFlags())
     SendKeyTap(LB_VK_BACK, WordCycleShownChars)
-    SendUnicodeText(NewChars(), NewCount)
+    ' раскладка меняется до набора, и слово набирается нажатиями клавиш:
+    ' окна без Unicode переводят символ в кодировку текущей раскладки, и
+    ' русский текст при английской раскладке становится «?????» (LangBarXX
+    ' делает так же: SetInputLayout, потом SendText по клавишам)
+    Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, TargetHandle, 50)
+    If SwitchResult Then
+        SendKeysWithShift(VirtualKeys(), ShiftFlags(), KeyCount)
+    Else
+        SendUnicodeText(NewChars(), NewCount)
+    End If
     LogAction("Break: " & NewCount & " симв. в " & LayoutList(TargetIdx).LocaleCode & ", раскладка: " _
-        & SwitchResultText(LayoutSwitchChecked(TargetWindow, TargetHandle, 50)))
+        & SwitchResultText(SwitchResult))
     WordCycleActive = 1
     WordCycleStart = RangeStart
     WordCycleLayoutIdx = TargetIdx

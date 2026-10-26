@@ -60,6 +60,29 @@ Sub SendKeyWithModifier(ByVal ModifierKey As UShort, ByVal VirtualKey As UShort,
     LbSendInput(Repeats * 2 + 2, @KeyInputs(0), SizeOf(LbKeybdInput))
 End Sub
 
+' Нажатия клавиш VirtualKeys, где ShiftFlags <> 0 - с Shift. Так печатает
+' пользователь: символ даёт раскладка окна, и окна без Unicode (ANSI,
+' например программы Delphi 7) получают его в своей кодировке.
+Sub SendKeysWithShift(VirtualKeys() As UShort, ShiftFlags() As Long, ByVal KeyCount As Long)
+    If KeyCount <= 0 Then Exit Sub
+    Dim KeyInputs(0 To KeyCount * 4 - 1) As LbKeybdInput
+    Dim InputCount As Long, KeyIdx As Long
+    For KeyIdx = 0 To KeyCount - 1
+        If ShiftFlags(KeyIdx) Then
+            SendFillKey(KeyInputs(InputCount), LB_VK_SHIFT, 0, 0)
+            InputCount += 1
+        End If
+        SendFillKey(KeyInputs(InputCount), VirtualKeys(KeyIdx), 0, 0)
+        SendFillKey(KeyInputs(InputCount + 1), VirtualKeys(KeyIdx), 0, LB_KEYEVENTF_KEYUP)
+        InputCount += 2
+        If ShiftFlags(KeyIdx) Then
+            SendFillKey(KeyInputs(InputCount), LB_VK_SHIFT, 0, LB_KEYEVENTF_KEYUP)
+            InputCount += 1
+        End If
+    Next
+    LbSendInput(InputCount, @KeyInputs(0), SizeOf(LbKeybdInput))
+End Sub
+
 ' Печатает текст: символы - KEYEVENTF_UNICODE (не зависят от раскладки),
 ' перевод строки - Enter (CR LF и одиночный LF - один Enter).
 ' Возвращает, на сколько позиций курсора текст занял место.

@@ -22,6 +22,7 @@
 #include once "winapi.bi"
 #include once "kbhook.bi"
 #include once "layouts.bi"
+#include once "sendkeys.bi"
 
 ' Символ клавиши VirtualKey в раскладке LayoutHandle; 0 - клавиша
 ' символа не даёт (или это мёртвая клавиша - её состояние сбрасывается)
@@ -252,6 +253,29 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     WordBackspaced = 0
     If VirtualKey = LB_VK_SPACE Then WordSpaceFed = 1 Else WordLetterFed = 1
 End Sub
+
+' Клавиши буфера StartIdx..EndIdx для повторного набора нажатиями в
+' раскладке LayoutHandle (SendKeysWithShift - после смены раскладки).
+' Shift - как при наборе; у букв ещё учитывается, что Caps Lock мог
+' смениться с тех пор. Возвращает число клавиш.
+Function WordKeysFor(ByVal StartIdx As Long, ByVal EndIdx As Long, ByVal LayoutHandle As UInteger, _
+        VirtualKeys() As UShort, ShiftFlags() As Long) As Long
+    If EndIdx < StartIdx Then Return 0
+    ReDim VirtualKeys(0 To EndIdx - StartIdx)
+    ReDim ShiftFlags(0 To EndIdx - StartIdx)
+    Dim KeyIdx As Long
+    For KeyIdx = StartIdx To EndIdx
+        With WordKeys(KeyIdx)
+            VirtualKeys(KeyIdx - StartIdx) = .VirtualKey
+            Dim NeedShift As Long = .WithShift
+            If LbIsCharAlpha(KeyCharInLayout(.VirtualKey, 0, 0, LayoutHandle)) And .CapsOn <> KbCapsOn Then
+                NeedShift = 1 - NeedShift
+            End If
+            ShiftFlags(KeyIdx - StartIdx) = NeedShift
+        End With
+    Next
+    Return EndIdx - StartIdx + 1
+End Function
 
 ' Где начинается последнее слово буфера: пробелы в конце остаются за
 ' словом. -1 - слова нет.
