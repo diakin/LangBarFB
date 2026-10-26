@@ -240,6 +240,12 @@ Function DescribeEvent(ByRef KeyEvent As KbEvent) As String
     If (KeyEvent.KeyFlags And LB_LLKHF_ALTDOWN) <> 0 Then LineText &= "  alt"
     If KeyEvent.IsInjected Then LineText &= "  программная"
     If KeyEvent.IsSwallowed Then LineText &= "  проглочена (сочетание)"
+    If KeyEvent.Modifiers <> 0 Then LineText &= "  mods=" & KeyEvent.Modifiers
+    If KeyEvent.HeldMask <> 0 Then LineText &= "  held=" & Hex(KeyEvent.HeldMask)
+    ' раскладка активного окна на момент разбора события
+    Dim Current As LayoutInfo = LayoutOfForeground()
+    Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
+    If LayoutIdx >= 0 Then LineText &= "  [" & LayoutList(LayoutIdx).LocaleCode & "]"
     Return LineText
 End Function
 
@@ -352,6 +358,8 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
     Case HOTKEY_CAPTURE_MSG
         SettingsCaptureDone()
     Case SWITCH_SOLO_MSG
+        OnKeyEvents()
+        DebugLog("одиночная клавиша: " & SoloKeyTitles(CLng(WParam) And 3))
         OnSoloKey(CLng(WParam))
     Case SWITCH_LAYOUT_MSG
         OnSwitchLayout(CLng(Cast(Integer, WParam)))

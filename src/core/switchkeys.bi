@@ -68,7 +68,8 @@ Function SwitchFilter(ByRef KeyEvent As KbEvent) As Long
         ' нажатие другой клавиши отменяет одиночное; повтор той же - нет
         SwitchSoloKey = 0
         If VirtualKey >= LB_VK_LSHIFT And VirtualKey <= LB_VK_LSHIFT + SOLO_KEY_COUNT - 1 Then
-            If SwitchSoloOn(VirtualKey - LB_VK_LSHIFT) And KeyEvent.Modifiers = 0 Then
+            ' до этого нажатия других модификаторов не держали
+            If SwitchSoloOn(VirtualKey - LB_VK_LSHIFT) And KeyEvent.HeldMask = 0 Then
                 SwitchSoloKey = VirtualKey
                 SwitchSoloClicks = KbMouseClicks
             End If

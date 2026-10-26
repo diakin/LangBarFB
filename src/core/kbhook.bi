@@ -35,6 +35,7 @@ Type KbEvent
     Modifiers As ULong       ' KB_MOD_...
     CapsOn As Long           ' Caps Lock включён
     IsSwallowed As Long      ' нажатие проглочено фильтром, окно его не получило
+    HeldMask As ULong        ' модификаторы, нажатые до события (KbHeldBit)
 End Type
 
 ' Фильтр: 1 - проглотить нажатие. Вызывается внутри обработчика хука.
@@ -62,6 +63,49 @@ Dim Shared KbMouseHookHandle As Any Ptr
 Dim Shared KbMouseNotifyMessage As ULong
 ' число нажатий кнопок мыши: по нему фильтр видит щелчок между событиями
 Dim Shared KbMouseClicks As ULong
+
+' Нажатые модификаторы по событиям хука - по биту на клавишу: LShift,
+' RShift, LCtrl, RCtrl, LAlt, RAlt (vk A0..A5), LWin, RWin. GetAsyncKeyState
+' внутри хука для только что нажатой клавиши ненадёжен (MSDN,
+' LowLevelKeyboardProc), а здесь состояние - до текущего события.
+Dim Shared KbHeldMask As ULong
+
+Function KbHeldBit(ByVal VirtualKey As ULong) As ULong
+    Select Case VirtualKey
+    Case &hA0 To &hA5
+        Return 1 Shl (VirtualKey - &hA0)
+    Case &h5B
+        Return &h40
+    Case &h5C
+        Return &h80
+    End Select
+    Return 0
+End Function
+
+' Модификаторы KB_MOD_... по маске нажатых клавиш
+Function KbModifiersOfMask(ByVal HeldMask As ULong) As ULong
+    Dim Modifiers As ULong
+    If HeldMask And &h03 Then Modifiers Or= KB_MOD_SHIFT
+    If HeldMask And &h0C Then Modifiers Or= KB_MOD_CTRL
+    If HeldMask And &h30 Then Modifiers Or= KB_MOD_ALT
+    If HeldMask And &hC0 Then Modifiers Or= KB_MOD_WIN
+    Return Modifiers
+End Function
+
+' Отпускание могло пройти мимо хука (блокировка Win+L, окно UAC): бит
+' клавиши, которая по GetAsyncKeyState уже отпущена, снимается. Клавиша
+' текущего события (ExceptBit) не проверяется.
+Private Sub KbDropReleasedKeys(ByVal ExceptBit As ULong)
+    If KbHeldMask = 0 Then Exit Sub
+    Dim BitIdx As Long
+    For BitIdx = 0 To 7
+        Dim KeyBit As ULong = 1 Shl BitIdx
+        If (KbHeldMask And KeyBit) <> 0 And KeyBit <> ExceptBit Then
+            Dim VirtualKey As Long = IIf(BitIdx < 6, &hA0 + BitIdx, &h5B + BitIdx - 6)
+            If (LbGetAsyncKeyState(VirtualKey) And &h8000) = 0 Then KbHeldMask And= Not KeyBit
+        End If
+    Next
+End Sub
 
 Private Function KbIsKeyDown(ByVal VirtualKey As Long) As Long
     Return IIf((LbGetAsyncKeyState(VirtualKey) And &h8000) <> 0, 1, 0)
@@ -91,9 +135,15 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
             .EventTime = HookData->time
             .IsKeyUp = IIf((HookData->flags And LB_LLKHF_UP) <> 0, 1, 0)
             .IsInjected = IIf((HookData->flags And LB_LLKHF_INJECTED) <> 0, 1, 0)
-            .Modifiers = KbCurrentModifiers()
         End With
         KeyEvent.CapsOn = KbCapsOn
+        Dim HeldBit As ULong = KbHeldBit(KeyEvent.VirtualKey)
+        KbDropReleasedKeys(HeldBit)
+        KeyEvent.HeldMask = KbHeldMask
+        KeyEvent.Modifiers = KbModifiersOfMask(KbHeldMask)
+        If HeldBit <> 0 Then
+            If KeyEvent.IsKeyUp Then KbHeldMask And= Not HeldBit Else KbHeldMask Or= HeldBit
+        End If
         If KbKeyFilter <> 0 Then KeyEvent.IsSwallowed = KbKeyFilter(KeyEvent)
         ' Caps Lock переключается, только если нажатие дошло до Windows
         If KeyEvent.VirtualKey = LB_VK_CAPITAL And KeyEvent.IsSwallowed = 0 Then
