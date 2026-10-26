@@ -1,0 +1,39 @@
+# Auto detect text files and perform LF normalization
+*.pas  text eol=crlf working-tree-encoding=windows-1251
+*.dfm  text eol=crlf working-tree-encoding=windows-1251
+*.dpr  text eol=crlf working-tree-encoding=windows-1251
+*.inc  text eol=crlf working-tree-encoding=windows-1251
+*.bas  text eol=crlf working-tree-encoding=windows-1251
+*.bi   text eol=crlf working-tree-encoding=windows-1251
+*.ini  text eol=crlf working-tree-encoding=windows-1251
+*.clr  text eol=crlf working-tree-encoding=windows-1251
+*.bat  text eol=crlf working-tree-encoding=windows-1251
+*.dof  text eol=crlf working-tree-encoding=windows-1251
+*.prj  text eol=crlf working-tree-encoding=windows-1251
+# Те же правила для расширений в другом регистре: в Linux шаблоны
+# чувствительны к регистру, Git для Windows (core.ignorecase) - нет.
+# Без них файл .INC из Linux попадал в репозиторий в cp1251, а в Windows
+# считался изменённым после каждого получения.
+*.INC  text eol=crlf working-tree-encoding=windows-1251
+*.Inc  text eol=crlf working-tree-encoding=windows-1251
+*.PAS  text eol=crlf working-tree-encoding=windows-1251
+*.DFM  text eol=crlf working-tree-encoding=windows-1251
+*.DPR  text eol=crlf working-tree-encoding=windows-1251
+*.BAS  text eol=crlf working-tree-encoding=windows-1251
+*.Bas  text eol=crlf working-tree-encoding=windows-1251
+*.BI   text eol=crlf working-tree-encoding=windows-1251
+*.INI  text eol=crlf working-tree-encoding=windows-1251
+*.Ini  text eol=crlf working-tree-encoding=windows-1251
+*.CLR  text eol=crlf working-tree-encoding=windows-1251
+*.BAT  text eol=crlf working-tree-encoding=windows-1251
+*.Bat  text eol=crlf working-tree-encoding=windows-1251
+*.DOF  text eol=crlf working-tree-encoding=windows-1251
+*.PRJ  text eol=crlf working-tree-encoding=windows-1251
+*.md   text
+*.res  binary
+*.exe  binary
+*.dll  binary
+*.bmp  binary
+*.ico  binary
+*.png  binary
+*.chm  binary

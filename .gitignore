@@ -1,0 +1,6 @@
+bin/
+*.exe
+*.dll
+*.o
+*.asm
+*.c
