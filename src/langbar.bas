@@ -298,7 +298,11 @@ Sub OnKeyEvents()
         Wend
         EventList.ItemIndex = EventList.ItemCount - 1
     End If
-    ' слово закончено пробелом - автопереключение
+    ' автопереключение: начало слова (третья буква) и слово перед пробелом
+    If WordLetterFed Then
+        WordLetterFed = 0
+        AutoSwitchStart()
+    End If
     If WordSpaceFed Then
         WordSpaceFed = 0
         AutoSwitchWord()

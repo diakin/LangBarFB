@@ -19,8 +19,15 @@
 '  когда в другой раскладке у него больше букв: «;er» и «жук» - «er» есть
 '  в английском словаре, но «жук» длиннее.
 '
+'  Раньше пробела - на третьей букве (настройка «с третьей буквы», как
+'  «Обработка текста с 3-х символов» LangBarXX): если в раскладке набора
+'  нет слов с таким началом (wordstart.bi), а в другой есть, три буквы
+'  перепечатываются и раскладка меняется; дальше слово набирается уже в
+'  новой раскладке, и проверка на пробеле его пропускает (раскладку
+'  сменили посреди слова).
+
 '  Проверка идёт в главном потоке (не в хуке), уже после того как окно
-'  получило пробел; если пользователь успел нажать что-то ещё, слово
+'  получило клавишу; если пользователь успел нажать что-то ещё, слово
 '  пропускается.
 ' ---------------------------------------------------------------------------
 
@@ -81,6 +88,92 @@ Private Function AutoWordKnown(ByVal LayoutIdx As Long, TextChars() As UShort, B
     If Letters = 0 Then Return 0
     Return SpellCheck(LayoutIdx, TextChars(), CoreStart, CoreLength)
 End Function
+
+' Перепечатывает клавиши буфера WordStart..WordKeyCount-1 (они заняли
+' ShownChars символов) текстом TargetChars в раскладке TargetIdx, меняет
+' раскладку окна; Break сразу после этого вернёт SourceIdx
+Private Sub AutoRetype(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, ByVal ShownChars As Long, _
+        TargetChars() As UShort, ByVal CharCount As Long, ByVal SourceIdx As Long, ByVal TargetIdx As Long, _
+        ByRef LogText As String)
+    ActionBusy = 1
+    SendKeyTap(LB_VK_BACK, ShownChars)
+    SendUnicodeText(TargetChars(), CharCount)
+    WordCycleActive = 1
+    WordCycleStart = WordStart
+    WordCycleLayoutIdx = TargetIdx
+    WordCycleShownChars = CharCount
+    WordCycleUndoIdx = SourceIdx
+    PlayEventSound(SOUND_AUTOSWITCH)
+    Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
+    LogAction(LogText & " -> автопереключение, раскладка: " _
+        & SwitchResultText(LayoutSwitchChecked(TargetWindow, TargetHandle, 30)))
+    ActionBusy = 0
+End Sub
+
+' Клавиша слова попала в буфер: если в слове ровно три клавиши - проверка
+' начала слова по таблицам начал
+Sub AutoSwitchStart()
+    If Settings.AutoSwitch = 0 Or Settings.AutoEarly = 0 Or SpellDictCount = 0 Or LayoutCount < 2 Then Exit Sub
+    If ActionBusy Or WordKeyCount < 3 Then Exit Sub
+    Dim WordStart As Long = WordKeyCount - 3
+    ' ровно три клавиши после пробела или начала буфера
+    Dim KeyIdx As Long
+    For KeyIdx = WordStart To WordKeyCount - 1
+        If WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE Then Exit Sub
+    Next
+    If WordStart > 0 AndAlso WordKeys(WordStart - 1).VirtualKey <> LB_VK_SPACE Then Exit Sub
+    Dim SourceHandle As UInteger = WordKeys(WordStart).LayoutHandle
+    For KeyIdx = WordStart To WordKeyCount - 1
+        If WordKeys(KeyIdx).LayoutHandle <> SourceHandle Or WordKeys(KeyIdx).AfterBackspace Then Exit Sub
+    Next
+    Dim TargetWindow As Any Ptr = WordWindow
+    If LayoutOfWindow(TargetWindow).LayoutHandle <> SourceHandle Then Exit Sub
+    Dim SourceIdx As Long = LayoutIndexOf(SourceHandle)
+    If SourceIdx < 0 Then Exit Sub
+    Dim SourceChars() As UShort
+    If AutoWordText(WordStart, WordKeyCount - 1, SourceIdx, SourceChars()) = 0 Then Exit Sub
+    If SourceChars(0) = SourceChars(1) AndAlso SourceChars(1) = SourceChars(2) Then Exit Sub
+    If Settings.AutoIgnoreDigits AndAlso AutoHasDigit(SourceChars(), 3) Then Exit Sub
+    ' начало из букв, которое есть в языке раскладки, - всё в порядке
+    Dim SourceLetters As Long = 1
+    Dim CharIdx As Long
+    For CharIdx = 0 To 2
+        If LbIsCharAlpha(SourceChars(CharIdx)) = 0 Then SourceLetters = 0
+    Next
+    Dim SourceKnown As Long = 0
+    If SourceLetters Then
+        SourceKnown = StartKnown(SourceIdx, SourceChars(), 0)
+        ' таблицы нет - решать не по чему
+        If SourceKnown < 0 Then Exit Sub
+    End If
+    Dim LogText As String = "начало «" & SpellAnsiOf(SourceChars(), 0, 3) & "» " & LayoutList(SourceIdx).LocaleCode _
+        & IIf(SourceKnown, " есть", " нет")
+    If SourceKnown Then
+        LogAction(LogText)
+        Exit Sub
+    End If
+
+    Dim AltIdx As Long
+    For AltIdx = 0 To LayoutCount - 1
+        If AltIdx = SourceIdx Then Continue For
+        Dim AltChars() As UShort
+        If AutoWordText(WordStart, WordKeyCount - 1, AltIdx, AltChars()) = 0 Then Continue For
+        Dim AltLetters As Long = 1
+        For CharIdx = 0 To 2
+            If LbIsCharAlpha(AltChars(CharIdx)) = 0 Then AltLetters = 0
+        Next
+        If AltLetters = 0 Then Continue For
+        If Settings.AutoIgnoreCaps AndAlso AutoAllCaps(AltChars(), 3) Then Continue For
+        Dim AltKnown As Long = StartKnown(AltIdx, AltChars(), 0)
+        LogText &= "; «" & SpellAnsiOf(AltChars(), 0, 3) & "» " & LayoutList(AltIdx).LocaleCode _
+            & IIf(AltKnown > 0, " есть", " нет")
+        If AltKnown > 0 Then
+            AutoRetype(TargetWindow, WordStart, 3, AltChars(), 3, SourceIdx, AltIdx, LogText)
+            Exit Sub
+        End If
+    Next
+    LogAction(LogText)
+End Sub
 
 ' Пробел попал в буфер слова: проверить слово перед ним
 Sub AutoSwitchWord()
@@ -155,23 +248,10 @@ Sub AutoSwitchWord()
         Exit Sub
     End If
 
-    ActionBusy = 1
     ' слово и пробел - заново в другой раскладке
     ReDim Preserve TargetChars(0 To CharCount)
     TargetChars(CharCount) = 32
-    SendKeyTap(LB_VK_BACK, CharCount + 1)
-    SendUnicodeText(TargetChars(), CharCount + 1)
-    ' Break сразу после этого вернёт слово в исходную раскладку
-    WordCycleActive = 1
-    WordCycleStart = WordStart
-    WordCycleLayoutIdx = TargetIdx
-    WordCycleShownChars = CharCount + 1
-    WordCycleUndoIdx = SourceIdx
-    PlayEventSound(SOUND_AUTOSWITCH)
-    Dim TargetHandle As UInteger = LayoutList(TargetIdx).LayoutHandle
-    LogAction(LogText & " -> автопереключение, раскладка: " _
-        & SwitchResultText(LayoutSwitchChecked(TargetWindow, TargetHandle, 30)))
-    ActionBusy = 0
+    AutoRetype(TargetWindow, WordStart, CharCount + 1, TargetChars(), CharCount + 1, SourceIdx, TargetIdx, LogText)
     ' пока ждали смены раскладки, набрали следующее слово
     If WordSpaceFed Then
         WordSpaceFed = 0

@@ -20,6 +20,7 @@
 '             с цифрами и из одних заглавных; SingleLetter - переключать
 '             слова из одной буквы; Remember - слово, переключение которого
 '             отменили Break, записывать в user_dict.dic (0/1);
+'             Early - проверять начало слова с третьей буквы (0/1);
 '             DictAsked - вопрос о скачивании словарей уже задавали (0/1)
 '  Чтение настроек LangBarXX (langbarxx.ini) - открытый вопрос плана.
 ' ---------------------------------------------------------------------------
@@ -76,6 +77,7 @@ Type AppSettings
     AutoSingleLetter As Long
     AutoRemember As Long
     DictAsked As Long
+    AutoEarly As Long
 End Type
 
 Dim Shared Settings As AppSettings
@@ -154,6 +156,7 @@ Sub ConfigLoad()
         .AutoSingleLetter = IniReadFlag("AutoSwitch", "SingleLetter", 0)
         .AutoRemember = IniReadFlag("AutoSwitch", "Remember", 1)
         .DictAsked = IniReadFlag("AutoSwitch", "DictAsked", 0)
+        .AutoEarly = IniReadFlag("AutoSwitch", "Early", 1)
     End With
 End Sub
 
@@ -188,6 +191,7 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "SingleLetter", Str(.AutoSingleLetter))
         IniWrite("AutoSwitch", "Remember", Str(.AutoRemember))
         IniWrite("AutoSwitch", "DictAsked", Str(.DictAsked))
+        IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
     End With
 End Sub
 

@@ -76,6 +76,7 @@ Dim Shared AutoDigitsCheck As QCHECKBOX
 Dim Shared AutoCapsCheck As QCHECKBOX
 Dim Shared AutoSingleCheck As QCHECKBOX
 Dim Shared AutoRememberCheck As QCHECKBOX
+Dim Shared AutoEarlyCheck As QCHECKBOX
 Dim Shared SpellFolderLabel As QLABEL
 Dim Shared SpellFolderEdit As QEDIT
 Dim Shared SpellBrowseButton As QBUTTON
@@ -181,6 +182,7 @@ Private Sub FillForm()
     AutoCapsCheck.Checked = EditSettings.AutoIgnoreCaps
     AutoSingleCheck.Checked = EditSettings.AutoSingleLetter
     AutoRememberCheck.Checked = EditSettings.AutoRemember
+    AutoEarlyCheck.Checked = EditSettings.AutoEarly
     SpellFolderEdit.Text = EditSettings.SpellFolder
     SpellStatusLabel.Caption = "Сейчас: " & SpellStatus
     FillHotkeyView()
@@ -207,6 +209,7 @@ Private Sub ReadForm()
     EditSettings.AutoIgnoreCaps = IIf(AutoCapsCheck.Checked, 1, 0)
     EditSettings.AutoSingleLetter = IIf(AutoSingleCheck.Checked, 1, 0)
     EditSettings.AutoRemember = IIf(AutoRememberCheck.Checked, 1, 0)
+    EditSettings.AutoEarly = IIf(AutoEarlyCheck.Checked, 1, 0)
     EditSettings.SpellFolder = Trim(SpellFolderEdit.Text)
     Dim EventIdx As Long
     For EventIdx = 0 To SOUND_EVENT_COUNT - 1
@@ -527,32 +530,33 @@ Sub SettingsCreate()
     DefaultSoundButton.OnClick = @OnDefaultSoundClick
 
     ' Автопереключение
+    PlaceCheck(AutoEarlyCheck, AutoPage, "Проверять начало слова (с третьей буквы)", 104)
     PlaceCheck(AutoDigitsCheck, AutoPage, "Не переключать слова с цифрами", 8)
     PlaceCheck(AutoCapsCheck, AutoPage, "Не переключать слова из заглавных букв (аббревиатуры)", 32)
     PlaceCheck(AutoSingleCheck, AutoPage, "Переключать слова из одной буквы", 56)
     PlaceCheck(AutoRememberCheck, AutoPage, "Слово, переключение которого отменили Break, - в user_dict.dic", 80)
     SpellFolderLabel.Parent = AutoPage
-    SpellFolderLabel.Left = 8 : SpellFolderLabel.Top = 114
+    SpellFolderLabel.Left = 8 : SpellFolderLabel.Top = 138
     SpellFolderLabel.Caption = "Папка с hunspell\ и dict\ (пусто - рядом с программой или выше):"
     SpellFolderEdit.Parent = AutoPage
-    SpellFolderEdit.Left = 8 : SpellFolderEdit.Top = 134 : SpellFolderEdit.Width = 300
-    PlaceButton(SpellBrowseButton, AutoPage, "Обзор...", 316, 132, 96)
-    PlaceButton(SpellReloadButton, AutoPage, "Перечитать словари", 8, 166, 140)
-    PlaceButton(UserDictButton, AutoPage, "Слова пользователя", 156, 166, 140)
+    SpellFolderEdit.Left = 8 : SpellFolderEdit.Top = 158 : SpellFolderEdit.Width = 300
+    PlaceButton(SpellBrowseButton, AutoPage, "Обзор...", 316, 156, 96)
+    PlaceButton(SpellReloadButton, AutoPage, "Перечитать словари", 8, 190, 140)
+    PlaceButton(UserDictButton, AutoPage, "Слова пользователя", 156, 190, 140)
     SpellBrowseButton.OnClick = @OnSpellBrowseClick
     SpellReloadButton.OnClick = @OnSpellReloadClick
     UserDictButton.OnClick = @OnUserDictClick
     SpellStatusLabel.Parent = AutoPage
-    SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 202
+    SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 224
     SpellStatusLabel.Width = 404 : SpellStatusLabel.Height = 48
     SpellStatusLabel.WordWrap = 1
     AutoNote.Parent = AutoPage
-    AutoNote.Left = 8 : AutoNote.Top = 260
-    AutoNote.Width = 404 : AutoNote.Height = 76
+    AutoNote.Left = 8 : AutoNote.Top = 272
+    AutoNote.Width = 404 : AutoNote.Height = 70
     AutoNote.WordWrap = 1
-    AutoNote.Caption = "Слово проверяется после пробела: если в текущей раскладке его нет в словаре, " _
-        & "а в другой есть, оно перепечатывается и раскладка меняется. Break сразу после этого " _
-        & "возвращает слово. Библиотека и словари - из LangBarXX (папки hunspell и dict)."
+    AutoNote.Caption = "Слово проверяется на третьей букве (по началам слов словаря) и после пробела " _
+        & "(по словарю): если в текущей раскладке его нет, а в другой есть, оно перепечатывается " _
+        & "и раскладка меняется. Break сразу после этого возвращает слово."
 
     ' кнопки окна
     PlaceButton(OkButton, SettingsForm, "OK", 356, 360, 75)

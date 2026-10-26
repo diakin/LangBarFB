@@ -188,6 +188,8 @@ Dim Shared WordCycleStart As Long
 Dim Shared WordCycleUndoIdx As Long = -1
 ' в буфер попал пробел - главная программа проверяет слово перед ним
 Dim Shared WordSpaceFed As Long
+' в буфер попала клавиша слова (не пробел) - проверка начала слова
+Dim Shared WordLetterFed As Long
 ' был Backspace - следующая клавиша помечается AfterBackspace
 Dim Shared WordBackspaced As Long
 
@@ -196,6 +198,7 @@ Sub WordBufferReset()
     WordWindow = 0
     WordCycleActive = 0
     WordSpaceFed = 0
+    WordLetterFed = 0
     WordBackspaced = 0
 End Sub
 
@@ -247,7 +250,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     WordWindow = ForegroundWindow
     WordCycleActive = 0
     WordBackspaced = 0
-    If VirtualKey = LB_VK_SPACE Then WordSpaceFed = 1
+    If VirtualKey = LB_VK_SPACE Then WordSpaceFed = 1 Else WordLetterFed = 1
 End Sub
 
 ' Где начинается последнее слово буфера: пробелы в конце остаются за
