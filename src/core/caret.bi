@@ -40,6 +40,15 @@ Function CaretOfWindow(ByVal WindowHandle As Any Ptr, ByRef CaretPos As LbPoint,
     If ThreadInfo.hwndCaret <> ThreadInfo.hwndFocus AndAlso _
             LbIsChild(ThreadInfo.hwndFocus, ThreadInfo.hwndCaret) = 0 Then Return 0
     If LbIsWindowVisible(ThreadInfo.hwndCaret) = 0 Then Return 0
+    ' каретка за пределами окна - её так прячут: редактор unIDE рисует свою
+    ' каретку, а системную уводит в (-100, -100)
+    Dim ClientRect As LbRect
+    If LbGetClientRect(ThreadInfo.hwndCaret, ClientRect) Then
+        With ThreadInfo.rcCaret
+            If .RectRight <= ClientRect.RectLeft Or .RectLeft >= ClientRect.RectRight Or _
+                    .RectBottom <= ClientRect.RectTop Or .RectTop >= ClientRect.RectBottom Then Return 0
+        End With
+    End If
     ' пустой прямоугольник - показывать нечего
     If ThreadInfo.rcCaret.RectBottom <= ThreadInfo.rcCaret.RectTop Then Return 0
     CaretPos.PosX = ThreadInfo.rcCaret.RectLeft

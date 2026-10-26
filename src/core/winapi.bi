@@ -480,3 +480,5 @@ Declare Function LbIsChild Lib "user32" Alias "IsChild" ( _
 Const LB_IDC_ARROW = 32512
 Declare Function LbLoadCursor Lib "user32" Alias "LoadCursorA" ( _
     ByVal Instance As Any Ptr, ByVal CursorName As Any Ptr) As Any Ptr
+Declare Function LbGetClientRect Lib "user32" Alias "GetClientRect" ( _
+    ByVal WindowHandle As Any Ptr, ByRef ClientRect As LbRect) As Long
