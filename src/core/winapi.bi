@@ -482,3 +482,10 @@ Declare Function LbLoadCursor Lib "user32" Alias "LoadCursorA" ( _
     ByVal Instance As Any Ptr, ByVal CursorName As Any Ptr) As Any Ptr
 Declare Function LbGetClientRect Lib "user32" Alias "GetClientRect" ( _
     ByVal WindowHandle As Any Ptr, ByRef ClientRect As LbRect) As Long
+
+Declare Function LbGetWindowRect Lib "user32" Alias "GetWindowRect" ( _
+    ByVal WindowHandle As Any Ptr, ByRef WindowRect As LbRect) As Long
+
+Const LB_GA_ROOT = 2
+Declare Function LbGetAncestor Lib "user32" Alias "GetAncestor" ( _
+    ByVal WindowHandle As Any Ptr, ByVal Flags As ULong) As Any Ptr

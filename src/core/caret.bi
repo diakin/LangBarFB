@@ -40,14 +40,24 @@ Function CaretOfWindow(ByVal WindowHandle As Any Ptr, ByRef CaretPos As LbPoint,
     If ThreadInfo.hwndCaret <> ThreadInfo.hwndFocus AndAlso _
             LbIsChild(ThreadInfo.hwndFocus, ThreadInfo.hwndCaret) = 0 Then Return 0
     If LbIsWindowVisible(ThreadInfo.hwndCaret) = 0 Then Return 0
-    ' каретка за пределами окна - её так прячут: редактор unIDE рисует свою
-    ' каретку, а системную уводит в (-100, -100)
+    ' Каретка за пределами окна - так её прячут: редактор unIDE рисует свою
+    ' каретку, а системную раньше уводил в (-100, -100). Теперь unIDE ставит
+    ' её левее окна текста, на поле номеров строк, на высоте текущей строки.
+    ' Поэтому по вертикали каретка должна быть внутри окна, а по горизонтали
+    ' достаточно, чтобы она была внутри окна верхнего уровня.
     Dim ClientRect As LbRect
     If LbGetClientRect(ThreadInfo.hwndCaret, ClientRect) Then
         With ThreadInfo.rcCaret
-            If .RectRight <= ClientRect.RectLeft Or .RectLeft >= ClientRect.RectRight Or _
-                    .RectBottom <= ClientRect.RectTop Or .RectTop >= ClientRect.RectBottom Then Return 0
+            If .RectBottom <= ClientRect.RectTop Or .RectTop >= ClientRect.RectBottom Then Return 0
         End With
+    End If
+    Dim RootRect As LbRect
+    If LbGetWindowRect(LbGetAncestor(ThreadInfo.hwndCaret, LB_GA_ROOT), RootRect) Then
+        Dim ScreenPos As LbPoint
+        ScreenPos.PosX = ThreadInfo.rcCaret.RectLeft
+        ScreenPos.PosY = ThreadInfo.rcCaret.RectTop
+        LbClientToScreen(ThreadInfo.hwndCaret, ScreenPos)
+        If ScreenPos.PosX < RootRect.RectLeft Or ScreenPos.PosX >= RootRect.RectRight Then Return 0
     End If
     ' пустой прямоугольник - показывать нечего
     If ThreadInfo.rcCaret.RectBottom <= ThreadInfo.rcCaret.RectTop Then Return 0
