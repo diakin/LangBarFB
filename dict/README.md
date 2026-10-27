@@ -4,7 +4,7 @@
 
 | Папка | Что указано в файлах о лицензии |
 | --- | --- |
-| `hunspell` | NHunspell: «Copyright (C) 2009 maierhofer software, Lazlo Nemeth and the contributing authors» (свойства DLL). Лицензия в файлах не указана — уточнить |
+| `hunspell` | NHunspell: «Copyright (C) 2009 maierhofer software, Lazlo Nemeth and the contributing authors» (свойства DLL). Лицензия — GPL / LGPL / MPL на выбор (описание пакета NHunspell на nuget.org: «NHunspell is licensed under: GPL/LGPL/MPL») |
 | `dict/ru-RU` | Alexander I. Lebedev, BSD-подобная лицензия — текст в `README_ru_RU.txt` (его нужно прикладывать при распространении) |
 | `dict/be-BY` | CC BY-SA 4.0 или LGPLv3 — `README_be_BY.txt` |
 | `dict/de-DE` | Björn Jacke, GPLv2 / GPLv3 (заголовок `de_DE.aff`) |
