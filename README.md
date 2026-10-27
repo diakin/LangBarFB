@@ -115,4 +115,12 @@ LangBarFB распространяется на условиях GNU Lesser Gene
 
 - LangBarXX — © Krot66, https://github.com/Krot66/LangBarXX.
 - Звуки (`sounds/`) и флажки — из LangBarXX.
-- Словари Hunspell и NHunspell — у каждого своя лицензия, см. [dict/README.md](dict/README.md) и `README_*.txt` в папках словарей.
+
+### Сторонние библиотеки
+
+| Файл | Откуда | Лицензия |
+| --- | --- | --- |
+| `rqlcl32.dll` | RqLcl из [unIDE](https://github.com/diakin/unIDE) (ветка `mainTest`, `RqLcl/bin`; исходники — `RqLcl/dll`). Классы RapidQ на LCL Lazarus, собрана FPC 3.2.2 и Lazarus 3.8 | Код RqLcl — MIT (`LICENSE` unIDE). Внутри DLL: LCL и библиотеки FPC — модифицированная LGPL (LGPL с исключением для компоновки); часть пакета [RichMemo](https://github.com/skalogryz/richmemo) — та же модифицированная LGPL, тексты в `RqLcl/dll/richmemo` |
+| `hunspell/Hunspellx86.dll` | NHunspell (Thomas Maierhofer, Crawler-Lib), из установщика LangBarXX 1.8.4; запасной источник — пакет NHunspell 1.2.5554.16953 на nuget.org | GPL / LGPL / MPL на выбор (описание пакета на nuget.org); основана на Hunspell |
+| `dict/*` | Словари Hunspell из установщика LangBarXX 1.8.4 (LibreOffice dictionaries) | У каждого словаря своя, см. [dict/README.md](dict/README.md) и `README_*.txt` |
+| `gdiplus.dll` и прочие | Системные библиотеки Windows, в комплект не входят | — |
