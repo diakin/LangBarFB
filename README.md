@@ -1,5 +1,7 @@
 # LangBarFB
 
+[English](README.en.md) | **Русский**
+
 LangBarFB — переключатель раскладки клавиатуры для Windows, написанный на FreeBASIC. Он показывает текущую раскладку, исправляет текст, набранный не в той раскладке, и может переключать раскладку сам.
 
 Программа основана на [LangBarXX](https://github.com/Krot66/LangBarXX) (AutoHotkey v1.1, автор Krot66). Код написан заново; из LangBarXX взяты поведение, значения настроек по умолчанию, таблица транслита, имена флажков, звуки, словари Hunspell и библиотека NHunspell. Окна сделаны на RqLcl: это классы RapidQ поверх LCL из репозитория [unIDE](https://github.com/diakin/unIDE) (ветка `mainTest`, папка `RqLcl`).
