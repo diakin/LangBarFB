@@ -48,6 +48,13 @@ code { background: #f2f2f2; padding: 0 3px; }
 <li>Words with digits, in capitals, or of one letter are not switched (configurable).</li>
 </ul>
 
+<h2>Switching rules</h2>
+<ul>
+<li>A rule is a set of letters, a condition (whole word, word start, word end or any part of the word), whether case matters, and an action: switch or don't switch. Rules are checked before the dictionaries, in list order; the first matching rule applies.</li>
+<li>The letters are compared with the typed word in every layout: a rule for <code>ghbdtn</code> also applies to <code>привет</code>.</li>
+<li>If automatic switching is undone with Break several times in a row (the number is set on the rules page), the program offers to add a "Don't switch" rule for the last word.</li>
+</ul>
+
 <h2>Settings</h2>
 <ul>
 <li>Stored in <code>langbarfb.ini</code> next to the program.</li>

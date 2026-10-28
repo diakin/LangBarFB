@@ -27,7 +27,8 @@ The program is 32-bit and works with windows of any bitness. It was tested on Wi
   Left Shift+Backspace and Ctrl+Caps Lock can do the same as Break (enabled in the settings). If there is no typed word, Break converts the selected text. Pressing the same combination right after the action restores the original text.
 - Automatic switching based on Hunspell dictionaries: the beginning of a word is checked at the third letter, the whole word after a space. If the word is not in the dictionary of the layout it was typed in but is in another one, it is retyped and the layout is switched. Break right after an automatic switch restores the word and remembers it (optionally in `user_dict.dic`).
 - Dictionaries come with the installer or are downloaded by the program ("Download dictionaries") for the languages of the Windows layouts: en-US, ru-RU, uk-UA, be-BY, de-DE, fr-FR.
-- Settings window: "General", "Switching", "Hotkeys", "Sounds", "Auto switching", "Switching rules" (an empty page for now). Settings are stored in `langbarfb.ini` next to the exe.
+- Settings window: "General", "Switching", "Hotkeys", "Sounds", "Auto switching", "Switching rules". Settings are stored in `langbarfb.ini` next to the exe.
+- Switching rules, as in Punto Switcher: letters, condition (whole word, word start, word end, any part of the word), case (match or ignore) and action (switch or don't switch). Rules are checked before the dictionaries, in list order; the first matching rule applies. The letters are compared with the typed word in every layout, so `ghbdtn` and `привет` are the same word. At the third letter, only "Don't switch" rules with "Whole word" or "Word start" are taken into account: if the word may still match them, it is checked after the space. If automatic switching is undone with Break the set number of times in a row, the program offers to add a "Don't switch" rule for the last word.
 - Reset to defaults with a copy of the previous ini in `backup\`, start with Windows, "About LangBarFB" window, help, Russian or English interface.
 - Debug window (tray menu opened with Shift held down): key presses, layouts, automatic switching decisions.
 
@@ -94,6 +95,7 @@ Windows test checklist: [docs/testing.md](docs/testing.md) (in Russian). Change 
 | `src/core/spell.bi` | Hunspell: library and dictionaries, word check, `user_dict.dic` |
 | `src/core/wordstart.bi` | Table of word beginnings for the third-letter check |
 | `src/core/autoswitch.bi` | Automatic switching: word check and retyping |
+| `src/core/rules.bi` | Switching rules: matching, offering a rule after undos |
 | `src/core/dictload.bi` | Downloading the Hunspell library and dictionaries in a separate thread |
 | `src/ui/tray.bi` | Service window, tray icon and its menu |
 | `src/ui/gfx.bi` | GDI+: flag from png or text flag, icon |
