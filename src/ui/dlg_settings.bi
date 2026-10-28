@@ -71,6 +71,7 @@ Dim Shared HotkeyView As QLISTVIEW
 Dim Shared ExtraUndoLabel As QLABEL
 Dim Shared ShiftBackspaceCheck As QCHECKBOX
 Dim Shared CtrlCapsCheck As QCHECKBOX
+Dim Shared KeepDotCommaCheck As QCHECKBOX
 Dim Shared AssignButton As QBUTTON
 Dim Shared ClearHotkeyButton As QBUTTON
 Dim Shared DefaultHotkeyButton As QBUTTON
@@ -232,6 +233,7 @@ Private Sub FillForm()
     NumLockCheck.Checked = EditSettings.NumLockOn
     ShiftBackspaceCheck.Checked = EditSettings.ShiftBackspace
     CtrlCapsCheck.Checked = EditSettings.CtrlCaps
+    KeepDotCommaCheck.Checked = EditSettings.KeepDotComma
     AutoDigitsCheck.Checked = EditSettings.AutoIgnoreDigits
     AutoCapsCheck.Checked = EditSettings.AutoIgnoreCaps
     AutoSingleCheck.Checked = EditSettings.AutoSingleLetter
@@ -264,6 +266,7 @@ Private Sub ReadForm()
     EditSettings.NumLockOn = IIf(NumLockCheck.Checked, 1, 0)
     EditSettings.ShiftBackspace = IIf(ShiftBackspaceCheck.Checked, 1, 0)
     EditSettings.CtrlCaps = IIf(CtrlCapsCheck.Checked, 1, 0)
+    EditSettings.KeepDotComma = IIf(KeepDotCommaCheck.Checked, 1, 0)
     EditSettings.AutoIgnoreDigits = IIf(AutoDigitsCheck.Checked, 1, 0)
     EditSettings.AutoIgnoreCaps = IIf(AutoCapsCheck.Checked, 1, 0)
     EditSettings.AutoSingleLetter = IIf(AutoSingleCheck.Checked, 1, 0)
@@ -684,6 +687,7 @@ Sub SettingsCreate()
     ExtraUndoLabel.Caption = Tr("Последнее слово исправляют также:")
     PlaceCheck(ShiftBackspaceCheck, HotkeysPage, Tr("Левый Shift + Backspace"), 234)
     PlaceCheck(CtrlCapsCheck, HotkeysPage, "Ctrl + Caps Lock", 258)
+    PlaceCheck(KeepDotCommaCheck, HotkeysPage, Tr("Точку и запятую не менять при смене раскладки текста"), 284)
     PlaceButton(AssignButton, HotkeysPage, Tr("Назначить..."), 0, 310, 100)
     PlaceButton(ClearHotkeyButton, HotkeysPage, Tr("Снять"), 108, 310, 100)
     PlaceButton(DefaultHotkeyButton, HotkeysPage, Tr("По умолчанию"), 216, 310, 110)

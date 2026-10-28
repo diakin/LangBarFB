@@ -24,7 +24,7 @@ The program is 32-bit and works with windows of any bitness. It was tested on Wi
 | Invert the case of the selected text | Alt + Break |
 | Transliterate the selected text (Cyrillic to Latin) | Alt + Scroll Lock |
 
-  Left Shift+Backspace and Ctrl+Caps Lock can do the same as Break (enabled in the settings). If there is no typed word, Break converts the selected text. Pressing the same combination right after the action restores the original text.
+  Left Shift+Backspace and Ctrl+Caps Lock can do the same as Break (enabled in the settings). If there is no typed word, Break converts the selected text. Pressing the same combination right after the action restores the original text. With "Keep dot and comma when converting text layout" (Hotkeys page), dots and commas stay as typed: `ыва.учу` becomes `sdf.ece`, not `sdf/ece`; this also applies to automatic switching.
 - Automatic switching based on Hunspell dictionaries: the beginning of a word is checked at the third letter, the whole word after a space. If the word is not in the dictionary of the layout it was typed in but is in another one, it is retyped and the layout is switched. Break right after an automatic switch restores the word and remembers it (optionally in `user_dict.dic`).
 - Dictionaries come with the installer or are downloaded by the program ("Download dictionaries") for the languages of the Windows layouts: en-US, ru-RU, uk-UA, be-BY, de-DE, fr-FR.
 - Settings window: "General", "Switching", "Hotkeys", "Sounds", "Auto switching", "Switching rules". Settings are stored in `langbarfb.ini` next to the exe.

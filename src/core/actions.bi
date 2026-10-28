@@ -221,10 +221,7 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     Dim NewChars(0 To WordKeyCount - RangeStart - 1) As UShort
     Dim NewCount As Long, KeyIdx As Long
     For KeyIdx = RangeStart To WordKeyCount - 1
-        Dim KeyChar As UShort
-        With WordKeys(KeyIdx)
-            KeyChar = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, TargetHandle)
-        End With
+        Dim KeyChar As UShort = WordKeyChar(KeyIdx, TargetHandle)
         If KeyChar >= 32 Then
             NewChars(NewCount) = KeyChar
             NewCount += 1

@@ -61,9 +61,7 @@ Private Function AutoWordText(ByVal StartIdx As Long, ByVal EndIdx As Long, ByVa
     ReDim TextChars(0 To EndIdx - StartIdx)
     Dim KeyIdx As Long
     For KeyIdx = StartIdx To EndIdx
-        With WordKeys(KeyIdx)
-            TextChars(KeyIdx - StartIdx) = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, LayoutHandle)
-        End With
+        TextChars(KeyIdx - StartIdx) = WordKeyChar(KeyIdx, LayoutHandle)
         If TextChars(KeyIdx - StartIdx) < 32 Then Return 0
     Next
     Return EndIdx - StartIdx + 1
