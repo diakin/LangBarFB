@@ -1,128 +1,128 @@
 # LangBarFB
 
-[English](README.en.md) | **Русский**
+**English** | [Русский](README.ru.md)
 
-LangBarFB — переключатель раскладки клавиатуры для Windows, написанный на FreeBASIC. Он показывает текущую раскладку, исправляет текст, набранный не в той раскладке, и может переключать раскладку сам.
+LangBarFB is a keyboard layout switcher for Windows written in FreeBASIC. It shows the current layout, fixes text typed in the wrong layout and can switch the layout by itself.
 
-Программа основана на [LangBarXX](https://github.com/Krot66/LangBarXX) (AutoHotkey v1.1, автор Krot66). Код написан заново; из LangBarXX взяты поведение, значения настроек по умолчанию, таблица транслита, имена флажков, звуки, словари Hunspell и библиотека NHunspell. Окна сделаны на RqLcl: это классы RapidQ поверх LCL из репозитория [unIDE](https://github.com/diakin/unIDE) (ветка `mainTest`, папка `RqLcl`).
+The program is based on [LangBarXX](https://github.com/Krot66/LangBarXX) (AutoHotkey v1.1, by Krot66). The code was written from scratch; the behavior, default settings, transliteration table, flag file names, sounds, Hunspell dictionaries and the NHunspell library come from LangBarXX. The windows are built with RqLcl, RapidQ classes on top of LCL, from the [unIDE](https://github.com/diakin/unIDE) repository (branch `mainTest`, folder `RqLcl`).
 
-Программа 32-битная и работает с окнами любой разрядности. Проверялась на Windows 7.
+The program is 32-bit and works with windows of any bitness. It was tested on Windows 7.
 
-## Возможности
+## Features
 
-- Одна копия программы, живёт в области уведомлений.
-- Значок в трее — флажок раскладки окна, в котором работают. Флажки берутся из `flags\<код>.png` (`ru-RU.png`, `en-US.png`, те же имена, что у LangBarXX); если файла нет, рисуется цветной прямоугольник с кодом страны. Папка `flags` ищется рядом с exe и на уровень выше.
-- Флажок у текстового курсора (окна с системной кареткой: Блокнот, поля ввода Windows, Delphi/Lazarus, Word), флажок у указателя мыши (не показывать, всегда или 3 с после смены раскладки), крупный флажок посреди экрана на 0,7 с при смене раскладки.
-- Щелчок по значку или флажку у каретки — следующая раскладка; правый щелчок по флажку у каретки — как Break.
-- Переключение с клавиатуры: одиночный левый или правый Shift или Ctrl (обычное или двойное нажатие) — следующая, предыдущая или выбранная раскладка; левый Ctrl, Alt или Win + цифра 1–9 — раскладка с этим номером; режимы Caps Lock; включение Num Lock при запуске.
-- Исправление текста горячими клавишами (сочетание в окно не попадает):
+- Runs as a single instance in the notification area.
+- The tray icon is the flag of the layout of the window you are working in. Flags are loaded from `flags\<code>.png` (`ru-RU.png`, `en-US.png`, the same names as in LangBarXX); without the file, a colored rectangle with the country code is drawn. The `flags` folder is looked up next to the exe and one level above.
+- A flag next to the text cursor (windows with a system caret: Notepad, standard Windows edit boxes, Delphi/Lazarus, Word), a flag next to the mouse pointer (off, always, or for 3 s after a layout change), and a large flag in the middle of the screen for 0.7 s when the layout changes.
+- A click on the tray icon or on the caret flag switches to the next layout; a right click on the caret flag works like Break.
+- Switching from the keyboard: single left or right Shift or Ctrl (single or double press) selects the next, previous or a chosen layout; left Ctrl, Alt or Win + digit 1–9 selects the layout with that number; Caps Lock modes; Num Lock on at startup.
+- Text correction with hotkeys (the key combination does not reach the window):
 
-| Действие | По умолчанию |
+| Action | Default |
 | --- | --- |
-| Последнее набранное слово заново в следующей раскладке; повторное нажатие — следующая раскладка по кругу | Break |
-| Раскладка выделенного текста | Shift + Break |
-| Регистр выделенного текста (каждая буква наоборот) | Alt + Break |
-| Транслит выделенного текста (кириллица в латиницу) | Alt + Scroll Lock |
+| Retype the last typed word in the next layout; pressing again cycles through the layouts | Break |
+| Convert the layout of the selected text | Shift + Break |
+| Invert the case of the selected text | Alt + Break |
+| Transliterate the selected text (Cyrillic to Latin) | Alt + Scroll Lock |
 
-  То же, что Break, могут делать левый Shift+Backspace и Ctrl+Caps Lock (включаются в настройках). Если набранного слова нет, Break исправляет выделенный текст. Повторное нажатие того же сочетания сразу после действия возвращает исходный текст.
-- Автопереключение по словарям Hunspell: начало слова проверяется на третьей букве, слово целиком — после пробела. Если в раскладке набора слова нет, а в другой есть, оно перепечатывается и раскладка меняется. Break сразу после автопереключения возвращает слово и запоминает его (по настройке — в `user_dict.dic`).
-- Словари: в установщике или скачиваются программой («Скачать словари») для языков раскладок Windows; есть en-US, ru-RU, uk-UA, be-BY, de-DE, fr-FR.
-- Окно настроек: «Общие», «Переключение», «Горячие клавиши», «Звуки», «Автопереключение», «Правила переключения» (пока пустая страница). Настройки хранятся в `langbarfb.ini` рядом с exe.
-- Сброс настроек с копией прежнего ini в `backup\`, автозапуск при старте Windows, окно «О LangBarFB», справка, интерфейс на русском или английском.
-- Окно отладки (меню значка с нажатым Shift): нажатия, раскладки, решения автопереключения.
+  Left Shift+Backspace and Ctrl+Caps Lock can do the same as Break (enabled in the settings). If there is no typed word, Break converts the selected text. Pressing the same combination right after the action restores the original text.
+- Automatic switching based on Hunspell dictionaries: the beginning of a word is checked at the third letter, the whole word after a space. If the word is not in the dictionary of the layout it was typed in but is in another one, it is retyped and the layout is switched. Break right after an automatic switch restores the word and remembers it (optionally in `user_dict.dic`).
+- Dictionaries come with the installer or are downloaded by the program ("Download dictionaries") for the languages of the Windows layouts: en-US, ru-RU, uk-UA, be-BY, de-DE, fr-FR.
+- Settings window: "General", "Switching", "Hotkeys", "Sounds", "Auto switching", "Switching rules" (an empty page for now). Settings are stored in `langbarfb.ini` next to the exe.
+- Reset to defaults with a copy of the previous ini in `backup\`, start with Windows, "About LangBarFB" window, help, Russian or English interface.
+- Debug window (tray menu opened with Shift held down): key presses, layouts, automatic switching decisions.
 
-Подробнее — в справке: [help/langbarfb.ru.html](help/langbarfb.ru.html), [help/langbarfb.en.html](help/langbarfb.en.html).
+More details are in the help: [help/langbarfb.en.html](help/langbarfb.en.html), [help/langbarfb.ru.html](help/langbarfb.ru.html).
 
-## Установка
+## Installation
 
-Установщик `LangBarFB_setup_<версия>.exe` ставит программу в `%LOCALAPPDATA%\LangBarFB` без прав администратора: программа пишет в свою папку `langbarfb.ini`, словари, `user_dict.dic` и `backup`. Наборы: стандартный (словари ru и en), полный, минимальный (без автопереключения), выборочный. Есть переносная версия — без деинсталлятора и ярлыков. Запущенная программа перед установкой и удалением закрывается сама.
+The installer `LangBarFB_setup_<version>.exe` installs the program to `%LOCALAPPDATA%\LangBarFB` without administrator rights, because the program writes `langbarfb.ini`, dictionaries, `user_dict.dic` and `backup` to its own folder. Setup types: standard (ru and en dictionaries), full, minimal (without automatic switching), custom. A portable mode installs without an uninstaller and shortcuts. A running copy of the program is closed before installing and uninstalling.
 
-Без установщика достаточно положить в одну папку `langbar32.exe`, `rqlcl32.dll` и, по желанию, папки `help`, `sounds`, `flags`, `hunspell`, `dict`.
+Without the installer, put `langbar32.exe`, `rqlcl32.dll` and, optionally, the `help`, `sounds`, `flags`, `hunspell` and `dict` folders into one folder.
 
-## Ограничения
+## Limitations
 
-- Флажок у каретки появляется только в окнах с системной кареткой; в браузерах и Electron его нет (нужен Acc/UIA).
-- Раскладка консоли и окон UWP определяется не всегда верно.
-- Автопереключение: конец слова — только пробел (не Enter, Tab и знаки препинания); нет режима одного языка, отмены по Ctrl+Z и проверки по n-граммам.
-- Слово для Break помнится по нажатиям клавиш; после щелчка мышью, Enter, Tab, стрелок и смены окна оно сбрасывается.
-- После действий с выделенным текстом буфер обмена восстанавливается только текстом.
-- Настройки LangBarXX (`LangBarXX.ini`) не читаются.
+- The caret flag appears only in windows with a system caret; browsers and Electron apps do not get it (that needs Acc/UIA).
+- The layout of console and UWP windows is not always detected correctly.
+- Automatic switching: only a space ends a word (not Enter, Tab or punctuation); there is no single-language mode, no undo with Ctrl+Z and no n-gram check.
+- The word for Break is tracked from key presses; a mouse click, Enter, Tab, arrow keys or switching windows resets it.
+- After actions on selected text, the clipboard is restored only if it held text.
+- LangBarXX settings (`LangBarXX.ini`) are not read.
 
-Из LangBarXX не перенесены: пометки Num/Scroll/Caps на значке; Shift+Shift, Ctrl+Ctrl, Ctrl+Shift+Shift; короткое и долгое нажатие; Caps Lock «как Shift» и режимы Scroll Lock; правый Ctrl/Shift + цифра или F-клавиша; отдельные команды регистра; индикатор; правила приложений; автозамена (`hotstrings.ini`).
+Not ported from LangBarXX: Num/Scroll/Caps marks on the icon; Shift+Shift, Ctrl+Ctrl, Ctrl+Shift+Shift; short and long presses; Caps Lock "as Shift" and Scroll Lock modes; right Ctrl/Shift + digit or F key; separate case commands; the indicator; application rules; text autoreplace (`hotstrings.ini`).
 
-## Сборка
+## Building
 
-Нужны FreeBASIC для Windows, 32 бит (проверялось с 1.10.1), и папка `RqLcl` из unIDE (ветка `mainTest`). 64-битный fbc остановит сборку с ошибкой.
+You need FreeBASIC for Windows, 32-bit (tested with 1.10.1), and the `RqLcl` folder from unIDE (branch `mainTest`). A 64-bit fbc stops the build with an error.
 
-### Из unIDE
+### From unIDE
 
-Откройте `src\langbar32.bas`, выберите GUI и 32 бита и соберите. Папка RqLcl задаётся в IDE Options → Compilers → RapidQ Basic → RqLcl folder. unIDE сама добавляет `-i <RqLcl>\inc`, кладёт exe и `rqlcl32.dll` в `bin\` и берёт значок exe из Project Properties (поле «Значок exe»); без него — `src\langbar32.rc`.
+Open `src\langbar32.bas`, select GUI and 32 bit and build. The RqLcl folder is set in IDE Options → Compilers → RapidQ Basic → RqLcl folder. unIDE adds `-i <RqLcl>\inc` by itself, puts the exe and `rqlcl32.dll` into `bin\` and takes the exe icon from Project Properties ("Значок exe" field); without it, `src\langbar32.rc` is used.
 
-### Через build.bat
+### With build.bat
 
-Скопируйте `build_local.bat.example` в `build_local.bat` и укажите свои пути (сам `build_local.bat` в git не попадает):
+Copy `build_local.bat.example` to `build_local.bat` and set your paths (`build_local.bat` itself is not tracked by git):
 
 ```
 set FB32DIR=D:\FreeBASIC-1.10.1-win32
 set RQLCL=D:\unIDE\RqLcl
 ```
 
-Компилятор ищется как `fbc32.exe`, затем `fbc.exe`; без `FB32DIR` — в PATH. Без `RQLCL` папка ищется в `..\unIDE\RqLcl`. `build.bat` собирает `bin\langbar32.exe` и копирует `rqlcl32.dll`.
+The compiler is looked up as `fbc32.exe`, then `fbc.exe`; without `FB32DIR`, in PATH. Without `RQLCL`, the folder is looked up in `..\unIDE\RqLcl`. `build.bat` builds `bin\langbar32.exe` and copies `rqlcl32.dll`.
 
-### Установщик
+### Installer
 
-`LangBarFB.iss` — скрипт Inno Setup 5 (6-й не работает в Windows 7), файл в windows-1251, основан на `LangBarXX.iss`. Сначала соберите программу, затем откройте `LangBarFB.iss` в Inno Setup и соберите; получится `bin\LangBarFB_setup_<версия>.exe`. Папка `flags` (картинки флагов из LangBarXX), если лежит в корне репозитория, попадает в установщик. Версия задаётся в начале скрипта (`MyAppVersion`) и должна совпадать с `APP_VERSION` в `src/ui/dlg_about.bi`.
+`LangBarFB.iss` is an Inno Setup 5 script (version 6 does not run on Windows 7), encoded in windows-1251 and based on `LangBarXX.iss`. Build the program first, then open `LangBarFB.iss` in Inno Setup and compile it; the result is `bin\LangBarFB_setup_<version>.exe`. The `flags` folder (flag images from LangBarXX), if present in the repository root, is included in the installer. The version is set at the top of the script (`MyAppVersion`) and must match `APP_VERSION` in `src/ui/dlg_about.bi`.
 
-Список проверок на Windows — [docs/testing.md](docs/testing.md). История изменений — [CHANGELOG.md](CHANGELOG.md). План переноса — [docs/plan.md](docs/plan.md).
+Windows test checklist: [docs/testing.md](docs/testing.md) (in Russian). Change history: [CHANGELOG.md](CHANGELOG.md) (in Russian). Porting plan: [docs/plan.md](docs/plan.md) (in Russian).
 
-## Файлы
+## Files
 
-| Файл | Что внутри |
+| File | Contents |
 | --- | --- |
-| `src/langbar32.bas` | Главная программа: одна копия, меню значка, окно отладки, таймеры, цикл сообщений |
-| `src/core/winapi.bi` | Объявления функций Windows (префикс `Lb`, без windows.bi) |
-| `src/core/kbhook.bi` | Хуки клавиатуры и мыши (кольцевой буфер нажатий, фильтр сочетаний) |
-| `src/core/config.bi` | Настройки: `langbarfb.ini`, автозапуск, звуки, сброс |
-| `src/core/lang.bi` | Язык интерфейса: `Tr()` и таблица переводов на английский |
-| `src/core/hotkeys.bi` | Сочетания: запись словами, разбор, проверка в хуке, режим записи |
-| `src/core/switchkeys.bi` | Переключение с клавиатуры: одиночные Shift/Ctrl, Ctrl/Alt/Win + цифра, Caps Lock, Num Lock |
-| `src/core/layouts.bi` | Список раскладок, раскладка окна, смена раскладки |
-| `src/core/caret.bi` | Положение каретки (GetGUIThreadInfo) |
-| `src/core/sendkeys.bi` | SendInput (клавиши, текст Unicode), буфер обмена, копирование выделения |
-| `src/core/convert.bi` | Смена раскладки текста, регистр, транслит, буфер набранного слова |
-| `src/core/actions.bi` | Действия горячих клавиш |
-| `src/core/spell.bi` | Hunspell: библиотека и словари, проверка слова, `user_dict.dic` |
-| `src/core/wordstart.bi` | Таблица начал слов для проверки на третьей букве |
-| `src/core/autoswitch.bi` | Автопереключение: проверка слова и перепечатка |
-| `src/core/dictload.bi` | Скачивание библиотеки Hunspell и словарей в отдельном потоке |
-| `src/ui/tray.bi` | Служебное окно, значок и его меню |
-| `src/ui/gfx.bi` | GDI+: флажок из png или текстовый, значок |
-| `src/ui/overlay.bi` | Окна поверх всех: флажки у каретки и мыши, уведомление |
-| `src/ui/dlg_settings.bi` | Окно настроек и окно «Назначить сочетание» (RqLcl) |
-| `src/ui/dlg_about.bi` | Окно «О LangBarFB», версия программы |
-| `src/langbar32.rc`, `src/RysLat2.ico` | Значок exe (`FB_PROGRAM_ICON`) |
-| `help/` | Справка на русском и английском |
-| `sounds/` | Звуки LangBarXX |
-| `hunspell/`, `dict/` | Библиотека NHunspell (`Hunspellx86.dll`) и словари из установщика LangBarXX 1.8.4, лицензии — в [dict/README.md](dict/README.md) |
-| `LangBarFB.iss` | Установщик (Inno Setup 5) |
-| `build.bat`, `build_local.bat.example` | Сборка и образец файла с путями |
+| `src/langbar32.bas` | Main program: single instance, tray menu, debug window, timers, message loop |
+| `src/core/winapi.bi` | Windows API declarations (`Lb` prefix, without windows.bi) |
+| `src/core/kbhook.bi` | Keyboard and mouse hooks (ring buffer of key presses, hotkey filter) |
+| `src/core/config.bi` | Settings: `langbarfb.ini`, start with Windows, sounds, reset |
+| `src/core/lang.bi` | Interface language: `Tr()` and the English translation table |
+| `src/core/hotkeys.bi` | Key combinations: text form, parsing, matching in the hook, capture mode |
+| `src/core/switchkeys.bi` | Keyboard switching: single Shift/Ctrl, Ctrl/Alt/Win + digit, Caps Lock, Num Lock |
+| `src/core/layouts.bi` | Layout list, layout of a window, layout change |
+| `src/core/caret.bi` | Caret position (GetGUIThreadInfo) |
+| `src/core/sendkeys.bi` | SendInput (keys, Unicode text), clipboard, copying the selection |
+| `src/core/convert.bi` | Text layout conversion, case, transliteration, typed word buffer |
+| `src/core/actions.bi` | Hotkey actions |
+| `src/core/spell.bi` | Hunspell: library and dictionaries, word check, `user_dict.dic` |
+| `src/core/wordstart.bi` | Table of word beginnings for the third-letter check |
+| `src/core/autoswitch.bi` | Automatic switching: word check and retyping |
+| `src/core/dictload.bi` | Downloading the Hunspell library and dictionaries in a separate thread |
+| `src/ui/tray.bi` | Service window, tray icon and its menu |
+| `src/ui/gfx.bi` | GDI+: flag from png or text flag, icon |
+| `src/ui/overlay.bi` | Topmost windows: caret and mouse flags, notification |
+| `src/ui/dlg_settings.bi` | Settings window and "Assign hotkey" window (RqLcl) |
+| `src/ui/dlg_about.bi` | "About LangBarFB" window, program version |
+| `src/langbar32.rc`, `src/RysLat2.ico` | Exe icon (`FB_PROGRAM_ICON`) |
+| `help/` | Help in Russian and English |
+| `sounds/` | LangBarXX sounds |
+| `hunspell/`, `dict/` | NHunspell library (`Hunspellx86.dll`) and dictionaries from the LangBarXX 1.8.4 installer; licenses in [dict/README.md](dict/README.md) |
+| `LangBarFB.iss` | Installer (Inno Setup 5) |
+| `build.bat`, `build_local.bat.example` | Build script and a sample paths file |
 
-Исходники `.bas`, `.bi` и `.bat` хранятся в CP1251 с CRLF, как в unIDE (`.gitattributes`, `working-tree-encoding`). Строки при передаче в RqLcl должны быть в CP1251.
+The `.bas`, `.bi` and `.bat` sources are stored in CP1251 with CRLF, as in unIDE (`.gitattributes`, `working-tree-encoding`). Strings passed to RqLcl must be in CP1251. Source comments are in Russian.
 
-## Лицензия
+## License
 
-Copyright (C) 2026 Diakin. Разработано с помощью Claude Code (Anthropic).
+Copyright (C) 2026 Diakin. Developed with Claude Code (Anthropic).
 
-LangBarFB распространяется на условиях GNU Lesser General Public License версии 3 ([COPYING.LESSER](COPYING.LESSER)) вместе с GNU General Public License версии 3 ([COPYING](COPYING)) — под той же лицензией, что LangBarXX (`_Installer/LGPL-3.0.txt` в его репозитории).
+LangBarFB is distributed under the GNU Lesser General Public License version 3 ([COPYING.LESSER](COPYING.LESSER)) together with the GNU General Public License version 3 ([COPYING](COPYING)), the same license as LangBarXX (`_Installer/LGPL-3.0.txt` in its repository).
 
-- LangBarXX — © Krot66, https://github.com/Krot66/LangBarXX.
-- Звуки (`sounds/`) и флажки — из LangBarXX.
+- LangBarXX: © Krot66, https://github.com/Krot66/LangBarXX.
+- Sounds (`sounds/`) and flags come from LangBarXX.
 
-### Сторонние библиотеки
+### Third-party libraries
 
-| Файл | Откуда | Лицензия |
+| File | Source | License |
 | --- | --- | --- |
-| `rqlcl32.dll` | RqLcl из [unIDE](https://github.com/diakin/unIDE) (ветка `mainTest`, `RqLcl/bin`; исходники — `RqLcl/dll`). Классы RapidQ на LCL Lazarus, собрана FPC 3.2.2 и Lazarus 3.8 | Код RqLcl — MIT (`LICENSE` unIDE). Внутри DLL: LCL и библиотеки FPC — модифицированная LGPL (LGPL с исключением для компоновки); часть пакета [RichMemo](https://github.com/skalogryz/richmemo) — та же модифицированная LGPL, тексты в `RqLcl/dll/richmemo` |
-| `hunspell/Hunspellx86.dll` | NHunspell (Thomas Maierhofer, Crawler-Lib), из установщика LangBarXX 1.8.4; запасной источник — пакет NHunspell 1.2.5554.16953 на nuget.org | GPL / LGPL / MPL на выбор (описание пакета на nuget.org); основана на Hunspell |
-| `dict/*` | Словари Hunspell из установщика LangBarXX 1.8.4 (LibreOffice dictionaries) | У каждого словаря своя, см. [dict/README.md](dict/README.md) и `README_*.txt` |
-| `gdiplus.dll` и прочие | Системные библиотеки Windows, в комплект не входят | — |
+| `rqlcl32.dll` | RqLcl from [unIDE](https://github.com/diakin/unIDE) (branch `mainTest`, `RqLcl/bin`; sources in `RqLcl/dll`). RapidQ classes on the Lazarus LCL, built with FPC 3.2.2 and Lazarus 3.8 | RqLcl code: MIT (unIDE `LICENSE`). Inside the DLL: LCL and FPC libraries under the modified LGPL (LGPL with a linking exception); part of the [RichMemo](https://github.com/skalogryz/richmemo) package under the same modified LGPL, texts in `RqLcl/dll/richmemo` |
+| `hunspell/Hunspellx86.dll` | NHunspell (Thomas Maierhofer, Crawler-Lib), from the LangBarXX 1.8.4 installer; fallback source: NHunspell 1.2.5554.16953 package on nuget.org | GPL / LGPL / MPL at your choice (nuget.org package description); based on Hunspell |
+| `dict/*` | Hunspell dictionaries from the LangBarXX 1.8.4 installer (LibreOffice dictionaries) | Each dictionary has its own, see [dict/README.md](dict/README.md) and `README_*.txt` |
+| `gdiplus.dll` and others | Windows system libraries, not shipped | — |
