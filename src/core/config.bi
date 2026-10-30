@@ -16,7 +16,8 @@
 '             2 левый Alt + N, 3 левый Win + N
 '  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn,
 '             ShiftBackspace, CtrlCapsLock (0/1) - эти сочетания тоже
-'             исправляют последнее слово, как Break
+'             исправляют последнее слово, как Break; KeepDotComma (0/1) -
+'             точка и запятая при смене раскладки текста остаются как есть
 '  [AutoSwitch] Folder - папка с hunspell\ и dict\ (пусто - рядом с exe
 '             или выше); IgnoreDigits, IgnoreCaps - не переключать слова
 '             с цифрами и из одних заглавных; SingleLetter - переключать
@@ -24,6 +25,11 @@
 '             отменили Break, записывать в user_dict.dic (0/1);
 '             Early - проверять начало слова с третьей буквы (0/1);
 '             DictAsked - вопрос о скачивании словарей уже задавали (0/1)
+'  [Rules]    Count - число правил переключения; Rule1..RuleN -
+'             «условие,регистр,действие,сочетание»: условие RULE_..., регистр
+'             0 - не учитывать, 1 - учитывать, действие RULE_KEEP /
+'             RULE_SWITCH; Suggest (0/1), SuggestCount - предлагать правило
+'             после стольких отмен автопереключения подряд
 '  Настройки LangBarXX (langbarxx.ini) не читаются: у LangBarFB свой ini.
 '
 '  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
@@ -66,6 +72,27 @@ Const MOUSE_FLAG_ALWAYS = 1     ' всегда
 Const MOUSE_FLAG_ON_CHANGE = 2  ' несколько секунд после смены раскладки
 Const MOUSE_FLAG_SHOW_MS = 3000 ' сколько секунд - как Cursor_Show LangBarXX
 
+' правила переключения: условие - где в слове сочетание
+Const RULE_WHOLE = 0        ' слово целиком
+Const RULE_START = 1        ' начало слова
+Const RULE_END = 2          ' конец слова
+Const RULE_PART = 3         ' любая часть слова
+' действие
+Const RULE_KEEP = 0         ' не переключать
+Const RULE_SWITCH = 1       ' переключать
+Const MAX_RULES = 200
+
+Type SwitchRule
+    RuleText As String      ' сочетание (в кодировке Windows)
+    Condition As Long
+    MatchCase As Long
+    Action As Long
+End Type
+
+Dim Shared RuleConditionNames(0 To 3) As ZString * 24 = {"Слово целиком", "Начало слова", "Конец слова", "Любая часть слова"}
+Dim Shared RuleCaseNames(0 To 1) As ZString * 16 = {"Не учитывать", "Учитывать"}
+Dim Shared RuleActionNames(0 To 1) As ZString * 16 = {"Не переключать", "Переключать"}
+
 Type AppSettings
     AutoStart As Long
     AutoSwitch As Long
@@ -83,6 +110,7 @@ Type AppSettings
     NumLockOn As Long
     ShiftBackspace As Long
     CtrlCaps As Long
+    KeepDotComma As Long
     SpellFolder As String
     AutoIgnoreDigits As Long
     AutoIgnoreCaps As Long
@@ -92,6 +120,10 @@ Type AppSettings
     AutoEarly As Long
     MouseFlag As Long
     Language As String
+    RuleCount As Long
+    Rule(0 To MAX_RULES - 1) As SwitchRule
+    SuggestRule As Long
+    SuggestCount As Long
 End Type
 
 Dim Shared Settings As AppSettings
@@ -164,6 +196,7 @@ Sub ConfigLoad()
         .NumLockOn = IniReadFlag("Keys", "NumLockOn", 0)
         .ShiftBackspace = IniReadFlag("Keys", "ShiftBackspace", 0)
         .CtrlCaps = IniReadFlag("Keys", "CtrlCapsLock", 0)
+        .KeepDotComma = IniReadFlag("Keys", "KeepDotComma", 0)
         .SpellFolder = IniRead("AutoSwitch", "Folder", "")
         .AutoIgnoreDigits = IniReadFlag("AutoSwitch", "IgnoreDigits", 1)
         .AutoIgnoreCaps = IniReadFlag("AutoSwitch", "IgnoreCaps", 1)
@@ -173,6 +206,31 @@ Sub ConfigLoad()
         .AutoEarly = IniReadFlag("AutoSwitch", "Early", 1)
         .MouseFlag = ValInt(IniRead("General", "MouseFlag", Str(MOUSE_FLAG_ON_CHANGE)))
         If .MouseFlag < MOUSE_FLAG_OFF Or .MouseFlag > MOUSE_FLAG_ON_CHANGE Then .MouseFlag = MOUSE_FLAG_ON_CHANGE
+        .RuleCount = 0
+        Dim RuleTotal As Long = ValInt(IniRead("Rules", "Count", "0"))
+        If RuleTotal > MAX_RULES Then RuleTotal = MAX_RULES
+        For ItemIdx = 1 To RuleTotal
+            Dim RuleLine As String = IniRead("Rules", "Rule" & ItemIdx, "")
+            Dim FieldValues(0 To 2) As Long, FieldIdx As Long, CommaPos As Long
+            For FieldIdx = 0 To 2
+                CommaPos = InStr(RuleLine, ",")
+                If CommaPos = 0 Then Exit For
+                FieldValues(FieldIdx) = ValInt(Left(RuleLine, CommaPos - 1))
+                RuleLine = Mid(RuleLine, CommaPos + 1)
+            Next
+            If FieldIdx < 3 Or RuleLine = "" Then Continue For
+            If FieldValues(0) < RULE_WHOLE Or FieldValues(0) > RULE_PART Then Continue For
+            With .Rule(.RuleCount)
+                .RuleText = RuleLine
+                .Condition = FieldValues(0)
+                .MatchCase = IIf(FieldValues(1) <> 0, 1, 0)
+                .Action = IIf(FieldValues(2) = RULE_SWITCH, RULE_SWITCH, RULE_KEEP)
+            End With
+            .RuleCount += 1
+        Next
+        .SuggestRule = IniReadFlag("Rules", "Suggest", 1)
+        .SuggestCount = ValInt(IniRead("Rules", "SuggestCount", "2"))
+        If .SuggestCount < 1 Or .SuggestCount > 99 Then .SuggestCount = 2
         .Language = LCase(IniRead("General", "Language", ""))
         If .Language <> "ru" And .Language <> "en" Then
             ' русский, украинский, белорусский Windows - русский интерфейс
@@ -211,6 +269,7 @@ Sub ConfigSave()
         IniWrite("Keys", "NumLockOn", Str(.NumLockOn))
         IniWrite("Keys", "ShiftBackspace", Str(.ShiftBackspace))
         IniWrite("Keys", "CtrlCapsLock", Str(.CtrlCaps))
+        IniWrite("Keys", "KeepDotComma", Str(.KeepDotComma))
         IniWrite("AutoSwitch", "Folder", .SpellFolder)
         IniWrite("AutoSwitch", "IgnoreDigits", Str(.AutoIgnoreDigits))
         IniWrite("AutoSwitch", "IgnoreCaps", Str(.AutoIgnoreCaps))
@@ -220,6 +279,17 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
         IniWrite("General", "MouseFlag", Str(.MouseFlag))
         IniWrite("General", "Language", .Language)
+        ' прежние правила - целиком: удалённые не должны остаться в файле
+        Dim RulesSection As String = "Rules", FileName As String = ConfigFileName()
+        LbWritePrivateProfileString(StrPtr(RulesSection), 0, 0, StrPtr(FileName))
+        IniWrite("Rules", "Count", Str(.RuleCount))
+        For ItemIdx = 0 To .RuleCount - 1
+            With .Rule(ItemIdx)
+                IniWrite("Rules", "Rule" & (ItemIdx + 1), .Condition & "," & .MatchCase & "," & .Action & "," & .RuleText)
+            End With
+        Next
+        IniWrite("Rules", "Suggest", Str(.SuggestRule))
+        IniWrite("Rules", "SuggestCount", Str(.SuggestCount))
     End With
 End Sub
 

@@ -10,7 +10,7 @@
 '                     сочетания (его ловит хук, hotkeys.bi)
 '  Звуки            - события с галками, файл каждого, сигнал динамика
 '  Автопереключение - какие слова не трогать, папка словарей Hunspell
-'  Правила переключения - пока только вид страницы
+'  Правила переключения - список правил и окно правила (rules.bi)
 '
 '  Окно правит копию настроек (EditSettings); «OK» и «Применить» переносят
 '  её в Settings, пишут ini и вызывают SettingsOnApply.
@@ -71,6 +71,7 @@ Dim Shared HotkeyView As QLISTVIEW
 Dim Shared ExtraUndoLabel As QLABEL
 Dim Shared ShiftBackspaceCheck As QCHECKBOX
 Dim Shared CtrlCapsCheck As QCHECKBOX
+Dim Shared KeepDotCommaCheck As QCHECKBOX
 Dim Shared AssignButton As QBUTTON
 Dim Shared ClearHotkeyButton As QBUTTON
 Dim Shared DefaultHotkeyButton As QBUTTON
@@ -97,7 +98,7 @@ Dim Shared UserDictButton As QBUTTON
 Dim Shared SpellStatusLabel As QLABEL
 Dim Shared AutoNote As QLABEL
 Dim Shared SpellDialog As QOPENDIALOG
-' Правила переключения - пока только вид страницы, правил и их обработки нет
+' Правила переключения
 Dim Shared RulesNote As QLABEL
 Dim Shared RulesView As QLISTVIEW
 Dim Shared AddRuleButton As QBUTTON
@@ -106,6 +107,20 @@ Dim Shared DeleteRuleButton As QBUTTON
 Dim Shared SuggestRuleCheck As QCHECKBOX
 Dim Shared SuggestCountEdit As QEDIT
 Dim Shared SuggestCountLabel As QLABEL
+
+' окно правила (добавить / изменить)
+Dim Shared RuleForm As QFORM
+Dim Shared RuleTextLabel As QLABEL
+Dim Shared RuleTextEdit As QEDIT
+Dim Shared RuleCondLabel As QLABEL
+Dim Shared RuleCondCombo As QCOMBOBOX
+Dim Shared RuleCaseLabel As QLABEL
+Dim Shared RuleCaseCombo As QCOMBOBOX
+Dim Shared RuleActionLabel As QLABEL
+Dim Shared RuleActionCombo As QCOMBOBOX
+Dim Shared RuleOkButton As QBUTTON
+Dim Shared RuleCancelButton As QBUTTON
+Dim Shared RuleFormOk As Long
 
 ' окно «Назначить сочетание»
 Dim Shared CaptureForm As QFORM
@@ -184,6 +199,23 @@ Private Sub ReadSoloCombos()
     Next
 End Sub
 
+Private Sub FillRulesView()
+    Dim KeepIdx As Long = RulesView.ItemIndex
+    RulesView.Clear
+    Dim RuleIdx As Long
+    For RuleIdx = 0 To EditSettings.RuleCount - 1
+        With EditSettings.Rule(RuleIdx)
+            RulesView.AddItems(.RuleText)
+            RulesView.SetSubItem(RuleIdx, 0, Tr(RuleConditionNames(.Condition)))
+            RulesView.SetSubItem(RuleIdx, 1, Tr(RuleCaseNames(.MatchCase)))
+            RulesView.SetSubItem(RuleIdx, 2, Tr(RuleActionNames(.Action)))
+        End With
+    Next
+    If KeepIdx >= EditSettings.RuleCount Then KeepIdx = EditSettings.RuleCount - 1
+    If KeepIdx < 0 And EditSettings.RuleCount > 0 Then KeepIdx = 0
+    RulesView.ItemIndex = KeepIdx
+End Sub
+
 Private Sub FillForm()
     AutoStartCheck.Checked = EditSettings.AutoStart
     AutoSwitchCheck.Checked = EditSettings.AutoSwitch
@@ -201,6 +233,7 @@ Private Sub FillForm()
     NumLockCheck.Checked = EditSettings.NumLockOn
     ShiftBackspaceCheck.Checked = EditSettings.ShiftBackspace
     CtrlCapsCheck.Checked = EditSettings.CtrlCaps
+    KeepDotCommaCheck.Checked = EditSettings.KeepDotComma
     AutoDigitsCheck.Checked = EditSettings.AutoIgnoreDigits
     AutoCapsCheck.Checked = EditSettings.AutoIgnoreCaps
     AutoSingleCheck.Checked = EditSettings.AutoSingleLetter
@@ -208,8 +241,11 @@ Private Sub FillForm()
     AutoEarlyCheck.Checked = EditSettings.AutoEarly
     SpellFolderEdit.Text = EditSettings.SpellFolder
     SpellStatusLabel.Caption = Tr("Сейчас: ") & SpellStatus
+    SuggestRuleCheck.Checked = EditSettings.SuggestRule
+    SuggestCountEdit.Text = Str(EditSettings.SuggestCount)
     FillHotkeyView()
     FillSoundView()
+    FillRulesView()
 End Sub
 
 ' Галки и переключатели - в EditSettings (сочетания и файлы туда пишут
@@ -230,12 +266,16 @@ Private Sub ReadForm()
     EditSettings.NumLockOn = IIf(NumLockCheck.Checked, 1, 0)
     EditSettings.ShiftBackspace = IIf(ShiftBackspaceCheck.Checked, 1, 0)
     EditSettings.CtrlCaps = IIf(CtrlCapsCheck.Checked, 1, 0)
+    EditSettings.KeepDotComma = IIf(KeepDotCommaCheck.Checked, 1, 0)
     EditSettings.AutoIgnoreDigits = IIf(AutoDigitsCheck.Checked, 1, 0)
     EditSettings.AutoIgnoreCaps = IIf(AutoCapsCheck.Checked, 1, 0)
     EditSettings.AutoSingleLetter = IIf(AutoSingleCheck.Checked, 1, 0)
     EditSettings.AutoRemember = IIf(AutoRememberCheck.Checked, 1, 0)
     EditSettings.AutoEarly = IIf(AutoEarlyCheck.Checked, 1, 0)
     EditSettings.SpellFolder = Trim(SpellFolderEdit.Text)
+    EditSettings.SuggestRule = IIf(SuggestRuleCheck.Checked, 1, 0)
+    Dim SuggestCount As Long = ValInt(SuggestCountEdit.Text)
+    If SuggestCount >= 1 And SuggestCount <= 99 Then EditSettings.SuggestCount = SuggestCount
     Dim EventIdx As Long
     For EventIdx = 0 To SOUND_EVENT_COUNT - 1
         EditSettings.SoundOn(EventIdx) = IIf(SoundView.Item(EventIdx).Checked, 1, 0)
@@ -424,6 +464,97 @@ Private Sub OnUserDictClick()
     LbShellExecute(0, "open", "notepad.exe", Chr(34) & FileName & Chr(34), 0, LB_SW_SHOWNORMAL)
 End Sub
 
+' --- правила переключения ---
+
+Private Sub OnRuleOkClick()
+    If Trim(RuleTextEdit.Text) = "" Then
+        LbMessageBox(Cast(Any Ptr, RuleForm.Handle), Tr("Введите сочетание букв."), "LangBarFB", LB_MB_ICONWARNING)
+        Exit Sub
+    End If
+    RuleFormOk = 1
+    RuleForm.Close
+End Sub
+
+Private Sub OnRuleCancelClick()
+    RuleForm.Close
+End Sub
+
+Private Sub OnRuleFormShow()
+    LbSetForegroundWindow(Cast(Any Ptr, RuleForm.Handle))
+    RuleTextEdit.SetFocus
+End Sub
+
+' Окно правила: RuleIdx - номер правила в EditSettings, -1 - новое.
+' 1 - нажали OK, правило записано в EditSettings.
+Private Function EditRule(ByVal RuleIdx As Long) As Long
+    If RuleIdx < 0 Then
+        RuleForm.Caption = Tr("Новое правило")
+        RuleTextEdit.Text = ""
+        RuleCondCombo.ItemIndex = RULE_WHOLE
+        RuleCaseCombo.ItemIndex = 0
+        RuleActionCombo.ItemIndex = RULE_KEEP
+    Else
+        RuleForm.Caption = Tr("Изменить правило")
+        With EditSettings.Rule(RuleIdx)
+            RuleTextEdit.Text = .RuleText
+            RuleCondCombo.ItemIndex = .Condition
+            RuleCaseCombo.ItemIndex = .MatchCase
+            RuleActionCombo.ItemIndex = .Action
+        End With
+    End If
+    RuleFormOk = 0
+    RuleForm.Center
+    RuleForm.ShowModal
+    If RuleFormOk = 0 Then Return 0
+    If RuleIdx < 0 Then
+        RuleIdx = EditSettings.RuleCount
+        EditSettings.RuleCount += 1
+    End If
+    With EditSettings.Rule(RuleIdx)
+        .RuleText = Trim(RuleTextEdit.Text)
+        .Condition = IIf(RuleCondCombo.ItemIndex >= RULE_WHOLE And RuleCondCombo.ItemIndex <= RULE_PART, _
+            RuleCondCombo.ItemIndex, RULE_WHOLE)
+        .MatchCase = IIf(RuleCaseCombo.ItemIndex = 1, 1, 0)
+        .Action = IIf(RuleActionCombo.ItemIndex = RULE_SWITCH, RULE_SWITCH, RULE_KEEP)
+    End With
+    FillRulesView()
+    RulesView.ItemIndex = RuleIdx
+    Return 1
+End Function
+
+Private Function SelectedRule() As Long
+    Dim RuleIdx As Long = RulesView.ItemIndex
+    If RuleIdx < 0 Or RuleIdx >= EditSettings.RuleCount Then Return -1
+    Return RuleIdx
+End Function
+
+Private Sub OnAddRuleClick()
+    If EditSettings.RuleCount >= MAX_RULES Then
+        LbMessageBox(Cast(Any Ptr, SettingsForm.Handle), Tr("Правил не может быть больше ") & MAX_RULES & ".", _
+            "LangBarFB", LB_MB_ICONWARNING)
+        Exit Sub
+    End If
+    EditRule(-1)
+End Sub
+
+Private Sub OnEditRuleClick()
+    Dim RuleIdx As Long = SelectedRule()
+    If RuleIdx < 0 Then Exit Sub
+    EditRule(RuleIdx)
+End Sub
+
+Private Sub OnDeleteRuleClick()
+    Dim RuleIdx As Long = SelectedRule()
+    If RuleIdx < 0 Then Exit Sub
+    Dim MoveIdx As Long
+    For MoveIdx = RuleIdx To EditSettings.RuleCount - 2
+        EditSettings.Rule(MoveIdx) = EditSettings.Rule(MoveIdx + 1)
+    Next
+    EditSettings.RuleCount -= 1
+    EditSettings.Rule(EditSettings.RuleCount).RuleText = ""
+    FillRulesView()
+End Sub
+
 Private Sub OnSettingsShow()
     LbSetForegroundWindow(Cast(Any Ptr, SettingsForm.Handle))
 End Sub
@@ -466,6 +597,17 @@ Private Sub PlaceCombo(ByRef Combo As QCOMBOBOX, ByRef Caption As QLABEL, ByRef 
     Combo.Left = ComboLeft : Combo.Top = PosY
     Combo.Width = 412 - ComboLeft
     ' только выбор из списка
+    Combo.Style = 2
+End Sub
+
+Private Sub PlaceRuleCombo(ByRef Combo As QCOMBOBOX, ByRef Caption As QLABEL, ByRef CaptionText As String, _
+        ByVal PosY As Long)
+    Caption.Parent = RuleForm
+    Caption.Left = 12 : Caption.Top = PosY + 3
+    Caption.Caption = CaptionText
+    Combo.Parent = RuleForm
+    Combo.Left = 120 : Combo.Top = PosY
+    Combo.Width = 208
     Combo.Style = 2
 End Sub
 
@@ -545,6 +687,7 @@ Sub SettingsCreate()
     ExtraUndoLabel.Caption = Tr("Последнее слово исправляют также:")
     PlaceCheck(ShiftBackspaceCheck, HotkeysPage, Tr("Левый Shift + Backspace"), 234)
     PlaceCheck(CtrlCapsCheck, HotkeysPage, "Ctrl + Caps Lock", 258)
+    PlaceCheck(KeepDotCommaCheck, HotkeysPage, Tr("Точку и запятую не менять при смене раскладки текста"), 284)
     PlaceButton(AssignButton, HotkeysPage, Tr("Назначить..."), 0, 310, 100)
     PlaceButton(ClearHotkeyButton, HotkeysPage, Tr("Снять"), 108, 310, 100)
     PlaceButton(DefaultHotkeyButton, HotkeysPage, Tr("По умолчанию"), 216, 310, 110)
@@ -615,17 +758,17 @@ Sub SettingsCreate()
         & Tr("(по словарю): если в текущей раскладке его нет, а в другой есть, оно перепечатывается ") _
         & Tr("и раскладка меняется. Break сразу после этого возвращает слово.")
 
-    ' Правила переключения (пока не действуют)
+    ' Правила переключения
     RulesNote.Parent = RulesPage
     RulesNote.Left = 0 : RulesNote.Top = 0
-    RulesNote.Width = 420 : RulesNote.Height = 32
+    RulesNote.Width = 420 : RulesNote.Height = 44
     RulesNote.AutoSize = 0
     RulesNote.WordWrap = 1
     RulesNote.Caption = Tr("Правила автопереключения: при наборе каких слов переключать раскладку, ") _
-        & Tr("а при каких нет. Пока не действуют.")
+        & Tr("а при каких нет. Проверяются по порядку, действует первое подходящее.")
     RulesView.Parent = RulesPage
-    RulesView.Left = 0 : RulesView.Top = 36
-    RulesView.Width = 420 : RulesView.Height = 234
+    RulesView.Left = 0 : RulesView.Top = 48
+    RulesView.Width = 420 : RulesView.Height = 222
     RulesView.ViewStyle = 3
     RulesView.RowSelect = 1
     RulesView.ReadOnly = 1
@@ -638,17 +781,16 @@ Sub SettingsCreate()
     PlaceButton(AddRuleButton, RulesPage, Tr("Добавить..."), 0, 278, 100)
     PlaceButton(EditRuleButton, RulesPage, Tr("Изменить..."), 108, 278, 100)
     PlaceButton(DeleteRuleButton, RulesPage, Tr("Удалить"), 216, 278, 100)
-    AddRuleButton.Enabled = 0
-    EditRuleButton.Enabled = 0
-    DeleteRuleButton.Enabled = 0
+    AddRuleButton.OnClick = @OnAddRuleClick
+    EditRuleButton.OnClick = @OnEditRuleClick
+    DeleteRuleButton.OnClick = @OnDeleteRuleClick
+    RulesView.OnDblClick = @OnEditRuleClick
     SuggestRuleCheck.Parent = RulesPage
     SuggestRuleCheck.Left = 0 : SuggestRuleCheck.Top = 316 : SuggestRuleCheck.Width = 250
     SuggestRuleCheck.Caption = Tr("Предлагать добавить правило после")
-    SuggestRuleCheck.Enabled = 0
     SuggestCountEdit.Parent = RulesPage
     SuggestCountEdit.Left = 254 : SuggestCountEdit.Top = 314 : SuggestCountEdit.Width = 36
-    SuggestCountEdit.Text = "2"
-    SuggestCountEdit.Enabled = 0
+    SuggestCountEdit.MaxLength = 2
     SuggestCountLabel.Parent = RulesPage
     SuggestCountLabel.Left = 296 : SuggestCountLabel.Top = 317
     SuggestCountLabel.Caption = Tr("отмен подряд")
@@ -662,6 +804,31 @@ Sub SettingsCreate()
     OkButton.OnClick = @OnOkClick
     CancelButton.OnClick = @OnCancelClick
     ApplyButton.OnClick = @OnApplyClick
+
+    ' окно правила
+    RuleForm.BorderStyle = 3
+    RuleForm.ClientWidth = 340
+    RuleForm.ClientHeight = 184
+    RuleForm.OnShow = @OnRuleFormShow
+    RuleTextLabel.Parent = RuleForm
+    RuleTextLabel.Left = 12 : RuleTextLabel.Top = 15
+    RuleTextLabel.Caption = Tr("Сочетание букв")
+    RuleTextEdit.Parent = RuleForm
+    RuleTextEdit.Left = 120 : RuleTextEdit.Top = 12 : RuleTextEdit.Width = 208
+    RuleTextEdit.MaxLength = 60
+    PlaceRuleCombo(RuleCondCombo, RuleCondLabel, Tr("Условие"), 44)
+    PlaceRuleCombo(RuleCaseCombo, RuleCaseLabel, Tr("Регистр"), 76)
+    PlaceRuleCombo(RuleActionCombo, RuleActionLabel, Tr("Действие"), 108)
+    RuleCondCombo.AddItems(Tr(RuleConditionNames(0)), Tr(RuleConditionNames(1)), Tr(RuleConditionNames(2)), _
+        Tr(RuleConditionNames(3)))
+    RuleCaseCombo.AddItems(Tr(RuleCaseNames(0)), Tr(RuleCaseNames(1)))
+    RuleActionCombo.AddItems(Tr(RuleActionNames(0)), Tr(RuleActionNames(1)))
+    PlaceButton(RuleOkButton, RuleForm, "OK", 172, 148, 75)
+    PlaceButton(RuleCancelButton, RuleForm, Tr("Отмена"), 253, 148, 75)
+    RuleOkButton.Default = 1
+    RuleCancelButton.Cancel = 1
+    RuleOkButton.OnClick = @OnRuleOkClick
+    RuleCancelButton.OnClick = @OnRuleCancelClick
 
     ' окно записи сочетания
     CaptureForm.Caption = Tr("Назначить сочетание")

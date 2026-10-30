@@ -31,7 +31,7 @@ code { background: #f2f2f2; padding: 0 3px; }
 <tr><td>Change case of selected text</td><td>Alt + Break</td></tr>
 <tr><td>Transliterate selected text</td><td>Alt + Scroll Lock</td></tr>
 </table>
-<p>Hotkeys are changed in settings, "Hotkeys". There you can also make left Shift + Backspace and Ctrl + Caps Lock fix the last word.</p>
+<p>Hotkeys are changed in settings, "Hotkeys". There you can also make left Shift + Backspace and Ctrl + Caps Lock fix the last word. The "Keep dot and comma when converting text layout" option leaves these characters as typed: <code>ыва.учу</code> becomes <code>sdf.ece</code>, not <code>sdf/ece</code>.</p>
 
 <h2>Layout switching</h2>
 <ul>
@@ -46,6 +46,13 @@ code { background: #f2f2f2; padding: 0 3px; }
 <li>The start of a word is checked at the third letter, the whole word after a space. If the word is not in the current layout but is in another one, it is retyped and the layout changes.</li>
 <li>Break right after an auto switch restores the word. That word is not switched again and, if enabled, is saved to <code>user_dict.dic</code>.</li>
 <li>Words with digits, in capitals, or of one letter are not switched (configurable).</li>
+</ul>
+
+<h2>Switching rules</h2>
+<ul>
+<li>A rule is a set of letters, a condition (whole word, word start, word end or any part of the word), whether case matters, and an action: switch or don't switch. Rules are checked before the dictionaries, in list order; the first matching rule applies.</li>
+<li>The letters are compared with the typed word in every layout: a rule for <code>ghbdtn</code> also applies to <code>привет</code>.</li>
+<li>If automatic switching is undone with Break several times in a row (the number is set on the rules page), the program offers to add a "Don't switch" rule for the last word.</li>
 </ul>
 
 <h2>Settings</h2>

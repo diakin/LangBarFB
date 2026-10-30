@@ -24,6 +24,7 @@
 #include once "sendkeys.bi"
 #include once "convert.bi"
 #include once "spell.bi"
+#include once "rules.bi"
 
 ' выделение не выделяется заново, если оно длиннее (Shift+Left по одному
 ' символу на длинном тексте идёт заметно долго)
@@ -220,10 +221,7 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     Dim NewChars(0 To WordKeyCount - RangeStart - 1) As UShort
     Dim NewCount As Long, KeyIdx As Long
     For KeyIdx = RangeStart To WordKeyCount - 1
-        Dim KeyChar As UShort
-        With WordKeys(KeyIdx)
-            KeyChar = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, TargetHandle)
-        End With
+        Dim KeyChar As UShort = WordKeyChar(KeyIdx, TargetHandle)
         If KeyChar >= 32 Then
             NewChars(NewCount) = KeyChar
             NewCount += 1
@@ -254,6 +252,7 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
         Dim CoreStart As Long, CoreLength As Long
         If SpellCoreRange(NewChars(), NewCount, CoreStart, CoreLength) > 0 Then
             SpellRemember(TargetIdx, NewChars(), CoreStart, CoreLength, Settings.AutoRemember)
+            RuleNoteUndo(SpellAnsiOf(NewChars(), CoreStart, CoreLength))
             LogAction("автопереключение отменено, слово «" & SpellAnsiOf(NewChars(), CoreStart, CoreLength) _
                 & "» больше не переключается" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
         End If
@@ -284,4 +283,9 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
         ActionSelection(ActionIdx, TargetWindow)
     End If
     ActionBusy = 0
+    ' отмен автопереключения подряд набралось - предложить правило
+    If RuleOfferText <> "" Then
+        Dim OfferedText As String = RuleOfferText
+        If RuleOfferRun() Then LogAction("добавлено правило: «" & OfferedText & "», слово целиком, не переключать")
+    End If
 End Sub

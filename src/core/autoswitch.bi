@@ -26,6 +26,12 @@
 '  новой раскладке, и проверка на пробеле его пропускает (раскладку
 '  сменили посреди слова).
 
+'  Правила переключения (rules.bi) проверяются раньше словаря: «не
+'  переключать» оставляет слово как есть, «переключать» меняет раскладку
+'  без словаря. На третьей букве действуют только правила «не
+'  переключать» с условием «слово целиком» и «начало слова»: если слово
+'  ещё может под них подойти, начало не перепечатывается.
+'
 '  Проверка идёт в главном потоке (не в хуке), уже после того как окно
 '  получило клавишу; если пользователь успел нажать что-то ещё, слово
 '  пропускается.
@@ -43,6 +49,7 @@
 #include once "convert.bi"
 #include once "spell.bi"
 #include once "actions.bi"
+#include once "rules.bi"
 
 Const AUTOSWITCH_MAX_KEYS = 40
 
@@ -54,9 +61,7 @@ Private Function AutoWordText(ByVal StartIdx As Long, ByVal EndIdx As Long, ByVa
     ReDim TextChars(0 To EndIdx - StartIdx)
     Dim KeyIdx As Long
     For KeyIdx = StartIdx To EndIdx
-        With WordKeys(KeyIdx)
-            TextChars(KeyIdx - StartIdx) = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, LayoutHandle)
-        End With
+        TextChars(KeyIdx - StartIdx) = WordKeyChar(KeyIdx, LayoutHandle)
         If TextChars(KeyIdx - StartIdx) < 32 Then Return 0
     Next
     Return EndIdx - StartIdx + 1
@@ -115,10 +120,67 @@ Private Sub AutoRetype(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, B
     WordCycleLayoutIdx = TargetIdx
     WordCycleShownChars = CharCount
     WordCycleUndoIdx = SourceIdx
+    RuleNoteAutoSwitch()
     PlayEventSound(SOUND_AUTOSWITCH)
     LogAction(LogText & " -> автопереключение, раскладка: " & SwitchResultText(SwitchResult))
     ActionBusy = 0
 End Sub
+
+' Правила переключения для клавиш WordStart..WordEnd, набранных в
+' раскладке SourceIdx: 0 - ни одно не подошло, RULE_KEEP + 1 - не
+' переключать, RULE_SWITCH + 1 - переключать в TargetIdx. Сочетание
+' сравнивается со словом (без знаков по краям) в каждой раскладке, сначала
+' в раскладке набора; действует первое подошедшее правило.
+Private Function AutoRuleDecide(ByVal WordStart As Long, ByVal WordEnd As Long, ByVal SourceIdx As Long, _
+        ByRef TargetIdx As Long, ByRef RuleInfo As String) As Long
+    If Settings.RuleCount = 0 Then Return 0
+    Dim FormText(0 To MAX_LAYOUTS - 1) As String, FormLower(0 To MAX_LAYOUTS - 1) As String
+    Dim LayoutIdx As Long
+    For LayoutIdx = 0 To LayoutCount - 1
+        Dim LayoutChars() As UShort
+        Dim CharCount As Long = AutoWordText(WordStart, WordEnd, LayoutIdx, LayoutChars())
+        If CharCount = 0 Then Continue For
+        Dim CoreStart As Long, CoreLength As Long
+        If SpellCoreRange(LayoutChars(), CharCount, CoreStart, CoreLength) = 0 Then Continue For
+        FormText(LayoutIdx) = SpellAnsiOf(LayoutChars(), CoreStart, CoreLength)
+        FormLower(LayoutIdx) = RuleLower(FormText(LayoutIdx))
+    Next
+    Dim RuleIdx As Long, OrderIdx As Long
+    For RuleIdx = 0 To Settings.RuleCount - 1
+        For OrderIdx = 0 To LayoutCount - 1
+            LayoutIdx = (SourceIdx + OrderIdx) Mod LayoutCount
+            If FormText(LayoutIdx) = "" Then Continue For
+            If RuleMatches(Settings.Rule(RuleIdx), FormText(LayoutIdx), FormLower(LayoutIdx)) = 0 Then Continue For
+            RuleInfo = "правило " & RuleDescribe(Settings.Rule(RuleIdx))
+            If Settings.Rule(RuleIdx).Action = RULE_KEEP Then Return RULE_KEEP + 1
+            ' совпало в раскладке набора - следующая раскладка
+            TargetIdx = IIf(LayoutIdx = SourceIdx, (SourceIdx + 1) Mod LayoutCount, LayoutIdx)
+            Return RULE_SWITCH + 1
+        Next
+    Next
+    Return 0
+End Function
+
+' Три клавиши WordStart.. могут оказаться началом слова из правила «не
+' переключать» (слово целиком или начало слова) в какой-то раскладке
+Private Function AutoRuleKeepsStart(ByVal WordStart As Long, ByRef RuleInfo As String) As Long
+    If Settings.RuleCount = 0 Then Return 0
+    Dim RuleIdx As Long, LayoutIdx As Long
+    For LayoutIdx = 0 To LayoutCount - 1
+        Dim LayoutChars() As UShort
+        If AutoWordText(WordStart, WordStart + 2, LayoutIdx, LayoutChars()) = 0 Then Continue For
+        Dim PrefixText As String = SpellAnsiOf(LayoutChars(), 0, 3)
+        Dim PrefixLower As String = RuleLower(PrefixText)
+        For RuleIdx = 0 To Settings.RuleCount - 1
+            If Settings.Rule(RuleIdx).Action <> RULE_KEEP Then Continue For
+            If RuleMayMatchStart(Settings.Rule(RuleIdx), PrefixText, PrefixLower) Then
+                RuleInfo = "правило " & RuleDescribe(Settings.Rule(RuleIdx))
+                Return 1
+            End If
+        Next
+    Next
+    Return 0
+End Function
 
 ' Клавиша слова попала в буфер: если в слове ровно три клавиши - проверка
 ' начала слова по таблицам начал
@@ -144,6 +206,11 @@ Sub AutoSwitchStart()
     If AutoWordText(WordStart, WordKeyCount - 1, SourceIdx, SourceChars()) = 0 Then Exit Sub
     If SourceChars(0) = SourceChars(1) AndAlso SourceChars(1) = SourceChars(2) Then Exit Sub
     If Settings.AutoIgnoreDigits AndAlso AutoHasDigit(SourceChars(), 3) Then Exit Sub
+    Dim RuleInfo As String
+    If AutoRuleKeepsStart(WordStart, RuleInfo) Then
+        LogAction("начало «" & SpellAnsiOf(SourceChars(), 0, 3) & "»: " & RuleInfo & " - проверка после пробела")
+        Exit Sub
+    End If
     ' начало из букв, которое есть в языке раскладки, - всё в порядке
     Dim SourceLetters As Long = 1
     Dim CharIdx As Long
@@ -187,7 +254,8 @@ End Sub
 
 ' Пробел попал в буфер слова: проверить слово перед ним
 Sub AutoSwitchWord()
-    If Settings.AutoSwitch = 0 Or SpellDictCount = 0 Or LayoutCount < 2 Then Exit Sub
+    If Settings.AutoSwitch = 0 Or LayoutCount < 2 Then Exit Sub
+    If SpellDictCount = 0 And Settings.RuleCount = 0 Then Exit Sub
     If ActionBusy Then
         ' идёт другое действие или ждём смены раскладки - проверить потом
         WordSpaceFed = 1
@@ -217,13 +285,36 @@ Sub AutoSwitchWord()
     If LayoutOfWindow(TargetWindow).LayoutHandle <> SourceHandle Then Exit Sub
     Dim SourceIdx As Long = LayoutIndexOf(SourceHandle)
     If SourceIdx < 0 Then Exit Sub
-    If SpellDict(SourceIdx) = 0 Then Exit Sub
 
     Dim SourceChars() As UShort
     Dim CharCount As Long = AutoWordText(WordStart, WordEnd, SourceIdx, SourceChars())
     If CharCount = 0 Then Exit Sub
     ' три одинаковых знака в начале - не слово
     If CharCount >= 3 AndAlso SourceChars(0) = SourceChars(1) AndAlso SourceChars(1) = SourceChars(2) Then Exit Sub
+
+    ' правила - раньше словаря и настроек «не переключать слова с цифрами...»
+    Dim RuleTarget As Long = -1, RuleInfo As String
+    Dim RuleResult As Long = AutoRuleDecide(WordStart, WordEnd, SourceIdx, RuleTarget, RuleInfo)
+    If RuleResult = RULE_KEEP + 1 Then
+        LogAction("слово «" & SpellAnsiOf(SourceChars(), 0, CharCount) & "»: " & RuleInfo & " - не переключается")
+        Exit Sub
+    End If
+    If RuleResult = RULE_SWITCH + 1 Then
+        Dim RuleChars() As UShort
+        If AutoWordText(WordStart, WordEnd, RuleTarget, RuleChars()) > 0 Then
+            ReDim Preserve RuleChars(0 To CharCount)
+            RuleChars(CharCount) = 32
+            AutoRetype(TargetWindow, WordStart, CharCount + 1, RuleChars(), CharCount + 1, SourceIdx, RuleTarget, _
+                "слово «" & SpellAnsiOf(SourceChars(), 0, CharCount) & "»: " & RuleInfo)
+            If WordSpaceFed Then
+                WordSpaceFed = 0
+                AutoSwitchWord()
+            End If
+            Exit Sub
+        End If
+    End If
+
+    If SpellDict(SourceIdx) = 0 Then Exit Sub
     If Settings.AutoIgnoreDigits AndAlso AutoHasDigit(SourceChars(), CharCount) Then Exit Sub
 
     Dim SourceLetters As Long, SourceText As String

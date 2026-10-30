@@ -16,6 +16,10 @@
 '  раскладке: хранятся клавиши, а не символы, поэтому слово можно набрать
 '  в любой раскладке.
 '
+'  С настройкой KeepDotComma точка и запятая при смене раскладки остаются
+'  точкой и запятой («ыва.учу» -> «sdf.ece», а не «sdf/ece»): для них
+'  в целевой раскладке берётся клавиша, которая даёт тот же знак.
+'
 '  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
 '  (COPYING.LESSER и COPYING в корне репозитория).
 ' ---------------------------------------------------------------------------
@@ -26,6 +30,7 @@
 #include once "kbhook.bi"
 #include once "layouts.bi"
 #include once "sendkeys.bi"
+#include once "config.bi"
 
 ' Символ клавиши VirtualKey в раскладке LayoutHandle; 0 - клавиша
 ' символа не даёт (или это мёртвая клавиша - её состояние сбрасывается)
@@ -46,6 +51,12 @@ Function KeyCharInLayout(ByVal VirtualKey As ULong, ByVal WithShift As Long, ByV
         LbToUnicodeEx(VirtualKey, ScanCode, @KeyState(0), @CharBuffer(0), 8, 4, LayoutPtr)
     End If
     Return 0
+End Function
+
+' Знак, который не меняется при смене раскладки (настройка KeepDotComma)
+Function KeepsCharOnConvert(ByVal CharCode As UShort) As Long
+    If Settings.KeepDotComma = 0 Then Return 0
+    Return IIf(CharCode = Asc(".") Or CharCode = Asc(","), 1, 0)
 End Function
 
 ' --- смена раскладки текста ---
@@ -87,7 +98,7 @@ Sub ConvertLayoutText(TextChars() As UShort, ByVal CharCount As Long, ByVal Sour
     Dim CharIdx As Long
     For CharIdx = 0 To CharCount - 1
         Dim CharCode As UShort = TextChars(CharIdx)
-        If CharCode < 32 Then Continue For
+        If CharCode < 32 Or KeepsCharOnConvert(CharCode) Then Continue For
         Dim KeyInfo As Short = LbVkKeyScanEx(CharCode, SourcePtr)
         If KeyInfo = -1 Then Continue For
         Dim ShiftState As Long = (KeyInfo Shr 8) And &hFF
@@ -257,6 +268,18 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     If VirtualKey = LB_VK_SPACE Then WordSpaceFed = 1 Else WordLetterFed = 1
 End Sub
 
+' Символ клавиши буфера KeyIdx в раскладке LayoutHandle; точка и запятая
+' с настройкой KeepDotComma - какими их набрали
+Function WordKeyChar(ByVal KeyIdx As Long, ByVal LayoutHandle As UInteger) As UShort
+    With WordKeys(KeyIdx)
+        If Settings.KeepDotComma Then
+            Dim TypedChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
+            If KeepsCharOnConvert(TypedChar) Then Return TypedChar
+        End If
+        Return KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, LayoutHandle)
+    End With
+End Function
+
 ' Клавиши буфера StartIdx..EndIdx для повторного набора нажатиями в
 ' раскладке LayoutHandle (SendKeysWithShift - после смены раскладки).
 ' Shift - как при наборе; у букв ещё учитывается, что Caps Lock мог
@@ -269,6 +292,18 @@ Function WordKeysFor(ByVal StartIdx As Long, ByVal EndIdx As Long, ByVal LayoutH
     Dim KeyIdx As Long
     For KeyIdx = StartIdx To EndIdx
         With WordKeys(KeyIdx)
+            ' точка и запятая остаются: клавиша этого знака в целевой раскладке
+            If Settings.KeepDotComma Then
+                Dim TypedChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
+                If KeepsCharOnConvert(TypedChar) Then
+                    Dim KeyInfo As Short = LbVkKeyScanEx(TypedChar, Cast(Any Ptr, LayoutHandle))
+                    If KeyInfo <> -1 AndAlso ((KeyInfo Shr 8) And 6) = 0 Then
+                        VirtualKeys(KeyIdx - StartIdx) = KeyInfo And &hFF
+                        ShiftFlags(KeyIdx - StartIdx) = (KeyInfo Shr 8) And 1
+                        Continue For
+                    End If
+                End If
+            End If
             VirtualKeys(KeyIdx - StartIdx) = .VirtualKey
             Dim NeedShift As Long = .WithShift
             If LbIsCharAlpha(KeyCharInLayout(.VirtualKey, 0, 0, LayoutHandle)) And .CapsOn <> KbCapsOn Then
