@@ -16,8 +16,9 @@
 '             2 левый Alt + N, 3 левый Win + N
 '  [Keys]     CapsLock - режим (CAPS_...), ShiftCapsLock (0/1), NumLockOn,
 '             ShiftBackspace, CtrlCapsLock (0/1) - эти сочетания тоже
-'             исправляют последнее слово, как Break; KeepDotComma (0/1) -
-'             точка и запятая при смене раскладки текста остаются как есть
+'             исправляют последнее слово, как Break; KeepDot, KeepComma
+'             (0/1) - точка, запятая при смене раскладки текста остаются
+'             как есть (прежний общий ключ KeepDotComma читается для обоих)
 '  [AutoSwitch] Folder - папка с hunspell\ и dict\ (пусто - рядом с exe
 '             или выше); IgnoreDigits, IgnoreCaps - не переключать слова
 '             с цифрами и из одних заглавных; SingleLetter - переключать
@@ -110,7 +111,8 @@ Type AppSettings
     NumLockOn As Long
     ShiftBackspace As Long
     CtrlCaps As Long
-    KeepDotComma As Long
+    KeepDot As Long
+    KeepComma As Long
     SpellFolder As String
     AutoIgnoreDigits As Long
     AutoIgnoreCaps As Long
@@ -196,7 +198,9 @@ Sub ConfigLoad()
         .NumLockOn = IniReadFlag("Keys", "NumLockOn", 0)
         .ShiftBackspace = IniReadFlag("Keys", "ShiftBackspace", 0)
         .CtrlCaps = IniReadFlag("Keys", "CtrlCapsLock", 0)
-        .KeepDotComma = IniReadFlag("Keys", "KeepDotComma", 0)
+        Dim KeepBoth As Long = IniReadFlag("Keys", "KeepDotComma", 0)
+        .KeepDot = IniReadFlag("Keys", "KeepDot", KeepBoth)
+        .KeepComma = IniReadFlag("Keys", "KeepComma", KeepBoth)
         .SpellFolder = IniRead("AutoSwitch", "Folder", "")
         .AutoIgnoreDigits = IniReadFlag("AutoSwitch", "IgnoreDigits", 1)
         .AutoIgnoreCaps = IniReadFlag("AutoSwitch", "IgnoreCaps", 1)
@@ -269,7 +273,12 @@ Sub ConfigSave()
         IniWrite("Keys", "NumLockOn", Str(.NumLockOn))
         IniWrite("Keys", "ShiftBackspace", Str(.ShiftBackspace))
         IniWrite("Keys", "CtrlCapsLock", Str(.CtrlCaps))
-        IniWrite("Keys", "KeepDotComma", Str(.KeepDotComma))
+        IniWrite("Keys", "KeepDot", Str(.KeepDot))
+        IniWrite("Keys", "KeepComma", Str(.KeepComma))
+        ' общий ключ прежних версий больше не нужен
+        Dim KeysSection As String = "Keys", OldKeyName As String = "KeepDotComma"
+        Dim IniName As String = ConfigFileName()
+        LbWritePrivateProfileString(StrPtr(KeysSection), StrPtr(OldKeyName), 0, StrPtr(IniName))
         IniWrite("AutoSwitch", "Folder", .SpellFolder)
         IniWrite("AutoSwitch", "IgnoreDigits", Str(.AutoIgnoreDigits))
         IniWrite("AutoSwitch", "IgnoreCaps", Str(.AutoIgnoreCaps))

@@ -16,9 +16,10 @@
 '  раскладке: хранятся клавиши, а не символы, поэтому слово можно набрать
 '  в любой раскладке.
 '
-'  С настройкой KeepDotComma точка и запятая при смене раскладки остаются
-'  точкой и запятой («ыва.учу» -> «sdf.ece», а не «sdf/ece»): для них
-'  в целевой раскладке берётся клавиша, которая даёт тот же знак.
+'  С настройками KeepDot и KeepComma точка и запятая (каждая отдельно) при
+'  смене раскладки остаются точкой и запятой («ыва.учу» -> «sdf.ece», а не
+'  «sdf/ece»): для них в целевой раскладке берётся клавиша, которая даёт
+'  тот же знак.
 '
 '  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
 '  (COPYING.LESSER и COPYING в корне репозитория).
@@ -53,10 +54,11 @@ Function KeyCharInLayout(ByVal VirtualKey As ULong, ByVal WithShift As Long, ByV
     Return 0
 End Function
 
-' Знак, который не меняется при смене раскладки (настройка KeepDotComma)
+' Знак, который не меняется при смене раскладки (настройки KeepDot, KeepComma)
 Function KeepsCharOnConvert(ByVal CharCode As UShort) As Long
-    If Settings.KeepDotComma = 0 Then Return 0
-    Return IIf(CharCode = Asc(".") Or CharCode = Asc(","), 1, 0)
+    If CharCode = Asc(".") Then Return Settings.KeepDot
+    If CharCode = Asc(",") Then Return Settings.KeepComma
+    Return 0
 End Function
 
 ' --- смена раскладки текста ---
@@ -269,10 +271,10 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
 End Sub
 
 ' Символ клавиши буфера KeyIdx в раскладке LayoutHandle; точка и запятая
-' с настройкой KeepDotComma - какими их набрали
+' с настройками KeepDot, KeepComma - какими их набрали
 Function WordKeyChar(ByVal KeyIdx As Long, ByVal LayoutHandle As UInteger) As UShort
     With WordKeys(KeyIdx)
-        If Settings.KeepDotComma Then
+        If Settings.KeepDot Or Settings.KeepComma Then
             Dim TypedChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
             If KeepsCharOnConvert(TypedChar) Then Return TypedChar
         End If
@@ -293,7 +295,7 @@ Function WordKeysFor(ByVal StartIdx As Long, ByVal EndIdx As Long, ByVal LayoutH
     For KeyIdx = StartIdx To EndIdx
         With WordKeys(KeyIdx)
             ' точка и запятая остаются: клавиша этого знака в целевой раскладке
-            If Settings.KeepDotComma Then
+            If Settings.KeepDot Or Settings.KeepComma Then
                 Dim TypedChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
                 If KeepsCharOnConvert(TypedChar) Then
                     Dim KeyInfo As Short = LbVkKeyScanEx(TypedChar, Cast(Any Ptr, LayoutHandle))
