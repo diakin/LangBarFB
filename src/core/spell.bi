@@ -35,6 +35,9 @@ Type HunspellInitDataFn As Function cdecl (ByVal AffData As Any Ptr, ByVal AffSi
     ByVal DicData As Any Ptr, ByVal DicSize As UInteger, ByVal KeyText As Any Ptr) As Any Ptr
 Type HunspellWordFn As Function cdecl (ByVal SpellHandle As Any Ptr, ByVal WordText As WString Ptr) As Long
 Type HunspellFreeFn As Sub cdecl (ByVal SpellHandle As Any Ptr)
+' варианты исправления: массив указателей на строки UTF-16, в конце 0;
+' память принадлежит словарю и действует до следующего вызова
+Type HunspellSuggestFn As Function cdecl (ByVal SpellHandle As Any Ptr, ByVal WordText As WString Ptr) As Any Ptr
 
 Const SPELL_MAX_WORD = 64
 
@@ -46,6 +49,8 @@ Dim Shared SpellInitByData As Long
 Dim Shared HunspellSpell As HunspellWordFn
 Dim Shared HunspellAdd As HunspellWordFn
 Dim Shared HunspellFree As HunspellFreeFn
+' 0 - в библиотеке нет HunspellSuggest (исправление опечаток недоступно)
+Dim Shared HunspellSuggest As HunspellSuggestFn
 ' словарь каждой раскладки LayoutList; 0 - словаря нет
 Dim Shared SpellDict(0 To MAX_LAYOUTS - 1) As Any Ptr
 Dim Shared SpellDictCount As Long
@@ -146,6 +151,44 @@ Function SpellCheck(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartI
     If AllLower = 0 Then Return 0
     LbCharUpperBuff(@WordBuffer(0), 1)
     Return IIf((HunspellSpell(DictHandle, Cast(WString Ptr, @WordBuffer(0))) And &hFF) <> 0, 1, 0)
+End Function
+
+' Варианты исправления слова TextChars(StartIdx..) по словарю раскладки
+' LayoutIdx: все варианты подряд в ResultChars, начало и длина каждого -
+' в ResultStarts, ResultLengths. Возвращает число вариантов.
+Const SPELL_MAX_SUGGEST = 15
+
+Function SpellSuggest(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, _
+        ByVal CharCount As Long, ResultChars() As UShort, ResultStarts() As Long, ResultLengths() As Long) As Long
+    If HunspellSuggest = 0 Or LayoutIdx < 0 Or LayoutIdx >= MAX_LAYOUTS Then Return 0
+    Dim DictHandle As Any Ptr = SpellDict(LayoutIdx)
+    If DictHandle = 0 Or CharCount <= 0 Or CharCount > SPELL_MAX_WORD Then Return 0
+    Dim WordBuffer(0 To SPELL_MAX_WORD) As UShort
+    Dim CharIdx As Long
+    For CharIdx = 0 To CharCount - 1
+        WordBuffer(CharIdx) = TextChars(StartIdx + CharIdx)
+    Next
+    WordBuffer(CharCount) = 0
+    Dim ListPtr As UShort Ptr Ptr = HunspellSuggest(DictHandle, Cast(WString Ptr, @WordBuffer(0)))
+    If ListPtr = 0 Then Return 0
+    ReDim ResultStarts(0 To SPELL_MAX_SUGGEST - 1)
+    ReDim ResultLengths(0 To SPELL_MAX_SUGGEST - 1)
+    ReDim ResultChars(0 To SPELL_MAX_SUGGEST * (SPELL_MAX_WORD + 1))
+    Dim SuggestCount As Long, TotalChars As Long
+    While ListPtr[SuggestCount] <> 0 And SuggestCount < SPELL_MAX_SUGGEST
+        Dim SourcePtr As UShort Ptr = ListPtr[SuggestCount]
+        Dim WordLength As Long
+        WordLength = 0
+        While SourcePtr[WordLength] <> 0 And WordLength < SPELL_MAX_WORD
+            ResultChars(TotalChars + WordLength) = SourcePtr[WordLength]
+            WordLength += 1
+        Wend
+        ResultStarts(SuggestCount) = TotalChars
+        ResultLengths(SuggestCount) = WordLength
+        TotalChars += WordLength
+        SuggestCount += 1
+    Wend
+    Return SuggestCount
 End Function
 
 ' Слово - в словарь раскладки и в её таблицу начал слов
@@ -342,6 +385,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
         HunspellSpell = LbGetProcAddress(SpellLibrary, "HunspellSpell")
         HunspellAdd = LbGetProcAddress(SpellLibrary, "HunspellAdd")
         HunspellFree = LbGetProcAddress(SpellLibrary, "HunspellFree")
+        HunspellSuggest = LbGetProcAddress(SpellLibrary, "HunspellSuggest")
         If HunspellInit = 0 Or HunspellSpell = 0 Or HunspellAdd = 0 Or HunspellFree = 0 Then
             SpellStatus = Tr("в ") & SPELL_DLL_NAME & Tr(" нет функций Hunspell")
             SpellLibrary = 0

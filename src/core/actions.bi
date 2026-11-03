@@ -6,6 +6,9 @@
 '  1 Shift+Break  - выделенный текст в другой раскладке
 '  2 Alt+Break    - регистр букв выделенного текста наоборот
 '  3 Alt+Scroll   - выделенный текст транслитом (кириллица в латиницу)
+'  4 Ctrl+Break   - опечатка в последнем слове исправляется вариантом
+'                   Hunspell; повтор - следующий вариант, после последнего
+'                   - снова исходное слово
 '
 '  Выделенный текст копируется через Ctrl+C и печатается заново поверх
 '  выделения, потом снова выделяется. Повтор того же сочетания сразу
@@ -43,6 +46,23 @@ Dim Shared LastOriginal() As UShort
 Dim Shared LastOriginalCount As Long
 Dim Shared LastResult() As UShort
 Dim Shared LastResultCount As Long
+
+' исправление опечатки: варианты, какой сейчас в окне (-1 - исходное
+' слово), сколько символов он занимает вместе с пробелами после слова
+Dim Shared FixActive As Long
+Dim Shared FixWindow As Any Ptr
+Dim Shared FixSerial As Long
+Dim Shared FixOriginal() As UShort
+Dim Shared FixOriginalCount As Long
+Dim Shared FixCoreStart As Long
+Dim Shared FixCoreLength As Long
+Dim Shared FixTrailing As Long
+Dim Shared FixChars() As UShort
+Dim Shared FixStarts() As Long
+Dim Shared FixLengths() As Long
+Dim Shared FixCount As Long
+Dim Shared FixShownIdx As Long
+Dim Shared FixShownChars As Long
 
 Private Function SameText(FirstChars() As UShort, ByVal FirstCount As Long, _
         SecondChars() As UShort, ByVal SecondCount As Long) As Long
@@ -260,6 +280,115 @@ Private Sub ActionUndoConvert(ByVal TargetWindow As Any Ptr)
     PlayEventSound(SOUND_UNDO_AUTOSWITCH)
 End Sub
 
+' Текст в окне для варианта FixShownIdx: начало слова до букв, вариант
+' (или исходные буквы), конец слова после букв, пробелы
+Private Function FixBuildText(TextChars() As UShort) As Long
+    Dim CoreFrom As Long, CoreLength As Long
+    If FixShownIdx < 0 Then
+        CoreLength = FixCoreLength
+    Else
+        CoreFrom = FixStarts(FixShownIdx)
+        CoreLength = FixLengths(FixShownIdx)
+    End If
+    Dim TotalCount As Long = FixOriginalCount - FixCoreLength + CoreLength + FixTrailing
+    ReDim TextChars(0 To TotalCount)
+    Dim CharIdx As Long, OutIdx As Long
+    For CharIdx = 0 To FixCoreStart - 1
+        TextChars(OutIdx) = FixOriginal(CharIdx) : OutIdx += 1
+    Next
+    For CharIdx = 0 To CoreLength - 1
+        If FixShownIdx < 0 Then
+            TextChars(OutIdx) = FixOriginal(FixCoreStart + CharIdx)
+        Else
+            TextChars(OutIdx) = FixChars(CoreFrom + CharIdx)
+        End If
+        OutIdx += 1
+    Next
+    For CharIdx = FixCoreStart + FixCoreLength To FixOriginalCount - 1
+        TextChars(OutIdx) = FixOriginal(CharIdx) : OutIdx += 1
+    Next
+    For CharIdx = 1 To FixTrailing
+        TextChars(OutIdx) = 32 : OutIdx += 1
+    Next
+    Return OutIdx
+End Function
+
+' Опечатка в последнем набранном слове: первое нажатие - первый вариант
+' Hunspell по словарю раскладки, в которой слово набрано; повтор сразу
+' после - следующий вариант, после последнего - исходное слово
+Private Sub ActionSpellFix(ByVal TargetWindow As Any Ptr)
+    If FixActive = 0 Or TargetWindow <> FixWindow Or FixSerial <> WordChangeSerial Then
+        FixActive = 0
+        If HunspellSuggest = 0 Then
+            LogAction("опечатка: словари не загружены или в библиотеке нет HunspellSuggest")
+            Exit Sub
+        End If
+        Dim TrailingSpaces As Long
+        Dim RangeStart As Long = -1
+        If WordKeyCount > 0 And TargetWindow = WordWindow Then RangeStart = WordLastStart(TrailingSpaces)
+        If RangeStart < 0 Then
+            LogAction("опечатка: набранного слова нет")
+            Exit Sub
+        End If
+        ' слово - как его набрали, в раскладке набора
+        Dim WordEnd As Long = WordKeyCount - TrailingSpaces - 1
+        Dim TypedLayout As UInteger = WordKeys(RangeStart).LayoutHandle
+        FixOriginalCount = 0
+        ReDim FixOriginal(0 To WordEnd - RangeStart)
+        Dim KeyIdx As Long
+        For KeyIdx = RangeStart To WordEnd
+            With WordKeys(KeyIdx)
+                Dim KeyChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
+                If KeyChar >= 32 Then
+                    FixOriginal(FixOriginalCount) = KeyChar
+                    FixOriginalCount += 1
+                End If
+            End With
+        Next
+        If SpellCoreRange(FixOriginal(), FixOriginalCount, FixCoreStart, FixCoreLength) = 0 Then
+            LogAction("опечатка: в слове нет букв")
+            Exit Sub
+        End If
+        Dim WordText As String = SpellAnsiOf(FixOriginal(), FixCoreStart, FixCoreLength)
+        Dim LayoutIdx As Long = LayoutIndexOf(TypedLayout)
+        If LayoutIdx < 0 OrElse SpellDict(LayoutIdx) = 0 Then
+            LogAction("опечатка: нет словаря для раскладки " & LayoutCodeOf(TypedLayout))
+            Exit Sub
+        End If
+        If SpellCheck(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength) Then
+            LogAction("опечатка: «" & WordText & "» есть в словаре " & LayoutCodeOf(TypedLayout))
+            Exit Sub
+        End If
+        FixCount = SpellSuggest(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, FixChars(), FixStarts(), FixLengths())
+        If FixCount = 0 Then
+            LogAction("опечатка: для «" & WordText & "» вариантов нет")
+            Exit Sub
+        End If
+        FixTrailing = TrailingSpaces
+        FixWindow = TargetWindow
+        FixShownIdx = -1
+        FixShownChars = FixOriginalCount + FixTrailing
+        FixActive = 1
+        ' буфер больше не совпадает с текстом в окне: Break и
+        ' автопереключение для этого слова не работают
+        WordBufferReset()
+    End If
+    FixShownIdx += 1
+    If FixShownIdx >= FixCount Then FixShownIdx = -1
+    Dim NewChars() As UShort
+    Dim NewCount As Long = FixBuildText(NewChars())
+    SendKeyTap(LB_VK_BACK, FixShownChars)
+    SendUnicodeText(NewChars(), NewCount)
+    FixShownChars = NewCount
+    FixSerial = WordChangeSerial
+    If FixShownIdx < 0 Then
+        LogAction("опечатка: возвращено исходное слово")
+    Else
+        LogAction("опечатка: вариант " & (FixShownIdx + 1) & " из " & FixCount & ": «" _
+            & SpellAnsiOf(FixChars(), FixStarts(FixShownIdx), FixLengths(FixShownIdx)) & "»")
+    End If
+End Sub
+
 ' Сообщение от хука: сработало сочетание ActionIdx
 Sub RunHotkeyAction(ByVal ActionIdx As Long)
     If ActionBusy Then Exit Sub
@@ -279,6 +408,8 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
     End If
     If ActionIdx = ACTION_UNDO_CONVERT Then
         ActionUndoConvert(TargetWindow)
+    ElseIf ActionIdx = ACTION_SPELL_FIX Then
+        ActionSpellFix(TargetWindow)
     Else
         ActionSelection(ActionIdx, TargetWindow)
     End If

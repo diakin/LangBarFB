@@ -209,8 +209,12 @@ Dim Shared WordSpaceFed As Long
 Dim Shared WordLetterFed As Long
 ' был Backspace - следующая клавиша помечается AfterBackspace
 Dim Shared WordBackspaced As Long
+' растёт при каждом изменении буфера: действие видит, набирали ли что-то
+' после него
+Dim Shared WordChangeSerial As Long
 
 Sub WordBufferReset()
+    WordChangeSerial += 1
     WordKeyCount = 0
     WordWindow = 0
     WordCycleActive = 0
@@ -231,6 +235,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
         WordBufferReset()
         Exit Sub
     End If
+    WordChangeSerial += 1
     Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
     If WordKeyCount > 0 And ForegroundWindow <> WordWindow Then WordBufferReset()
 
