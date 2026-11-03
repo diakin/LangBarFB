@@ -25,6 +25,8 @@
 '             слова из одной буквы; Remember - слово, переключение которого
 '             отменили Break, записывать в user_dict.dic (0/1);
 '             Early - проверять начало слова с третьей буквы (0/1);
+'             Fix - слово, которого нет ни в одном словаре, заменять
+'             первым вариантом исправления Hunspell (0/1);
 '             DictAsked - вопрос о скачивании словарей уже задавали (0/1)
 '  [Rules]    Count - число правил переключения; Rule1..RuleN -
 '             «условие,регистр,действие,сочетание»: условие RULE_..., регистр
@@ -119,6 +121,7 @@ Type AppSettings
     AutoIgnoreCaps As Long
     AutoSingleLetter As Long
     AutoRemember As Long
+    AutoFix As Long
     DictAsked As Long
     AutoEarly As Long
     MouseFlag As Long
@@ -208,6 +211,7 @@ Sub ConfigLoad()
         .AutoIgnoreCaps = IniReadFlag("AutoSwitch", "IgnoreCaps", 1)
         .AutoSingleLetter = IniReadFlag("AutoSwitch", "SingleLetter", 0)
         .AutoRemember = IniReadFlag("AutoSwitch", "Remember", 1)
+        .AutoFix = IniReadFlag("AutoSwitch", "Fix", 0)
         .DictAsked = IniReadFlag("AutoSwitch", "DictAsked", 0)
         .AutoEarly = IniReadFlag("AutoSwitch", "Early", 1)
         .MouseFlag = ValInt(IniRead("General", "MouseFlag", Str(MOUSE_FLAG_ON_CHANGE)))
@@ -286,6 +290,7 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "IgnoreCaps", Str(.AutoIgnoreCaps))
         IniWrite("AutoSwitch", "SingleLetter", Str(.AutoSingleLetter))
         IniWrite("AutoSwitch", "Remember", Str(.AutoRemember))
+        IniWrite("AutoSwitch", "Fix", Str(.AutoFix))
         IniWrite("AutoSwitch", "DictAsked", Str(.DictAsked))
         IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
         IniWrite("General", "MouseFlag", Str(.MouseFlag))

@@ -90,6 +90,7 @@ Dim Shared AutoDigitsCheck As QCHECKBOX
 Dim Shared AutoCapsCheck As QCHECKBOX
 Dim Shared AutoSingleCheck As QCHECKBOX
 Dim Shared AutoRememberCheck As QCHECKBOX
+Dim Shared AutoFixCheck As QCHECKBOX
 Dim Shared AutoEarlyCheck As QCHECKBOX
 Dim Shared SpellFolderLabel As QLABEL
 Dim Shared SpellFolderEdit As QEDIT
@@ -240,6 +241,7 @@ Private Sub FillForm()
     AutoCapsCheck.Checked = EditSettings.AutoIgnoreCaps
     AutoSingleCheck.Checked = EditSettings.AutoSingleLetter
     AutoRememberCheck.Checked = EditSettings.AutoRemember
+    AutoFixCheck.Checked = EditSettings.AutoFix
     AutoEarlyCheck.Checked = EditSettings.AutoEarly
     SpellFolderEdit.Text = EditSettings.SpellFolder
     SpellStatusLabel.Caption = Tr("Сейчас: ") & SpellStatus
@@ -274,6 +276,7 @@ Private Sub ReadForm()
     EditSettings.AutoIgnoreCaps = IIf(AutoCapsCheck.Checked, 1, 0)
     EditSettings.AutoSingleLetter = IIf(AutoSingleCheck.Checked, 1, 0)
     EditSettings.AutoRemember = IIf(AutoRememberCheck.Checked, 1, 0)
+    EditSettings.AutoFix = IIf(AutoFixCheck.Checked, 1, 0)
     EditSettings.AutoEarly = IIf(AutoEarlyCheck.Checked, 1, 0)
     EditSettings.SpellFolder = Trim(SpellFolderEdit.Text)
     EditSettings.SuggestRule = IIf(SuggestRuleCheck.Checked, 1, 0)
@@ -733,29 +736,30 @@ Sub SettingsCreate()
 
     ' Автопереключение
     PlaceCheck(AutoEarlyCheck, AutoPage, Tr("Проверять начало слова (с третьей буквы)"), 104)
+    PlaceCheck(AutoFixCheck, AutoPage, Tr("Исправлять опечатки (слово не из словаря - первым вариантом)"), 128)
     PlaceCheck(AutoDigitsCheck, AutoPage, Tr("Не переключать слова с цифрами"), 8)
     PlaceCheck(AutoCapsCheck, AutoPage, Tr("Не переключать слова из заглавных букв (аббревиатуры)"), 32)
     PlaceCheck(AutoSingleCheck, AutoPage, Tr("Переключать слова из одной буквы"), 56)
     PlaceCheck(AutoRememberCheck, AutoPage, Tr("Слово, переключение которого отменили Break, - в user_dict.dic"), 80)
     SpellFolderLabel.Parent = AutoPage
-    SpellFolderLabel.Left = 8 : SpellFolderLabel.Top = 138
+    SpellFolderLabel.Left = 8 : SpellFolderLabel.Top = 158
     SpellFolderLabel.Caption = Tr("Папка с hunspell\ и dict\ (пусто - рядом с программой или выше):")
     SpellFolderEdit.Parent = AutoPage
-    SpellFolderEdit.Left = 8 : SpellFolderEdit.Top = 158 : SpellFolderEdit.Width = 300
-    PlaceButton(SpellBrowseButton, AutoPage, Tr("Обзор..."), 316, 156, 96)
-    PlaceButton(SpellReloadButton, AutoPage, Tr("Перечитать словари"), 8, 190, 140)
-    PlaceButton(UserDictButton, AutoPage, Tr("Слова пользователя"), 156, 190, 140)
+    SpellFolderEdit.Left = 8 : SpellFolderEdit.Top = 176 : SpellFolderEdit.Width = 300
+    PlaceButton(SpellBrowseButton, AutoPage, Tr("Обзор..."), 316, 174, 96)
+    PlaceButton(SpellReloadButton, AutoPage, Tr("Перечитать словари"), 8, 206, 140)
+    PlaceButton(UserDictButton, AutoPage, Tr("Слова пользователя"), 156, 206, 140)
     SpellBrowseButton.OnClick = @OnSpellBrowseClick
     SpellReloadButton.OnClick = @OnSpellReloadClick
     UserDictButton.OnClick = @OnUserDictClick
     SpellStatusLabel.Parent = AutoPage
-    SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 224
-    SpellStatusLabel.Width = 404 : SpellStatusLabel.Height = 48
+    SpellStatusLabel.Left = 8 : SpellStatusLabel.Top = 238
+    SpellStatusLabel.Width = 404 : SpellStatusLabel.Height = 40
     SpellStatusLabel.AutoSize = 0
     SpellStatusLabel.WordWrap = 1
     AutoNote.Parent = AutoPage
-    AutoNote.Left = 8 : AutoNote.Top = 272
-    AutoNote.Width = 404 : AutoNote.Height = 70
+    AutoNote.Left = 8 : AutoNote.Top = 280
+    AutoNote.Width = 404 : AutoNote.Height = 62
     AutoNote.AutoSize = 0
     AutoNote.WordWrap = 1
     AutoNote.Caption = Tr("Слово проверяется на третьей букве (по началам слов словаря) и после пробела ") _

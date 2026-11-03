@@ -46,6 +46,7 @@ code { background: #f2f2f2; padding: 0 3px; }
 <ul>
 <li>The start of a word is checked at the third letter, the whole word after a space. If the word is not in the current layout but is in another one, it is retyped and the layout changes.</li>
 <li>Break right after an auto switch restores the word. That word is not switched again and, if enabled, is saved to <code>user_dict.dic</code>.</li>
+<li>"Fix typos" (off by default): a word of 3 or more letters that is in none of the dictionaries is replaced with the first Hunspell suggestion after a space. Break right after that restores the word and remembers it, Ctrl + Break puts in the next suggestion.</li>
 <li>Words with digits, in capitals, or of one letter are not switched (configurable).</li>
 </ul>
 

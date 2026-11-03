@@ -32,6 +32,11 @@
 '  переключать» с условием «слово целиком» и «начало слова»: если слово
 '  ещё может под них подойти, начало не перепечатывается.
 '
+'  Автоисправление (настройка AutoFix): если слова нет ни в одной
+'  раскладке, оно заменяется первым вариантом Hunspell (actions.bi,
+'  FixPrepare). Break сразу после этого возвращает слово и запоминает его,
+'  Ctrl + Break - следующий вариант.
+'
 '  Проверка идёт в главном потоке (не в хуке), уже после того как окно
 '  получило клавишу; если пользователь успел нажать что-то ещё, слово
 '  пропускается.
@@ -52,6 +57,8 @@
 #include once "rules.bi"
 
 Const AUTOSWITCH_MAX_KEYS = 40
+' автоисправление не трогает слова короче (предлоги, сокращения)
+Const AUTOFIX_MIN_LETTERS = 3
 
 ' Текст клавиш буфера StartIdx..EndIdx в раскладке LayoutIdx; 0 - какая-то
 ' клавиша символа не даёт (мёртвая клавиша и т. п.)
@@ -346,6 +353,15 @@ Sub AutoSwitchWord()
     Next
     If TargetIdx < 0 Then
         LogAction(LogText)
+        ' слова нет ни в одной раскладке - автоисправление опечатки
+        If SourceKnown = 0 And Settings.AutoFix <> 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
+            If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
+                If FixPrepare(TargetWindow, WordStart, 1, 0) Then
+                    FixAuto = 1
+                    FixShow(0)
+                End If
+            End If
+        End If
         Exit Sub
     End If
 
