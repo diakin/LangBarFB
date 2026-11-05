@@ -185,12 +185,28 @@ Sub HotkeysLoadTable()
 End Sub
 
 ' Вызывается в обработчике хука: 1 - проглотить нажатие
+' Клавиша события, как она записана в сочетаниях (VK_CANCEL - Break или
+' Scroll Lock)
+Function HotkeyKeyOf(ByRef KeyEvent As KbEvent) As ULong
+    If KeyEvent.VirtualKey <> LB_VK_CANCEL Then Return KeyEvent.VirtualKey
+    Return IIf((KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0, LB_VK_PAUSE, LB_VK_SCROLL)
+End Function
+
+' Номер действия, которому назначено нажатие; -1 - никакому
+Function HotkeyActionOf(ByRef KeyEvent As KbEvent) As Long
+    If KeyEvent.IsKeyUp Or KeyEvent.IsInjected Then Return -1
+    Dim VirtualKey As ULong = HotkeyKeyOf(KeyEvent)
+    Dim ActionIdx As Long
+    For ActionIdx = 0 To HOTKEY_ACTION_COUNT - 1
+        If HotkeyTable(ActionIdx).VirtualKey = VirtualKey And _
+                HotkeyTable(ActionIdx).Modifiers = KeyEvent.Modifiers Then Return ActionIdx
+    Next
+    Return -1
+End Function
+
 Function HotkeyFilter(ByRef KeyEvent As KbEvent) As Long
     If KeyEvent.IsInjected Then Return 0
-    Dim VirtualKey As ULong = KeyEvent.VirtualKey
-    If VirtualKey = LB_VK_CANCEL Then
-        VirtualKey = IIf((KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0, LB_VK_PAUSE, LB_VK_SCROLL)
-    End If
+    Dim VirtualKey As ULong = HotkeyKeyOf(KeyEvent)
 
     If KeyEvent.IsKeyUp Then
         If HotkeyHeldKey <> 0 And VirtualKey = HotkeyHeldKey Then

@@ -379,6 +379,11 @@ Function DescribeEvent(ByRef KeyEvent As KbEvent) As String
     If (KeyEvent.KeyFlags And LB_LLKHF_ALTDOWN) <> 0 Then LineText &= "  alt"
     If KeyEvent.IsInjected Then LineText &= "  программная"
     If KeyEvent.IsSwallowed Then LineText &= "  проглочена (сочетание)"
+    ' сочетание назначено, но не сработало - почему
+    If KeyEvent.IsSwallowed = 0 AndAlso HotkeyActionOf(KeyEvent) >= 0 Then
+        LineText &= IIf(HotkeysEnabled = 0, "  сочетание не действует: открыто окно настроек", _
+            "  сочетание назначено, но не проглочено")
+    End If
     If KeyEvent.Modifiers <> 0 Then LineText &= "  mods=" & KeyEvent.Modifiers
     If KeyEvent.HeldMask <> 0 Then LineText &= "  held=" & Hex(KeyEvent.HeldMask)
     ' раскладка активного окна на момент разбора события
