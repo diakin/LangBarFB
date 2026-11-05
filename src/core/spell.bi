@@ -256,12 +256,9 @@ Function SpellUserDictName() As String
     Return ExePath & "\user_dict.dic"
 End Function
 
-' Слово больше не переключается: в словарь раскладки и в user_dict.dic
-Sub SpellRemember(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, _
-        ByVal CharCount As Long, ByVal WriteFile As Long)
-    If LayoutIdx < 0 Or LayoutIdx >= LayoutCount Then Exit Sub
-    SpellAddTo(LayoutIdx, TextChars(), StartIdx, CharCount)
-    If WriteFile = 0 Or CharCount <= 0 Then Exit Sub
+' Слово - строкой в конец user_dict.dic (UTF-8)
+Private Sub SpellAppendUserWord(TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long)
+    If CharCount <= 0 Then Exit Sub
     Dim LineBytes As String = String(CharCount * 3 + 2, 0)
     Dim ByteCount As Long = LbWideCharToMultiByte(LB_CP_UTF8, 0, Cast(WString Ptr, @TextChars(StartIdx)), _
         CharCount, StrPtr(LineBytes), Len(LineBytes), 0, 0)
@@ -278,6 +275,31 @@ Sub SpellRemember(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx
     Put #FileNum, Lof(FileNum) + 1, LineText
     Close #FileNum
 End Sub
+
+' Слово больше не переключается: в словарь раскладки и, если WriteFile,
+' в user_dict.dic
+Sub SpellRemember(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, _
+        ByVal CharCount As Long, ByVal WriteFile As Long)
+    If LayoutIdx < 0 Or LayoutIdx >= LayoutCount Then Exit Sub
+    SpellAddTo(LayoutIdx, TextChars(), StartIdx, CharCount)
+    If WriteFile Then SpellAppendUserWord(TextChars(), StartIdx, CharCount)
+End Sub
+
+' Слово, добавленное вручную: во все словари (как слова user_dict.dic при
+' загрузке) и в user_dict.dic. Возвращает 0 - слово уже есть в одном из
+' словарей или словарей нет.
+Function SpellRememberAll(TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long) As Long
+    If SpellDictCount = 0 Or CharCount <= 0 Or CharCount > SPELL_MAX_WORD Then Return 0
+    Dim LayoutIdx As Long
+    For LayoutIdx = 0 To LayoutCount - 1
+        If SpellCheck(LayoutIdx, TextChars(), StartIdx, CharCount) Then Return 0
+    Next
+    For LayoutIdx = 0 To LayoutCount - 1
+        SpellAddTo(LayoutIdx, TextChars(), StartIdx, CharCount)
+    Next
+    SpellAppendUserWord(TextChars(), StartIdx, CharCount)
+    Return 1
+End Function
 
 ' --- загрузка ---
 

@@ -9,6 +9,9 @@
 '  4 Ctrl+Break   - опечатка в последнем слове исправляется вариантом
 '                   Hunspell; повтор - следующий вариант, после последнего
 '                   - снова исходное слово
+'  5 Ctrl+Scroll  - последнее набранное слово (или слова выделенного
+'                   текста) - в словари и в user_dict.dic: больше не
+'                   переключаются и не исправляются
 '
 '  Выделенный текст копируется через Ctrl+C и печатается заново поверх
 '  выделения, потом снова выделяется. Повтор того же сочетания сразу
@@ -428,6 +431,88 @@ Private Sub FixUndoAuto()
     PlayEventSound(SOUND_UNDO_AUTOSWITCH)
 End Sub
 
+' Слова текста TextChars - в словари (без знаков по краям); слова из
+' одной буквы пропускаются. Возвращает число добавленных.
+Const ADD_WORD_MAX_WORDS = 10
+
+Private Function AddWordsOf(TextChars() As UShort, ByVal CharCount As Long) As Long
+    Dim AddedCount As Long, SeenCount As Long
+    Dim TokenStart As Long = 0, CharIdx As Long
+    For CharIdx = 0 To CharCount
+        Dim IsBreak As Long = 1
+        If CharIdx < CharCount Then
+            If TextChars(CharIdx) > 32 Then IsBreak = 0
+        End If
+        If IsBreak Then
+            If CharIdx > TokenStart Then
+                SeenCount += 1
+                Dim TokenChars(0 To CharIdx - TokenStart - 1) As UShort
+                Dim CopyIdx As Long
+                For CopyIdx = TokenStart To CharIdx - 1
+                    TokenChars(CopyIdx - TokenStart) = TextChars(CopyIdx)
+                Next
+                Dim CoreStart As Long, CoreLength As Long
+                If SpellCoreRange(TokenChars(), CharIdx - TokenStart, CoreStart, CoreLength) >= 2 Then
+                    Dim WordText As String = SpellAnsiOf(TokenChars(), CoreStart, CoreLength)
+                    If SpellRememberAll(TokenChars(), CoreStart, CoreLength) Then
+                        AddedCount += 1
+                        LogAction("словарь: «" & WordText & "» добавлено (user_dict.dic)")
+                    Else
+                        LogAction("словарь: «" & WordText & "» уже есть или словарей нет")
+                    End If
+                End If
+            End If
+            TokenStart = CharIdx + 1
+        End If
+    Next
+    Return AddedCount
+End Function
+
+' Последнее набранное слово, а если его нет - выделенный текст (не больше
+' ADD_WORD_MAX_WORDS слов: Ctrl+C без выделения в некоторых редакторах
+' копирует всю строку)
+Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
+    Dim TextChars() As UShort
+    Dim CharCount As Long
+    Dim TrailingSpaces As Long
+    Dim RangeStart As Long = -1
+    If WordKeyCount > 0 And TargetWindow = WordWindow Then RangeStart = WordLastStart(TrailingSpaces)
+    If RangeStart >= 0 Then
+        Dim WordEnd As Long = WordKeyCount - TrailingSpaces - 1
+        ReDim TextChars(0 To WordEnd - RangeStart)
+        Dim KeyIdx As Long
+        For KeyIdx = RangeStart To WordEnd
+            With WordKeys(KeyIdx)
+                Dim KeyChar As UShort = KeyCharInLayout(.VirtualKey, .WithShift, .CapsOn, .LayoutHandle)
+                If KeyChar >= 32 Then
+                    TextChars(CharCount) = KeyChar
+                    CharCount += 1
+                End If
+            End With
+        Next
+    Else
+        CharCount = CopySelectionText(TextChars())
+        If CharCount <= 0 Then
+            LogAction("словарь: нет ни набранного слова, ни выделения")
+            Exit Sub
+        End If
+        Dim WordCount As Long, CharIdx As Long, InWord As Long
+        For CharIdx = 0 To CharCount - 1
+            If TextChars(CharIdx) > 32 Then
+                If InWord = 0 Then WordCount += 1
+                InWord = 1
+            Else
+                InWord = 0
+            End If
+        Next
+        If WordCount > ADD_WORD_MAX_WORDS Then
+            LogAction("словарь: выделено " & WordCount & " слов, больше " & ADD_WORD_MAX_WORDS & " - не добавляется")
+            Exit Sub
+        End If
+    End If
+    If AddWordsOf(TextChars(), CharCount) > 0 Then PlayEventSound(SOUND_CONVERT_SELECTION)
+End Sub
+
 ' Сообщение от хука: сработало сочетание ActionIdx
 Sub RunHotkeyAction(ByVal ActionIdx As Long)
     If ActionBusy Then Exit Sub
@@ -451,6 +536,8 @@ Sub RunHotkeyAction(ByVal ActionIdx As Long)
         ActionUndoConvert(TargetWindow)
     ElseIf ActionIdx = ACTION_SPELL_FIX Then
         ActionSpellFix(TargetWindow)
+    ElseIf ActionIdx = ACTION_ADD_WORD Then
+        ActionAddWord(TargetWindow)
     Else
         ActionSelection(ActionIdx, TargetWindow)
     End If

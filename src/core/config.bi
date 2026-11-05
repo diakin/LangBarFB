@@ -4,7 +4,7 @@
 '  [General]  AutoStart, AutoSwitch, CaretFlag, Sounds (0/1); MouseFlag -
 '             флажок у указателя мыши (MOUSE_FLAG_...); Language - язык
 '             интерфейса: ru, en (нет - по языку Windows)
-'  [Hotkeys]  Action1..Action5 - сочетание словами: "Shift + Break",
+'  [Hotkeys]  Action1..Action6 - сочетание словами: "Shift + Break",
 '             пусто - не назначено
 '  [Sounds]   On1..On4 (0/1), File1..File4, Beep (1 - сигнал динамика
 '             вместо файла)
@@ -44,13 +44,14 @@
 #include once "winapi.bi"
 #include once "lang.bi"
 
-Const HOTKEY_ACTION_COUNT = 5
+Const HOTKEY_ACTION_COUNT = 6
 ' номера действий горячих клавиш (с 0)
 Const ACTION_UNDO_CONVERT = 0       ' отменить конвертацию раскладки
 Const ACTION_CONVERT_SELECTION = 1  ' сменить раскладку выделенного текста
 Const ACTION_TOGGLE_CASE = 2        ' сменить регистр выделенного текста
 Const ACTION_TRANSLIT = 3           ' транслитерировать выделенный текст
 Const ACTION_SPELL_FIX = 4          ' исправить опечатку в последнем слове
+Const ACTION_ADD_WORD = 5           ' добавить слово в словарь пользователя
 
 Const SOUND_EVENT_COUNT = 4
 Const SOUND_AUTOSWITCH = 0          ' автопереключение раскладки
@@ -139,9 +140,10 @@ Dim Shared HotkeyActionNames(0 To HOTKEY_ACTION_COUNT - 1) As ZString * 48 = { _
     "Сменить раскладку выделенного текста", _
     "Сменить регистр выделенного текста", _
     "Транслитерировать выделенный текст", _
-    "Исправить опечатку в последнем слове"}
+    "Исправить опечатку в последнем слове", _
+    "Добавить слово в словарь"}
 Dim Shared HotkeyDefaults(0 To HOTKEY_ACTION_COUNT - 1) As ZString * 32 = { _
-    "Break", "Shift + Break", "Alt + Break", "Alt + Scroll Lock", "Ctrl + Break"}
+    "Break", "Shift + Break", "Alt + Break", "Alt + Scroll Lock", "Ctrl + Break", "Ctrl + Scroll Lock"}
 
 Dim Shared SoundEventNames(0 To SOUND_EVENT_COUNT - 1) As ZString * 48 = { _
     "Автопереключение раскладки", _

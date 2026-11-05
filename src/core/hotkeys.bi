@@ -9,6 +9,8 @@
 '  нажатие глотается вместе с отпусканием, а окну программы уходит
 '  сообщение с номером действия. Ctrl+Break Windows присылает как
 '  VK_CANCEL - он приводится к VK_PAUSE, иначе Ctrl + Break не совпадёт.
+'  Ctrl+Scroll Lock тоже приходит как VK_CANCEL, но без флага extended
+'  (у Break скан-код с префиксом E0) - он приводится к VK_SCROLL.
 '
 '  Режим записи (окно «Назначить»): следующее нажатие не-модификатора
 '  глотается и запоминается в HotkeyCapturedKey / HotkeyCapturedMods.
@@ -186,7 +188,9 @@ End Sub
 Function HotkeyFilter(ByRef KeyEvent As KbEvent) As Long
     If KeyEvent.IsInjected Then Return 0
     Dim VirtualKey As ULong = KeyEvent.VirtualKey
-    If VirtualKey = LB_VK_CANCEL Then VirtualKey = LB_VK_PAUSE
+    If VirtualKey = LB_VK_CANCEL Then
+        VirtualKey = IIf((KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0, LB_VK_PAUSE, LB_VK_SCROLL)
+    End If
 
     If KeyEvent.IsKeyUp Then
         If HotkeyHeldKey <> 0 And VirtualKey = HotkeyHeldKey Then
