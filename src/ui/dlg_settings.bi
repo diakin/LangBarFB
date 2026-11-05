@@ -412,7 +412,12 @@ Private Sub OnChangeSoundClick()
     If EventIdx < 0 Then Exit Sub
     SoundDialog.Caption = Tr(SoundEventNames(EventIdx))
     SoundDialog.Filter = Tr("Звуки (*.wav)|*.wav|Все файлы (*.*)|*.*")
-    SoundDialog.FileName = SoundPath(EditSettings.SoundFile(EventIdx))
+    ' диалог открывается в папке звуков Windows (%SystemRoot%\Media)
+    Dim MediaFolder As String = Environ("SystemRoot")
+    If MediaFolder = "" Then MediaFolder = Environ("windir")
+    If MediaFolder <> "" Then MediaFolder &= "\Media"
+    SoundDialog.InitialDir = MediaFolder
+    SoundDialog.FileName = ""
     If SoundDialog.Execute() = 0 Then Exit Sub
     EditSettings.SoundFile(EventIdx) = SoundDialog.FileName
     SoundView.SetSubItem(EventIdx, 0, SoundFileShown(EventIdx))
