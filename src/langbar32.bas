@@ -101,6 +101,7 @@ Dim Shared FlagsLabel As QLABEL
 Dim Shared SpellLabel As QLABEL
 Dim Shared EventList As QLISTBOX
 Dim Shared ClearButton As QBUTTON
+Dim Shared CopyLogButton As QBUTTON
 Dim Shared PollTimer As QTIMER
 Dim Shared CaretTimer As QTIMER
 Dim Shared NoteTimer As QTIMER
@@ -404,7 +405,7 @@ Sub OnKeyEvents()
         While EventList.ItemCount > MAX_LOG_LINES
             EventList.DelItems(0)
         Wend
-        EventList.ItemIndex = EventList.ItemCount - 1
+        If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
     End If
     ' автопереключение: начало слова (третья буква) и слово перед пробелом
     If WordLetterFed Then
@@ -430,7 +431,7 @@ End Function
 Sub DebugLog(ByRef LineText As String)
     If MainForm.Visible = 0 Then Exit Sub
     EventList.AddItems(Time & "  " & LineText)
-    EventList.ItemIndex = EventList.ItemCount - 1
+    If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
 End Sub
 
 ' Смена раскладки с клавиатуры: с проверкой и записью в окно отладки
@@ -618,6 +619,33 @@ Sub OnClearClick()
     EventList.Clear
 End Sub
 
+' Строки журнала - в буфер обмена: выделенные (Ctrl/Shift + щелчок),
+' а если выделена одна строка или ни одной - все
+Sub OnCopyLogClick()
+    Dim LogText As String
+    Dim LineIdx As Long
+    Dim OnlySelected As Long = IIf(EventList.SelCount > 1, 1, 0)
+    For LineIdx = 0 To EventList.ItemCount - 1
+        If OnlySelected = 0 OrElse EventList.Selected(LineIdx) Then
+            LogText &= EventList.Item(LineIdx) & Chr(13, 10)
+        End If
+    Next
+    If LogText = "" Then Exit Sub
+    Dim WideChars(0 To Len(LogText)) As UShort
+    Dim CharCount As Long = LbMultiByteToWideChar(LB_CP_ACP, 0, StrPtr(LogText), Len(LogText), _
+        Cast(WString Ptr, @WideChars(0)), Len(LogText) + 1)
+    If CharCount > 0 Then ClipboardWriteText(WideChars(), CharCount)
+End Sub
+
+' Список журнала растягивается вместе с окном
+Sub OnMainFormResize()
+    EventList.Width = MainForm.ClientWidth - 16
+    EventList.Height = MainForm.ClientHeight - 118
+    LayoutLabel.Width = MainForm.ClientWidth - 16
+    HookLabel.Width = MainForm.ClientWidth - 16
+    FlagsLabel.Width = MainForm.ClientWidth - 16
+End Sub
+
 Sub OnTrayClick()
     LayoutNext(LastUserWindow)
     ' Windows может не дать окну активироваться обратно после щелчка по
@@ -784,7 +812,7 @@ FlagsLabel.Left = 8 : FlagsLabel.Top = 52
 FlagsLabel.Caption = "..."
 
 SpellLabel.Parent = MainForm
-SpellLabel.Left = 116 : SpellLabel.Top = 80
+SpellLabel.Left = 224 : SpellLabel.Top = 80
 SpellLabel.Caption = "Hunspell: ..."
 
 ClearButton.Parent = MainForm
@@ -792,10 +820,18 @@ ClearButton.Left = 8 : ClearButton.Top = 76 : ClearButton.Width = 100
 ClearButton.Caption = "Очистить"
 ClearButton.OnClick = @OnClearClick
 
+CopyLogButton.Parent = MainForm
+CopyLogButton.Left = 116 : CopyLogButton.Top = 76 : CopyLogButton.Width = 100
+CopyLogButton.Caption = "Копировать"
+CopyLogButton.OnClick = @OnCopyLogClick
+
 EventList.Parent = MainForm
 EventList.Left = 8 : EventList.Top = 110
 EventList.Width = MainForm.ClientWidth - 16
 EventList.Height = MainForm.ClientHeight - 118
+EventList.MultiSelect = 1
+EventList.ExtendedSelect = 1
+MainForm.OnResize = @OnMainFormResize
 
 ' --- настройки ---
 ' путь в автозапуске - к этому exe (программу могли перенести)
