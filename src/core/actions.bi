@@ -359,7 +359,10 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
         If WithLog Then LogAction("опечатка: «" & WordText & "» есть в словаре " & LayoutCodeOf(TypedLayout))
         Return 0
     End If
+    ' Hunspell ищет варианты в главном потоке; пока он ищет, хук ждёт
+    Dim SuggestStart As Double = Timer
     FixCount = SpellSuggest(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, FixChars(), FixStarts(), FixLengths())
+    LogAction("опечатка: поиск вариантов для «" & WordText & "» - " & CLng((Timer - SuggestStart) * 1000) & " мс")
     If FixCount = 0 Then
         LogAction("опечатка: для «" & WordText & "» вариантов нет")
         Return 0

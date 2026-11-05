@@ -570,6 +570,11 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
 End Sub
 
 Sub OnPollTimer()
+    If KbHookWatch() Then
+        DebugLog("хуки клавиатуры и мыши поставлены заново (" & KbReinstallCount _
+            & "-й раз): был ввод, а хук не вызывался - Windows сняла его" _
+            & IIf(KbHookHandle = 0, "; поставить не удалось, ошибка " & LbGetLastError(), ""))
+    End If
     Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
     If IsOwnOrShellWindow(ForegroundWindow) = 0 Then LastUserWindow = ForegroundWindow
 
@@ -589,7 +594,8 @@ Sub OnPollTimer()
     If LastEventTick > 0 Then SinceLast = Str(Int((Timer - LastEventTick) * 10) / 10) & " с назад"
     HookLabel.Caption = HookState & ";  вызовов: " & KbHookCalls _
         & ";  в обработчике: среднее " & KbHookAverageMicros() & " мкс, наибольшее " & KbMaxHookMicros & " мкс" _
-        & ";  потеряно: " & KbLostEvents & ";  последнее нажатие: " & SinceLast
+        & ";  потеряно: " & KbLostEvents & ";  поставлен заново: " & KbReinstallCount _
+        & ";  последнее нажатие: " & SinceLast
     FlagsLabel.Caption = FlagsLabelText & ";  " & CaretDebugText
 End Sub
 

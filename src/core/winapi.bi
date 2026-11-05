@@ -132,6 +132,12 @@ Declare Function LbCreateMutex Lib "kernel32" Alias "CreateMutexA" ( _
 Declare Function LbCloseHandle Lib "kernel32" Alias "CloseHandle" ( _
     ByVal ObjectHandle As Any Ptr) As Long
 Declare Function LbGetLastError Lib "kernel32" Alias "GetLastError" () As ULong
+Type LbLastInputInfo
+    StructSize As ULong
+    InputTime As ULong
+End Type
+Declare Function LbGetLastInputInfo Lib "user32" Alias "GetLastInputInfo" (ByRef InputInfo As LbLastInputInfo) As Long
+Declare Function LbGetTickCount Lib "kernel32" Alias "GetTickCount" () As ULong
 Declare Function LbQueryPerformanceCounter Lib "kernel32" Alias "QueryPerformanceCounter" ( _
     ByRef Counter As LongInt) As Long
 Declare Function LbQueryPerformanceFrequency Lib "kernel32" Alias "QueryPerformanceFrequency" ( _

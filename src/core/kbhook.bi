@@ -7,6 +7,8 @@
 '  пропускает его, а после нескольких таких случаев молча снимает хук.
 '  Поэтому обработчик только кладёт нажатие в кольцевой буфер и посылает
 '  окну сообщение; разбор идёт потом, в KbHookTakeEvent.
+'  Снятый хук ставится заново (KbHookWatch): если Windows видела ввод
+'  (GetLastInputInfo) позже, чем последний вызов любого из хуков.
 '
 '  Решить, проглотить ли нажатие, можно только сразу, в обработчике:
 '  это делает KbKeyFilter (горячие клавиши, hotkeys.bi) - быстрая
@@ -63,6 +65,11 @@ Dim Shared KbKeyFilter As KbFilterFn
 Dim Shared KbCapsOn As Long
 Dim Shared KbCapsHeld As Long
 Dim Shared KbMouseHookHandle As Any Ptr
+' GetTickCount последнего вызова хука клавиатуры или мыши
+Dim Shared KbLastHookTick As ULong
+' когда и сколько раз хуки ставились заново
+Dim Shared KbLastReinstallTick As ULong
+Dim Shared KbReinstallCount As Long
 Dim Shared KbMouseNotifyMessage As ULong
 ' число нажатий кнопок мыши: по нему фильтр видит щелчок между событиями
 Dim Shared KbMouseClicks As ULong
@@ -142,6 +149,7 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
         Dim StartCount As LongInt, EndCount As LongInt
         LbQueryPerformanceCounter(StartCount)
         Dim HookData As LbKbdLLHookStruct Ptr = Cast(LbKbdLLHookStruct Ptr, LParam)
+        KbLastHookTick = LbGetTickCount()
         Dim KeyEvent As KbEvent
         With KeyEvent
             .VirtualKey = HookData->vkCode
@@ -207,6 +215,7 @@ Function KbHookInstall(ByVal NotifyWindow As Any Ptr, ByVal NotifyMessage As ULo
     LbQueryPerformanceFrequency(KbCounterFreq)
     KbCapsOn = LbGetKeyState(LB_VK_CAPITAL) And 1
     KbHookHandle = LbSetWindowsHookEx(LB_WH_KEYBOARD_LL, @KbHookProc, LbGetModuleHandle(0), 0)
+    KbLastHookTick = LbGetTickCount()
     Return IIf(KbHookHandle <> 0, 1, 0)
 End Function
 
@@ -220,6 +229,7 @@ End Sub
 Private Function KbMouseHookProc stdcall (ByVal HookCode As Long, _
         ByVal WParam As UInteger, ByVal LParam As Integer) As Integer
     If HookCode = LB_HC_ACTION Then
+        KbLastHookTick = LbGetTickCount()
         Select Case CULng(WParam)
         Case LB_WM_LBUTTONDOWN, LB_WM_RBUTTONDOWN, LB_WM_MBUTTONDOWN
             KbMouseClicks += 1
@@ -246,6 +256,35 @@ Sub KbMouseHookRemove()
         KbMouseHookHandle = 0
     End If
 End Sub
+
+' Проверка из таймера: был ввод (клавиатура или мышь) позже последнего
+' вызова хуков больше чем на секунду - Windows их сняла (обработчик не
+' успел за LowLevelHooksTimeout, пока главный поток был занят). Хуки
+' ставятся заново, не чаще раза в 3 с. Возвращает 1 - поставлены заново.
+Function KbHookWatch() As Long
+    If KbHookHandle = 0 Then Return 0
+    Dim InputInfo As LbLastInputInfo
+    InputInfo.StructSize = SizeOf(LbLastInputInfo)
+    If LbGetLastInputInfo(InputInfo) = 0 Then Return 0
+    Dim NowTick As ULong = LbGetTickCount()
+    ' разность в ULong верна и после переполнения счётчика (49 дней)
+    Dim InputLag As Long = CLng(InputInfo.InputTime - KbLastHookTick)
+    If InputLag <= 1000 Then Return 0
+    If KbReinstallCount > 0 AndAlso CLng(NowTick - KbLastReinstallTick) < 3000 Then Return 0
+    LbUnhookWindowsHookEx(KbHookHandle)
+    KbHookHandle = LbSetWindowsHookEx(LB_WH_KEYBOARD_LL, @KbHookProc, LbGetModuleHandle(0), 0)
+    If KbMouseHookHandle <> 0 Then
+        LbUnhookWindowsHookEx(KbMouseHookHandle)
+        KbMouseHookHandle = LbSetWindowsHookEx(LB_WH_MOUSE_LL, @KbMouseHookProc, LbGetModuleHandle(0), 0)
+    End If
+    ' модификаторы, нажатые за время без хука, неизвестны
+    KbHeldMask = 0
+    KbCapsOn = LbGetKeyState(LB_VK_CAPITAL) And 1
+    KbLastHookTick = NowTick
+    KbLastReinstallTick = NowTick
+    KbReinstallCount += 1
+    Return 1
+End Function
 
 ' Достаёт следующее нажатие из буфера; 0 - буфер пуст
 Function KbHookTakeEvent(ByRef EventOut As KbEvent) As Long
