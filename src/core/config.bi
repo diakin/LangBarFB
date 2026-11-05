@@ -6,7 +6,7 @@
 '             интерфейса: ru, en (нет - по языку Windows)
 '  [Hotkeys]  Action1..Action6 - сочетание словами: "Shift + Break",
 '             пусто - не назначено
-'  [Sounds]   On1..On4 (0/1), File1..File4, Beep (1 - сигнал динамика
+'  [Sounds]   On1..On5 (0/1), File1..File5, Beep (1 - сигнал динамика
 '             вместо файла)
 '  [Switch]   LShift, RShift, LCtrl, RCtrl - что делает одиночное нажатие:
 '             пусто - ничего, next / prev - следующая / предыдущая
@@ -53,11 +53,12 @@ Const ACTION_TRANSLIT = 3           ' транслитерировать выд�
 Const ACTION_SPELL_FIX = 4          ' исправить опечатку в последнем слове
 Const ACTION_ADD_WORD = 5           ' добавить слово в словарь пользователя
 
-Const SOUND_EVENT_COUNT = 4
+Const SOUND_EVENT_COUNT = 5
 Const SOUND_AUTOSWITCH = 0          ' автопереключение раскладки
 Const SOUND_UNDO_AUTOSWITCH = 1     ' отмена автопереключения / конвертации
 Const SOUND_CONVERT_SELECTION = 2   ' конвертация выделенного текста
 Const SOUND_CONVERT_CLIPBOARD = 3   ' конвертация текста в буфере (позже)
+Const SOUND_SPELL_FIX = 4           ' исправление опечатки (Ctrl + Break и автоисправление)
 
 ' одиночные клавиши (номер = VK_LSHIFT..VK_RCONTROL - &hA0)
 Const SOLO_KEY_COUNT = 4
@@ -149,10 +150,12 @@ Dim Shared SoundEventNames(0 To SOUND_EVENT_COUNT - 1) As ZString * 48 = { _
     "Автопереключение раскладки", _
     "Отмена автопереключения", _
     "Конвертация выделенного текста", _
-    "Конвертация текста в буфере"}
+    "Конвертация текста в буфере", _
+    "Исправление опечатки"}
 ' файлы - из папки sounds LangBarXX
 Dim Shared SoundDefaults(0 To SOUND_EVENT_COUNT - 1) As ZString * 48 = { _
-    "sounds\autocorrect.wav", "sounds\undo.wav", "sounds\autoreplace.wav", "sounds\autoreplace.wav"}
+    "sounds\autocorrect.wav", "sounds\undo.wav", "sounds\autoreplace.wav", "sounds\autoreplace.wav", _
+    "sounds\autocorrect.wav"}
 
 Function ConfigFileName() As String
     Return ExePath & "\langbarfb.ini"

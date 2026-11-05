@@ -389,6 +389,7 @@ Sub FixShow(ByVal ShowIdx As Long)
     If FixShownIdx < 0 Then
         LogAction("опечатка: возвращено исходное слово")
     Else
+        PlayEventSound(SOUND_SPELL_FIX)
         LogAction("опечатка: «" & SpellAnsiOf(FixOriginal(), FixCoreStart, FixCoreLength) & "» - вариант " _
             & (FixShownIdx + 1) & " из " & FixCount & ": «" _
             & SpellAnsiOf(FixChars(), FixStarts(FixShownIdx), FixLengths(FixShownIdx)) & "»")
