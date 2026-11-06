@@ -31,6 +31,7 @@
 #include once "convert.bi"
 #include once "spell.bi"
 #include once "rules.bi"
+#include once "fixrank.bi"
 
 ' выделение не выделяется заново, если оно длиннее (Shift+Left по одному
 ' символу на длинном тексте идёт заметно долго)
@@ -67,6 +68,10 @@ Dim Shared FixCount As Long
 Dim Shared FixShownIdx As Long
 Dim Shared FixShownChars As Long
 Dim Shared FixLayoutIdx As Long
+' цена правок каждого варианта (fixrank.bi) и уверенность в первом
+Dim Shared FixCosts() As Long
+Dim Shared FixConfident As Long
+Declare Sub FixRankSort(ByVal TypedLayout As UInteger)
 ' 1 - исправление сделало автоисправление после пробела (Break его отменяет)
 Dim Shared FixAuto As Long
 
@@ -363,6 +368,7 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
     Dim SuggestStart As Double = Timer
     FixCount = SpellSuggest(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, FixChars(), FixStarts(), FixLengths())
     LogAction("опечатка: поиск вариантов для «" & WordText & "» - " & CLng((Timer - SuggestStart) * 1000) & " мс")
+    FixRankSort(TypedLayout)
     If FixCount = 0 Then
         LogAction("опечатка: для «" & WordText & "» вариантов нет")
         Return 0
@@ -379,6 +385,47 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
     WordBufferReset()
     Return 1
 End Function
+
+' Варианты - по цене правок (fixrank.bi), при равной цене - в порядке
+' Hunspell; FixConfident - первый вариант можно ставить автоматически
+Sub FixRankSort(ByVal TypedLayout As UInteger)
+    If FixCount <= 0 Then Exit Sub
+    ReDim FixCosts(0 To FixCount - 1)
+    Dim ItemIdx As Long, ScanIdx As Long
+    For ItemIdx = 0 To FixCount - 1
+        FixCosts(ItemIdx) = FixRankCost(FixOriginal(), FixCoreStart, FixCoreLength, _
+            FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx), TypedLayout)
+    Next
+    ' вставками: порядок равных сохраняется
+    For ItemIdx = 1 To FixCount - 1
+        Dim KeyCost As Long = FixCosts(ItemIdx)
+        Dim KeyStart As Long = FixStarts(ItemIdx), KeyLength As Long = FixLengths(ItemIdx)
+        ScanIdx = ItemIdx - 1
+        While ScanIdx >= 0 AndAlso FixCosts(ScanIdx) > KeyCost
+            FixCosts(ScanIdx + 1) = FixCosts(ScanIdx)
+            FixStarts(ScanIdx + 1) = FixStarts(ScanIdx)
+            FixLengths(ScanIdx + 1) = FixLengths(ScanIdx)
+            ScanIdx -= 1
+        Wend
+        FixCosts(ScanIdx + 1) = KeyCost
+        FixStarts(ScanIdx + 1) = KeyStart
+        FixLengths(ScanIdx + 1) = KeyLength
+    Next
+    FixConfident = 0
+    If FixCosts(0) < FIXRANK_AUTO_MAX Then
+        If FixCount = 1 OrElse FixCosts(1) - FixCosts(0) >= FIXRANK_AUTO_GAP Then FixConfident = 1
+    End If
+    Dim RankText As String
+    For ItemIdx = 0 To FixCount - 1
+        If ItemIdx = 5 Then
+            RankText &= ", ..."
+            Exit For
+        End If
+        RankText &= IIf(ItemIdx = 0, "", ", ") & SpellAnsiOf(FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx)) _
+            & " " & (FixCosts(ItemIdx) \ 10) & "." & (FixCosts(ItemIdx) Mod 10)
+    Next
+    LogAction("опечатка: варианты по цене правок: " & RankText & IIf(FixConfident, "", " (первый не очевиден)"))
+End Sub
 
 ' Показать в окне вариант ShowIdx (-1 - исходное слово)
 Sub FixShow(ByVal ShowIdx As Long)

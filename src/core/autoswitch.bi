@@ -357,8 +357,15 @@ Sub AutoSwitchWord()
         If SourceKnown = 0 And Settings.AutoFix <> 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
             If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
                 If FixPrepare(TargetWindow, WordStart, 1, 0) Then
-                    FixAuto = 1
-                    FixShow(0)
+                    If FixConfident Then
+                        FixAuto = 1
+                        FixShow(0)
+                    Else
+                        ' первый вариант не очевиден - слово остаётся, Ctrl + Break
+                        ' сразу после этого покажет варианты по порядку
+                        FixSerial = WordChangeSerial
+                        LogAction("автоисправление: слово не тронуто")
+                    End If
                 End If
             End If
         End If
