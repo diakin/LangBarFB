@@ -412,8 +412,10 @@ Sub FixRankSort(ByVal TypedLayout As UInteger)
         FixLengths(ScanIdx + 1) = KeyLength
     Next
     FixConfident = 0
-    If FixCosts(0) < FIXRANK_AUTO_MAX Then
-        If FixCount = 1 OrElse FixCosts(1) - FixCosts(0) >= FIXRANK_AUTO_GAP Then FixConfident = 1
+    If FixCount = 1 Then
+        If FixCosts(0) < FIXRANK_AUTO_SINGLE Then FixConfident = 1
+    ElseIf FixCosts(0) < FIXRANK_AUTO_MAX AndAlso FixCosts(1) - FixCosts(0) >= FIXRANK_AUTO_GAP Then
+        FixConfident = 1
     End If
     Dim RankText As String
     For ItemIdx = 0 To FixCount - 1
