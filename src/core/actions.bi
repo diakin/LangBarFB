@@ -820,6 +820,21 @@ End Function
 ' Последнее набранное слово, а если его нет - выделенный текст (не больше
 ' ADD_WORD_MAX_WORDS слов: Ctrl+C без выделения в некоторых редакторах
 ' копирует всю строку)
+' Слово у каретки: Ctrl+Left - к началу слова (каретка в слове, сразу
+' после него или после пробела за ним), Ctrl+Shift+Right - выделить до
+' конца, скопировать; выделение снимается Right (каретка - после слова).
+' Каретка в самом начале слова даст предыдущее слово. Возвращает число
+' символов; 0 - ничего не скопировалось.
+Private Function CopyWordAtCaret(TextChars() As UShort) As Long
+    SendKeyWithModifier(LB_VK_CONTROL, LB_VK_LEFT)
+    SendKeyWithModifiers(LB_VK_CONTROL, LB_VK_SHIFT, LB_VK_RIGHT)
+    SendWaitPump(20)
+    Dim CharCount As Long = CopySelectionText(TextChars())
+    SendKeyTap(LB_VK_RIGHT)
+    If CharCount > 0 Then LogAction("словарь: взято слово у каретки")
+    Return CharCount
+End Function
+
 Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
     Dim TextChars() As UShort
     Dim CharCount As Long
@@ -841,8 +856,15 @@ Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
         Next
     Else
         CharCount = CopySelectionText(TextChars())
+        ' VS Code, Notepad++ и т. п. без выделения копируют строку целиком
+        ' (с переводом строки в конце) - это не выделение
+        If CharCount > 0 AndAlso (TextChars(CharCount - 1) = 10 Or TextChars(CharCount - 1) = 13) Then
+            LogAction("словарь: скопирована строка целиком - выделения нет, берётся слово у каретки")
+            CharCount = 0
+        End If
+        If CharCount <= 0 Then CharCount = CopyWordAtCaret(TextChars())
         If CharCount <= 0 Then
-            LogAction("словарь: нет ни набранного слова, ни выделения")
+            LogAction("словарь: нет ни набранного слова, ни выделения, ни слова у каретки")
             Exit Sub
         End If
         Dim WordCount As Long, CharIdx As Long, InWord As Long

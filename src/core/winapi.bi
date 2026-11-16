@@ -369,6 +369,7 @@ Const LB_VK_PAUSE = &h13
 Const LB_VK_ESCAPE = &h1B
 Const LB_VK_SPACE = &h20
 Const LB_VK_LEFT = &h25
+Const LB_VK_RIGHT = &h27
 Const LB_VK_LWIN = &h5B
 Const LB_VK_RWIN = &h5C
 Const LB_VK_SCROLL = &h91

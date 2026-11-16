@@ -63,6 +63,18 @@ Sub SendKeyWithModifier(ByVal ModifierKey As UShort, ByVal VirtualKey As UShort,
     LbSendInput(Repeats * 2 + 2, @KeyInputs(0), SizeOf(LbKeybdInput))
 End Sub
 
+' Клавиша с удержанием двух модификаторов: Ctrl+Shift+Right и т. п.
+Sub SendKeyWithModifiers(ByVal FirstModifier As UShort, ByVal SecondModifier As UShort, ByVal VirtualKey As UShort)
+    Dim KeyInputs(0 To 5) As LbKeybdInput
+    SendFillKey(KeyInputs(0), FirstModifier, 0, 0)
+    SendFillKey(KeyInputs(1), SecondModifier, 0, 0)
+    SendFillKey(KeyInputs(2), VirtualKey, 0, 0)
+    SendFillKey(KeyInputs(3), VirtualKey, 0, LB_KEYEVENTF_KEYUP)
+    SendFillKey(KeyInputs(4), SecondModifier, 0, LB_KEYEVENTF_KEYUP)
+    SendFillKey(KeyInputs(5), FirstModifier, 0, LB_KEYEVENTF_KEYUP)
+    LbSendInput(6, @KeyInputs(0), SizeOf(LbKeybdInput))
+End Sub
+
 ' Нажатия клавиш VirtualKeys, где ShiftFlags <> 0 - с Shift. Так печатает
 ' пользователь: символ даёт раскладка окна, и окна без Unicode (ANSI,
 ' например программы Delphi 7) получают его в своей кодировке.
