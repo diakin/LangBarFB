@@ -32,6 +32,7 @@
 #include once "spell.bi"
 #include once "rules.bi"
 #include once "fixrank.bi"
+#include once "fixmore.bi"
 
 ' выделение не выделяется заново, если оно длиннее (Shift+Left по одному
 ' символу на длинном тексте идёт заметно долго)
@@ -368,6 +369,13 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
     Dim SuggestStart As Double = Timer
     FixCount = SpellSuggest(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, FixChars(), FixStarts(), FixLengths())
     LogAction("опечатка: поиск вариантов для «" & WordText & "» - " & CLng((Timer - SuggestStart) * 1000) & " мс")
+    ' слова в две правки, которых Hunspell не нашёл (fixmore.bi)
+    Dim MoreStart As Double = Timer
+    Dim MoreChecks As Long
+    Dim MoreAdded As Long = FixMoreSuggest(LayoutIdx, TypedLayout, FixOriginal(), FixCoreStart, FixCoreLength, _
+        FixChars(), FixStarts(), FixLengths(), FixCount, MoreChecks)
+    LogAction("опечатка: свой поиск - добавлено " & MoreAdded & ", проверено слов " & MoreChecks _
+        & ", " & CLng((Timer - MoreStart) * 1000) & " мс")
     FixRankSort(TypedLayout)
     If FixCount = 0 Then
         LogAction("опечатка: для «" & WordText & "» вариантов нет")
@@ -411,12 +419,9 @@ Sub FixRankSort(ByVal TypedLayout As UInteger)
         FixStarts(ScanIdx + 1) = KeyStart
         FixLengths(ScanIdx + 1) = KeyLength
     Next
-    FixConfident = 0
-    If FixCount = 1 Then
-        If FixCosts(0) < FIXRANK_AUTO_SINGLE Then FixConfident = 1
-    ElseIf FixCosts(0) < FIXRANK_AUTO_MAX AndAlso FixCosts(1) - FixCosts(0) >= FIXRANK_AUTO_GAP Then
-        FixConfident = 1
-    End If
+    Dim NextCost As Long
+    If FixCount > 1 Then NextCost = FixCosts(1)
+    FixConfident = FixRankConfident(FixCosts(0), NextCost, FixCount, FixCoreLength)
     Dim RankText As String
     For ItemIdx = 0 To FixCount - 1
         If ItemIdx = 5 Then

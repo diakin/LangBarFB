@@ -9,15 +9,20 @@
 '
 '  Веса (в десятых): замена буквы 10, замена похожей по звуку (е/и, а/о,
 '  с/з...; в английском - гласные между собой, i/y, s/z) 4, соседней клавиши 6; пропущенная буква 8, в конце слова 10,
-'  удвоенная 3; лишняя буква 9, удвоенная 3; перестановка соседних 5.
+'  удвоенная 3; лишняя буква 9, удвоенная 3; перестановка соседних 5,
+'  перестановка через одну букву 8 («очепятка» - «опечатка»: ч и п).
 '  Правка первой буквы - ещё 7 (кроме похожей по звуку замены), вариант
 '  из двух слов - ещё 20. Веса подобраны на наборе русских опечаток со
 '  словарём ru-RU.
 '
-'  Автоисправление берёт вариант, только если он дешевле FIXRANK_AUTO_MAX
-'  и дешевле второго хотя бы на FIXRANK_AUTO_GAP; если вариант у Hunspell
-'  один - если он дешевле FIXRANK_AUTO_SINGLE («succecful» - «successful»:
-'  замена c на s и пропущенная s стоят 13).
+'  Автоисправление берёт вариант, только если он дешевле предела и дешевле
+'  второго хотя бы на FIXRANK_AUTO_GAP и на половину своей цены. Предел -
+'  FIXRANK_AUTO_MAX, для слов длиннее FIXRANK_AUTO_FROM букв он растёт на
+'  FIXRANK_AUTO_PER_LETTER за букву, до FIXRANK_AUTO_TOP: в длинном слове
+'  две правки ещё оставляют его узнаваемым («очепятка» - «опечатка» 12,
+'  «пожалусто» - «пожалуйста» 12). Если вариант один - предел не меньше
+'  FIXRANK_AUTO_SINGLE («succecful» - «successful»: замена c на s и
+'  пропущенная s стоят 13).
 '
 '  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
 '  (COPYING.LESSER и COPYING в корне репозитория).
@@ -36,11 +41,15 @@ Const FIXRANK_INS_DOUBLE = 3
 Const FIXRANK_DEL = 9
 Const FIXRANK_DEL_DOUBLE = 3
 Const FIXRANK_SWAP = 5
+Const FIXRANK_SWAP_FAR = 8
 Const FIXRANK_FIRST = 7
 Const FIXRANK_SPLIT = 20
 Const FIXRANK_AUTO_MAX = 10
 Const FIXRANK_AUTO_GAP = 3
 Const FIXRANK_AUTO_SINGLE = 15
+Const FIXRANK_AUTO_FROM = 6
+Const FIXRANK_AUTO_PER_LETTER = 2
+Const FIXRANK_AUTO_TOP = 18
 Const FIXRANK_MAX_LEN = 64
 
 ' группы похожих по звуку букв (UTF-16), 0 - конец группы
@@ -168,6 +177,15 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
                     If Dist(RowIdx - 2, ColIdx - 2) + StepCost < BestCost Then BestCost = Dist(RowIdx - 2, ColIdx - 2) + StepCost
                 End If
             End If
+            ' перестановка через одну букву: «чеп» - «печ»
+            If RowIdx > 2 And ColIdx > 2 Then
+                If Typed(RowIdx) = Cand(ColIdx - 2) And Typed(RowIdx - 2) = Cand(ColIdx) _
+                        And Typed(RowIdx - 1) = Cand(ColIdx - 1) And Typed(RowIdx) <> Typed(RowIdx - 2) Then
+                    StepCost = FIXRANK_SWAP_FAR
+                    If RowIdx = 3 Then StepCost += FIXRANK_FIRST
+                    If Dist(RowIdx - 3, ColIdx - 3) + StepCost < BestCost Then BestCost = Dist(RowIdx - 3, ColIdx - 3) + StepCost
+                End If
+            End If
             Dist(RowIdx, ColIdx) = BestCost
         Next
     Next
@@ -182,4 +200,23 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
     Next
     If CandSplit And TypedSplit = 0 Then TotalCost += FIXRANK_SPLIT
     Return TotalCost
+End Function
+
+' Можно ли автоматически ставить лучший вариант: BestCost - его цена,
+' NextCost - цена второго (не важна, если вариант один), WordLength -
+' число знаков набранного слова
+Function FixRankConfident(ByVal BestCost As Long, ByVal NextCost As Long, ByVal VariantCount As Long, _
+        ByVal WordLength As Long) As Long
+    If VariantCount <= 0 Then Return 0
+    Dim CostLimit As Long = FIXRANK_AUTO_MAX
+    If WordLength > FIXRANK_AUTO_FROM Then CostLimit += (WordLength - FIXRANK_AUTO_FROM) * FIXRANK_AUTO_PER_LETTER
+    If CostLimit > FIXRANK_AUTO_TOP Then CostLimit = FIXRANK_AUTO_TOP
+    If VariantCount = 1 Then
+        If CostLimit < FIXRANK_AUTO_SINGLE Then CostLimit = FIXRANK_AUTO_SINGLE
+        Return IIf(BestCost < CostLimit, 1, 0)
+    End If
+    If BestCost >= CostLimit Then Return 0
+    Dim NeedGap As Long = BestCost \ 2
+    If NeedGap < FIXRANK_AUTO_GAP Then NeedGap = FIXRANK_AUTO_GAP
+    Return IIf(NextCost - BestCost >= NeedGap, 1, 0)
 End Function
