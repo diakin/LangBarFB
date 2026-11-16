@@ -603,6 +603,7 @@ Private Sub FixLearnRemember(ByVal LayoutIdx As Long, WordChars() As UShort, ByV
     SpellRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, Settings.AutoRemember)
     LogAction("опечатка: слово «" & SpellAnsiOf(WordChars(), CoreStart, CoreLength) & "» исправлено вручную (" _
         & HowText & ") - больше не исправляется" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
+    PlayEventSound(SOUND_ADD_WORD)
 End Sub
 
 ' Убрать исправление ItemIdx из списка
@@ -881,7 +882,7 @@ Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
             Exit Sub
         End If
     End If
-    If AddWordsOf(TextChars(), CharCount) > 0 Then PlayEventSound(SOUND_CONVERT_SELECTION)
+    If AddWordsOf(TextChars(), CharCount) > 0 Then PlayEventSound(SOUND_ADD_WORD)
 End Sub
 
 ' Сообщение от хука: сработало сочетание ActionIdx
