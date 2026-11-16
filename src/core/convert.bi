@@ -212,9 +212,26 @@ Dim Shared WordBackspaced As Long
 ' растёт при каждом изменении буфера: действие видит, набирали ли что-то
 ' после него
 Dim Shared WordChangeSerial As Long
+' растёт при каждом сбросе буфера: слово после исправления опечатки
+' набирается без перерыва, если сбросов не было (actions.bi, FixLearn)
+Dim Shared WordResetCount As Long
+' Backspace при пустом буфере после сброса: столько символов стёрто из
+' текста, который был в окне до начала буфера
+Dim Shared WordEmptyBackspaces As Long
+' буфер сброшен из-за щелчка мышью или клавиши без символа (стрелки, Home,
+' Delete): следующее слово набирается в другом месте текста
+Dim Shared WordCaretMoved As Long
+' вызывается перед сбросом непустого буфера: набранное ещё можно
+' разобрать (actions.bi, FixLearnOnReset)
+Type WordResetFn As Sub()
+Dim Shared WordBeforeReset As WordResetFn
 
 Sub WordBufferReset()
+    If WordBeforeReset <> 0 AndAlso WordKeyCount > 0 Then WordBeforeReset()
     WordChangeSerial += 1
+    WordResetCount += 1
+    WordEmptyBackspaces = 0
+    WordCaretMoved = 0
     WordKeyCount = 0
     WordWindow = 0
     WordCycleActive = 0
@@ -240,7 +257,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     If WordKeyCount > 0 And ForegroundWindow <> WordWindow Then WordBufferReset()
 
     If VirtualKey = LB_VK_BACK Then
-        If WordKeyCount > 0 Then WordKeyCount -= 1
+        If WordKeyCount > 0 Then WordKeyCount -= 1 Else WordEmptyBackspaces += 1
         WordCycleActive = 0
         WordBackspaced = 1
         Exit Sub
@@ -251,6 +268,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
     Dim KeyChar As ULong = LbMapVirtualKeyEx(VirtualKey, LB_MAPVK_VK_TO_CHAR, LayoutHandle) And &hFFFF
     If KeyChar < 32 Then
         WordBufferReset()
+        If KeyChar = 0 Then WordCaretMoved = 1
         Exit Sub
     End If
     If WordKeyCount = WORD_BUFFER_SIZE Then

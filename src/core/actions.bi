@@ -76,6 +76,29 @@ Declare Sub FixRankSort(ByVal TypedLayout As UInteger)
 ' 1 - исправление сделало автоисправление после пробела (Break его отменяет)
 Dim Shared FixAuto As Long
 
+' Слово, исправленное вручную после исправления опечатки, запоминается
+' (FixLearnOnSpace). Последние FIXLEARN_KEEP исправлений: окно, словарь,
+' исходное слово и вариант (без знаков по краям).
+Const FIXLEARN_KEEP = 5
+Const FIXLEARN_MIN_LETTERS = 3
+Type FixLearnItem
+    WindowHandle As Any Ptr
+    LayoutIdx As Long
+    OriginalChars(0 To SPELL_MAX_WORD - 1) As UShort
+    OriginalLength As Long
+    VariantChars(0 To SPELL_MAX_WORD - 1) As UShort
+    VariantLength As Long
+End Type
+Dim Shared FixLearnItems(0 To FIXLEARN_KEEP - 1) As FixLearnItem
+Dim Shared FixLearnCount As Long
+' последнее исправление: весь текст, который оно поставило в окно (с
+' пробелами после слова), и номер сброса буфера в тот момент
+Dim Shared FixLearnRecentActive As Long
+Dim Shared FixLearnRecentReset As Long
+Dim Shared FixLearnRecentText() As UShort
+Dim Shared FixLearnRecentLength As Long
+Declare Sub FixLearnNote(ShownText() As UShort, ByVal ShownCount As Long)
+
 Private Function SameText(FirstChars() As UShort, ByVal FirstCount As Long, _
         SecondChars() As UShort, ByVal SecondCount As Long) As Long
     If FirstCount <> SecondCount Then Return 0
@@ -443,6 +466,7 @@ Sub FixShow(ByVal ShowIdx As Long)
     SendUnicodeText(NewChars(), NewCount)
     FixShownChars = NewCount
     FixSerial = WordChangeSerial
+    FixLearnNote(NewChars(), NewCount)
     If FixShownIdx < 0 Then
         LogAction("опечатка: возвращено исходное слово")
     Else
@@ -488,6 +512,273 @@ Private Sub FixUndoAuto()
         & "» больше не исправляется" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
     PlayEventSound(SOUND_UNDO_AUTOSWITCH)
 End Sub
+
+' --- слово, исправленное вручную после исправления опечатки ---
+'
+' Хук видит только нажатия, текста окна программа не читает. Поэтому
+' правка узнаётся так:
+' 1) сразу после исправления стёрли Backspace часть слова и допечатали:
+'    слово = начало показанного варианта + набранное;
+' 2) вернулись к слову мышью или стрелками (буфер сброшен), набрали
+'    исходное слово заново (поверх выделенного варианта, после его
+'    стирания Backspace или допечатав конец к варианту) - если каретка
+'    стояла в конце варианта, получается исходное слово одного из
+'    FIXLEARN_KEEP последних исправлений в том же окне.
+' Слово проверяется, когда после него набрали пробел или буфер
+' сбрасывается (щелчок, стрелки, Enter): после допечатки к слову пробел
+' обычно не набирают. Такое слово, если его нет в словаре, запоминается,
+' как после Break. В случае 1 запоминается и другое слово не из словаря,
+' если оно ближе к исходному, чем к варианту.
+
+' Строчная копия куска текста
+Private Sub FixLearnLower(SourceChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long, _
+        LowerChars() As UShort)
+    ReDim LowerChars(0 To CharCount)
+    Dim CharIdx As Long
+    For CharIdx = 0 To CharCount - 1
+        LowerChars(CharIdx) = SourceChars(StartIdx + CharIdx)
+    Next
+    If CharCount > 0 Then LbCharLowerBuff(@LowerChars(0), CharCount)
+End Sub
+
+' Исправление показано в окне: запомнить его. FixShownIdx -1 (возвращено
+' исходное слово) - забыть.
+Sub FixLearnNote(ShownText() As UShort, ByVal ShownCount As Long)
+    FixLearnRecentActive = 0
+    ' это же исправление (то же слово в том же окне) - заменить
+    Dim ItemIdx As Long, FoundIdx As Long = -1, CharIdx As Long
+    For ItemIdx = 0 To FixLearnCount - 1
+        With FixLearnItems(ItemIdx)
+            If .WindowHandle <> FixWindow Or .OriginalLength <> FixCoreLength Then Continue For
+            Dim SameWord As Long = 1
+            For CharIdx = 0 To FixCoreLength - 1
+                If .OriginalChars(CharIdx) <> FixOriginal(FixCoreStart + CharIdx) Then SameWord = 0 : Exit For
+            Next
+            If SameWord Then FoundIdx = ItemIdx : Exit For
+        End With
+    Next
+    If FoundIdx >= 0 Then
+        For ItemIdx = FoundIdx To FixLearnCount - 2
+            FixLearnItems(ItemIdx) = FixLearnItems(ItemIdx + 1)
+        Next
+        FixLearnCount -= 1
+    End If
+    If FixShownIdx < 0 Then Exit Sub
+    If FixCoreLength > SPELL_MAX_WORD Or FixLengths(FixShownIdx) > SPELL_MAX_WORD Then Exit Sub
+
+    ' новое - в конец, самое старое уходит
+    If FixLearnCount = FIXLEARN_KEEP Then
+        For ItemIdx = 0 To FIXLEARN_KEEP - 2
+            FixLearnItems(ItemIdx) = FixLearnItems(ItemIdx + 1)
+        Next
+        FixLearnCount -= 1
+    End If
+    With FixLearnItems(FixLearnCount)
+        .WindowHandle = FixWindow
+        .LayoutIdx = FixLayoutIdx
+        .OriginalLength = FixCoreLength
+        For CharIdx = 0 To FixCoreLength - 1
+            .OriginalChars(CharIdx) = FixOriginal(FixCoreStart + CharIdx)
+        Next
+        .VariantLength = FixLengths(FixShownIdx)
+        For CharIdx = 0 To .VariantLength - 1
+            .VariantChars(CharIdx) = FixChars(FixStarts(FixShownIdx) + CharIdx)
+        Next
+    End With
+    FixLearnCount += 1
+
+    ReDim FixLearnRecentText(0 To ShownCount)
+    For CharIdx = 0 To ShownCount - 1
+        FixLearnRecentText(CharIdx) = ShownText(CharIdx)
+    Next
+    FixLearnRecentLength = ShownCount
+    FixLearnRecentReset = WordResetCount
+    WordEmptyBackspaces = 0
+    FixLearnRecentActive = 1
+End Sub
+
+' Запомнить слово WordChars(CoreStart..), исправленное вручную
+Private Sub FixLearnRemember(ByVal LayoutIdx As Long, WordChars() As UShort, ByVal CoreStart As Long, _
+        ByVal CoreLength As Long, ByRef HowText As String)
+    SpellRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, Settings.AutoRemember)
+    LogAction("опечатка: слово «" & SpellAnsiOf(WordChars(), CoreStart, CoreLength) & "» исправлено вручную (" _
+        & HowText & ") - больше не исправляется" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
+End Sub
+
+' Убрать исправление ItemIdx из списка
+Private Sub FixLearnDrop(ByVal ItemIdx As Long)
+    Dim ShiftIdx As Long
+    For ShiftIdx = ItemIdx To FixLearnCount - 2
+        FixLearnItems(ShiftIdx) = FixLearnItems(ShiftIdx + 1)
+    Next
+    If FixLearnCount > 0 Then FixLearnCount -= 1
+End Sub
+
+' Ядро WordChars(CoreStart..) - исходное слово исправления ItemIdx (без
+' учёта регистра)
+Private Function FixLearnIsOriginal(ByVal ItemIdx As Long, WordChars() As UShort, ByVal CoreStart As Long, _
+        ByVal CoreLength As Long) As Long
+    With FixLearnItems(ItemIdx)
+        If CoreLength <> .OriginalLength Then Return 0
+        Dim OriginalLower() As UShort, WordLower() As UShort
+        FixLearnLower(.OriginalChars(), 0, .OriginalLength, OriginalLower())
+        FixLearnLower(WordChars(), CoreStart, CoreLength, WordLower())
+        Dim CharIdx As Long
+        For CharIdx = 0 To CoreLength - 1
+            If WordLower(CharIdx) <> OriginalLower(CharIdx) Then Return 0
+        Next
+    End With
+    Return 1
+End Function
+
+' Набранное после сброса буфера (клавиши 0..EndIdx) не правит ли недавнее
+' исправление опечатки. Возвращает 1, если слово запомнено.
+Private Function FixLearnCheck(ByVal EndIdx As Long, ByVal RecentValid As Long, ByVal CaretMoved As Long) As Long
+    If FixLearnCount = 0 Or (CaretMoved = 0 And RecentValid = 0) Then Return 0
+    If SpellDictCount = 0 Or EndIdx < 0 Then Return 0
+    Dim TypedCount As Long = EndIdx + 1
+    If TypedCount > SPELL_MAX_WORD Then Return 0
+    Dim TypedLayout As UInteger = WordKeys(0).LayoutHandle
+    Dim TypedChars(0 To SPELL_MAX_WORD) As UShort
+    Dim KeyIdx As Long, CharIdx As Long
+    For KeyIdx = 0 To EndIdx
+        If WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE Then Return 0
+        If WordKeys(KeyIdx).LayoutHandle <> TypedLayout Then Return 0
+        TypedChars(KeyIdx) = WordKeyChar(KeyIdx, TypedLayout)
+        If TypedChars(KeyIdx) < 32 Then Return 0
+    Next
+    Dim LayoutIdx As Long = LayoutIndexOf(TypedLayout)
+    If LayoutIdx < 0 Then Return 0
+    Dim LastItem As Long = FixLearnCount - 1
+    Dim WordChars(0 To SPELL_MAX_WORD) As UShort
+    Dim CoreStart As Long, CoreLength As Long
+
+    ' 1) сразу после исправления: стёрли часть показанного и допечатали
+    If RecentValid And WordEmptyBackspaces > 0 And FixLearnItems(LastItem).WindowHandle = WordWindow _
+            And FixLearnItems(LastItem).LayoutIdx = LayoutIdx Then
+        Dim KeptCount As Long = FixLearnRecentLength - WordEmptyBackspaces
+        If KeptCount < 0 Or KeptCount + TypedCount > SPELL_MAX_WORD Then Return 0
+        For CharIdx = 0 To KeptCount - 1
+            WordChars(CharIdx) = FixLearnRecentText(CharIdx)
+        Next
+        For CharIdx = 0 To TypedCount - 1
+            WordChars(KeptCount + CharIdx) = TypedChars(CharIdx)
+        Next
+        Dim WordCount As Long = KeptCount + TypedCount
+        For CharIdx = 0 To WordCount - 1
+            If WordChars(CharIdx) = 32 Then Return 0
+        Next
+        If SpellCoreRange(WordChars(), WordCount, CoreStart, CoreLength) < FIXLEARN_MIN_LETTERS Then Return 0
+        Dim WordText As String = SpellAnsiOf(WordChars(), CoreStart, CoreLength)
+        If FixLearnIsOriginal(LastItem, WordChars(), CoreStart, CoreLength) Then
+            If SpellCheck(LayoutIdx, WordChars(), CoreStart, CoreLength) = 0 Then
+                FixLearnRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, "Backspace сразу после исправления")
+            End If
+            FixLearnDrop(LastItem)
+            Return 1
+        End If
+        ' набрали тот же вариант
+        With FixLearnItems(LastItem)
+            If CoreLength = .VariantLength Then
+                Dim SameVariant As Long = 1
+                For CharIdx = 0 To CoreLength - 1
+                    If WordChars(CoreStart + CharIdx) <> .VariantChars(CharIdx) Then SameVariant = 0 : Exit For
+                Next
+                If SameVariant Then Return 0
+            End If
+        End With
+        If SpellCheck(LayoutIdx, WordChars(), CoreStart, CoreLength) Then
+            LogAction("опечатка: исправление поправлено вручную на «" & WordText & "» - оно есть в словаре")
+            Return 0
+        End If
+        ' правка должна вести к исходному слову, а не быть новой опечаткой в
+        ' варианте («опечатка» - допечатали «опечаткаа»)
+        With FixLearnItems(LastItem)
+            Dim ToOriginal As Long = FixRankCost(WordChars(), CoreStart, CoreLength, _
+                .OriginalChars(), 0, .OriginalLength, TypedLayout)
+            Dim ToVariant As Long = FixRankCost(WordChars(), CoreStart, CoreLength, _
+                .VariantChars(), 0, .VariantLength, TypedLayout)
+            If ToOriginal >= ToVariant Then
+                LogAction("опечатка: исправление поправлено вручную на «" & WordText _
+                    & "», но это ближе к варианту, чем к набранному слову - не запоминается")
+                Return 0
+            End If
+        End With
+        FixLearnRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, "Backspace сразу после исправления")
+        FixLearnDrop(LastItem)
+        Return 1
+    End If
+
+    ' 2) вернулись к слову мышью или стрелками: вариант выделили и набрали
+    ' исходное слово поверх, или каретка стояла в конце варианта и к его
+    ' началу (после Backspace) допечатали остальное
+    If CaretMoved = 0 Then Return 0
+    Dim ItemIdx As Long
+    For ItemIdx = LastItem To 0 Step -1
+        With FixLearnItems(ItemIdx)
+            If .WindowHandle <> WordWindow Or .LayoutIdx <> LayoutIdx Then Continue For
+            Dim OptionIdx As Long
+            For OptionIdx = 0 To 1
+                Dim KeptLetters As Long
+                If OptionIdx = 0 Then
+                    If WordEmptyBackspaces > 0 Then Continue For
+                    KeptLetters = 0
+                Else
+                    KeptLetters = .VariantLength - WordEmptyBackspaces
+                End If
+                If KeptLetters < 0 Or KeptLetters + TypedCount <> .OriginalLength Then Continue For
+                For CharIdx = 0 To KeptLetters - 1
+                    WordChars(CharIdx) = .VariantChars(CharIdx)
+                Next
+                For CharIdx = 0 To TypedCount - 1
+                    WordChars(KeptLetters + CharIdx) = TypedChars(CharIdx)
+                Next
+                If FixLearnIsOriginal(ItemIdx, WordChars(), 0, .OriginalLength) = 0 Then Continue For
+                If SpellCheck(LayoutIdx, WordChars(), 0, .OriginalLength) = 0 Then
+                    FixLearnRemember(LayoutIdx, WordChars(), 0, .OriginalLength, "набрано заново")
+                End If
+                FixLearnDrop(ItemIdx)
+                Return 1
+            Next
+        End With
+    Next
+    Return 0
+End Function
+
+' Текущие признаки: исправление только что показано и буфер с тех пор не
+' сбрасывали
+Private Function FixLearnRecentValid() As Long
+    Return IIf(FixLearnRecentActive <> 0 And FixLearnRecentReset = WordResetCount, 1, 0)
+End Function
+
+' Пробел после слова. Вызывается до автопереключения; запомненное слово
+' уже есть в словаре и дальше не исправляется. Признаки «сразу после
+' исправления» и «каретку переносили» действуют только до первого пробела.
+Sub FixLearnOnSpace()
+    Dim CaretMoved As Long = WordCaretMoved
+    Dim RecentValid As Long = FixLearnRecentValid()
+    WordCaretMoved = 0
+    FixLearnRecentActive = 0
+    If WordKeyCount < 2 Then Exit Sub
+    Dim SpaceIdx As Long = WordKeyCount - 1
+    If WordKeys(SpaceIdx).VirtualKey <> LB_VK_SPACE Then Exit Sub
+    FixLearnCheck(SpaceIdx - 1, RecentValid, CaretMoved)
+End Sub
+
+' Буфер сбрасывается (щелчок, стрелки, Enter, другое окно), а слово не
+' закончено пробелом: проверить его так же. Во время действий (Ctrl + Break
+' сам сбрасывает буфер) - нет.
+Sub FixLearnOnReset()
+    If ActionBusy Or FixLearnCount = 0 Then Exit Sub
+    Dim CaretMoved As Long = WordCaretMoved
+    Dim RecentValid As Long = FixLearnRecentValid()
+    WordCaretMoved = 0
+    FixLearnRecentActive = 0
+    If CaretMoved = 0 And RecentValid = 0 Then Exit Sub
+    If WordKeyCount < 1 OrElse WordKeys(WordKeyCount - 1).VirtualKey = LB_VK_SPACE Then Exit Sub
+    FixLearnCheck(WordKeyCount - 1, RecentValid, CaretMoved)
+End Sub
+WordBeforeReset = @FixLearnOnReset
 
 ' Слова текста TextChars - в словари (без знаков по краям); слова из
 ' одной буквы пропускаются. Возвращает число добавленных.

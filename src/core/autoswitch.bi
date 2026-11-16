@@ -261,13 +261,16 @@ End Sub
 
 ' Пробел попал в буфер слова: проверить слово перед ним
 Sub AutoSwitchWord()
-    If Settings.AutoSwitch = 0 Or LayoutCount < 2 Then Exit Sub
-    If SpellDictCount = 0 And Settings.RuleCount = 0 Then Exit Sub
     If ActionBusy Then
         ' идёт другое действие или ждём смены раскладки - проверить потом
-        WordSpaceFed = 1
+        If Settings.AutoSwitch <> 0 Or FixLearnCount > 0 Then WordSpaceFed = 1
         Exit Sub
     End If
+    ' слово, исправленное вручную после исправления опечатки, - в словарь
+    ' (actions.bi); работает и без автопереключения (Ctrl + Break)
+    FixLearnOnSpace()
+    If Settings.AutoSwitch = 0 Or LayoutCount < 2 Then Exit Sub
+    If SpellDictCount = 0 And Settings.RuleCount = 0 Then Exit Sub
     ' последний в буфере - пробел, перед ним - не пробел
     If WordKeyCount < 2 Then Exit Sub
     Dim SpaceIdx As Long = WordKeyCount - 1

@@ -571,7 +571,10 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
     Case MOUSE_CLICK_MSG
         ' каретка могла уйти - набранное слово больше не перед ней. Щелчок
         ' по флажку у каретки каретку не двигает (правый - исправляет слово)
-        If IsClickOnCaretFlag() = 0 Then WordBufferReset()
+        If IsClickOnCaretFlag() = 0 Then
+            WordBufferReset()
+            WordCaretMoved = 1
+        End If
     End Select
 End Sub
 
