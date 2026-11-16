@@ -743,7 +743,7 @@ Function BuildTrayMenu() As Any Ptr
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_RESET, Tr("Сброс настроек..."))
     LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, Tr("О LangBarFB"))
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, Tr("О LangBarFB") & " " & APP_VERSION)
     LbAppendMenu(MainMenu, LB_MF_STRING, CMD_HELP, Tr("Помощь"))
     ' окно отладки - только если меню открыли с нажатым Shift
     If (LbGetAsyncKeyState(LB_VK_SHIFT) And &h8000) <> 0 Then
