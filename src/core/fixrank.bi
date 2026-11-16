@@ -13,7 +13,8 @@
 '  (удвоенной считается и пара букв, читаемых как одна: английские ck -
 '  «breack» - «break» стоит 3, а не 9);
 '  перестановка через одну букву 8 («очепятка» - «опечатка»: ч и п).
-'  Правка первой буквы - ещё 7 (кроме похожей по звуку замены), вариант
+'  Правка первой буквы - ещё 7 (кроме похожей по звуку замены и
+'  перестановки первых двух букв: «коно» - «окно» 5), вариант
 '  из двух слов - ещё 20. Веса подобраны на наборе русских опечаток со
 '  словарём ru-RU.
 '
@@ -189,8 +190,9 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
             If RowIdx > 1 And ColIdx > 1 Then
                 If Typed(RowIdx) = Cand(ColIdx - 1) And Typed(RowIdx - 1) = Cand(ColIdx) _
                         And Typed(RowIdx) <> Typed(RowIdx - 1) Then
+                    ' перестановка первых двух букв - сбой пальцев при быстром наборе,
+                    ' а не ошибка в начале слова: без надбавки за первую букву
                     StepCost = FIXRANK_SWAP
-                    If RowIdx = 2 Then StepCost += FIXRANK_FIRST
                     If Dist(RowIdx - 2, ColIdx - 2) + StepCost < BestCost Then BestCost = Dist(RowIdx - 2, ColIdx - 2) + StepCost
                 End If
             End If

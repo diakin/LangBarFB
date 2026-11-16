@@ -12,7 +12,7 @@
 #include once "../core/winapi.bi"
 #include once "../core/lang.bi"
 
-Const APP_VERSION = "1.005"
+Const APP_VERSION = "1.006"
 Const APP_HOME_URL = "https://github.com/diakin/LangBarFB"
 Const APP_BASE_URL = "https://github.com/Krot66/LangBarXX"
 
