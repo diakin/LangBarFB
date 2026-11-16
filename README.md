@@ -23,7 +23,7 @@ The program is 32-bit and works with windows of any bitness. It was tested on Wi
 | Convert the layout of the selected text | Shift + Break |
 | Invert the case of the selected text | Alt + Break |
 | Transliterate the selected text (Cyrillic to Latin) | Alt + Scroll Lock |
-| Fix a typo in the last typed word with a Hunspell suggestion; pressing again shows the next suggestion, after the last one the original word returns | Ctrl + Break |
+| Fix a typo in the last typed word (if there is none, in the selected word or the word at the caret) with a Hunspell suggestion; pressing again shows the next suggestion, after the last one the original word returns | Ctrl + Break |
 | Add the last typed word, the words of the selected text (up to 10) or, if there is neither, the word at the caret to the dictionaries and `user_dict.dic`: they are no longer switched or corrected | Ctrl + Scroll Lock |
 
   Left Shift+Backspace and Ctrl+Caps Lock can do the same as Break (enabled in the settings). If there is no typed word, Break converts the selected text. Pressing the same combination right after the action restores the original text. The "Keep dot when converting text layout" and "Keep comma when converting text layout" options (Hotkeys page) leave that character as typed: with the first one, `ыва.учу` becomes `sdf.ece`, not `sdf/ece`, and `ашду.ече` becomes `file.txt`; this also applies to automatic switching.

@@ -348,6 +348,45 @@ Private Function FixBuildText(TextChars() As UShort) As Long
     Return OutIdx
 End Function
 
+' Слово у каретки: Ctrl+Left - к началу слова (каретка в слове, сразу
+' после него или после пробела за ним), Ctrl+Shift+Right - выделить до
+' конца, скопировать. KeepSelected 0 - выделение снимается Right (каретка
+' - после слова), 1 - остаётся (его заменит исправление опечатки).
+' Каретка в самом начале слова даст предыдущее слово. Возвращает число
+' символов; 0 - ничего не скопировалось.
+Private Function CopyWordAtCaret(TextChars() As UShort, ByVal KeepSelected As Long) As Long
+    SendKeyWithModifier(LB_VK_CONTROL, LB_VK_LEFT)
+    SendKeyWithModifiers(LB_VK_CONTROL, LB_VK_SHIFT, LB_VK_RIGHT)
+    SendWaitPump(20)
+    Dim CharCount As Long = CopySelectionText(TextChars())
+    If KeepSelected = 0 Then SendKeyTap(LB_VK_RIGHT)
+    Return CharCount
+End Function
+
+' Выделенный текст, а если выделения нет - слово у каретки (оно
+' выделяется). LogPrefix - начало строк окна отладки. Возвращает число
+' символов; 0 - нет ни выделения, ни слова.
+Private Function CopySelectionOrWord(TextChars() As UShort, ByVal KeepSelected As Long, _
+        ByRef LogPrefix As String) As Long
+    Dim CharCount As Long = CopySelectionText(TextChars())
+    ' VS Code, Notepad++ и т. п. без выделения копируют строку целиком
+    ' (с переводом строки в конце) - это не выделение
+    If CharCount > 0 AndAlso (TextChars(CharCount - 1) = 10 Or TextChars(CharCount - 1) = 13) Then
+        LogAction(LogPrefix & ": скопирована строка целиком - выделения нет, берётся слово у каретки")
+        CharCount = 0
+    End If
+    If CharCount > 0 Then
+        LogAction(LogPrefix & ": взят выделенный текст")
+        Return CharCount
+    End If
+    CharCount = CopyWordAtCaret(TextChars(), KeepSelected)
+    If CharCount > 0 Then LogAction(LogPrefix & ": взято слово у каретки")
+    Return CharCount
+End Function
+
+Declare Function FixPrepareOriginal(ByVal TargetWindow As Any Ptr, ByVal TypedLayout As UInteger, _
+    ByVal TrailingSpaces As Long, ByVal ShownChars As Long, ByVal WithLog As Long) As Long
+
 ' Готовит исправление слова из буфера RangeStart..(конец без TrailingSpaces):
 ' слово - как его набрали, словарь - раскладки набора. Возвращает 1, если
 ' слова нет в словаре и варианты есть; WithLog - писать в окно отладки,
@@ -374,6 +413,15 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
             End If
         End With
     Next
+    Return FixPrepareOriginal(TargetWindow, TypedLayout, TrailingSpaces, FixOriginalCount + TrailingSpaces, WithLog)
+End Function
+
+' Продолжение FixPrepare и FixPrepareSelection: слово уже в FixOriginal,
+' TypedLayout - раскладка, по словарю которой искать; ShownChars - сколько
+' символов стереть Backspace перед первым вариантом (0 - слово выделено,
+' вариант набирается поверх выделения)
+Function FixPrepareOriginal(ByVal TargetWindow As Any Ptr, ByVal TypedLayout As UInteger, _
+        ByVal TrailingSpaces As Long, ByVal ShownChars As Long, ByVal WithLog As Long) As Long
     If SpellCoreRange(FixOriginal(), FixOriginalCount, FixCoreStart, FixCoreLength) = 0 Then
         If WithLog Then LogAction("опечатка: в слове нет букв")
         Return 0
@@ -408,13 +456,70 @@ Function FixPrepare(ByVal TargetWindow As Any Ptr, ByVal RangeStart As Long, ByV
     FixTrailing = TrailingSpaces
     FixWindow = TargetWindow
     FixShownIdx = -1
-    FixShownChars = FixOriginalCount + FixTrailing
+    FixShownChars = ShownChars
     FixAuto = 0
     FixActive = 1
     ' буфер больше не совпадает с текстом в окне: Break и
     ' автопереключение для этого слова не работают
     WordBufferReset()
     Return 1
+End Function
+
+' Готовит исправление выделенного слова (или слова у каретки, которое
+' выделяется): варианты набираются поверх выделения. Раскладка - окна,
+' а если в ней слово не набрать - первая, где набирается.
+Function FixPrepareSelection(ByVal TargetWindow As Any Ptr) As Long
+    FixActive = 0
+    If HunspellSuggest = 0 Then
+        LogAction("опечатка: словари не загружены или в библиотеке нет HunspellSuggest")
+        Return 0
+    End If
+    Dim TextChars() As UShort
+    Dim CharCount As Long = CopySelectionOrWord(TextChars(), 1, "опечатка")
+    If CharCount <= 0 Then
+        LogAction("опечатка: нет ни набранного слова, ни выделения, ни слова у каретки")
+        Return 0
+    End If
+    ' одно слово: пробелы допустимы только по краям
+    Dim FirstIdx As Long = 0, LastIdx As Long = CharCount - 1, CharIdx As Long
+    While FirstIdx <= LastIdx AndAlso TextChars(FirstIdx) <= 32
+        FirstIdx += 1
+    Wend
+    While LastIdx >= FirstIdx AndAlso TextChars(LastIdx) <= 32
+        LastIdx -= 1
+    Wend
+    For CharIdx = FirstIdx To LastIdx
+        If TextChars(CharIdx) <= 32 Then
+            LogAction("опечатка: выделено больше одного слова")
+            Return 0
+        End If
+    Next
+    If LastIdx < FirstIdx Or CharCount > SPELL_MAX_WORD Then Return 0
+    ReDim FixOriginal(0 To CharCount - 1)
+    For CharIdx = 0 To CharCount - 1
+        FixOriginal(CharIdx) = TextChars(CharIdx)
+    Next
+    FixOriginalCount = CharCount
+    Dim TypedLayout As UInteger = LayoutOfWindow(TargetWindow).LayoutHandle
+    Dim LayoutIdx As Long, OrderIdx As Long
+    Dim StartIdx As Long = LayoutIndexOf(TypedLayout)
+    If StartIdx < 0 Then StartIdx = 0
+    For OrderIdx = 0 To LayoutCount - 1
+        LayoutIdx = (StartIdx + OrderIdx) Mod LayoutCount
+        Dim AllTypeable As Long = 1
+        For CharIdx = FirstIdx To LastIdx
+            If LbIsCharAlpha(TextChars(CharIdx)) AndAlso _
+                    LbVkKeyScanEx(TextChars(CharIdx), Cast(Any Ptr, LayoutList(LayoutIdx).LayoutHandle)) = -1 Then
+                AllTypeable = 0
+                Exit For
+            End If
+        Next
+        If AllTypeable Then
+            TypedLayout = LayoutList(LayoutIdx).LayoutHandle
+            Exit For
+        End If
+    Next
+    Return FixPrepareOriginal(TargetWindow, TypedLayout, 0, 0, 1)
 End Function
 
 ' Варианты - по цене правок (fixrank.bi), при равной цене - в порядке
@@ -490,12 +595,12 @@ Private Sub ActionSpellFix(ByVal TargetWindow As Any Ptr)
         Dim TrailingSpaces As Long
         Dim RangeStart As Long = -1
         If WordKeyCount > 0 And TargetWindow = WordWindow Then RangeStart = WordLastStart(TrailingSpaces)
-        If RangeStart < 0 Then
-            FixActive = 0
-            LogAction("опечатка: набранного слова нет")
-            Exit Sub
+        If RangeStart >= 0 Then
+            If FixPrepare(TargetWindow, RangeStart, TrailingSpaces, 1) = 0 Then Exit Sub
+        Else
+            ' набранного слова нет - выделенное слово или слово у каретки
+            If FixPrepareSelection(TargetWindow) = 0 Then Exit Sub
         End If
-        If FixPrepare(TargetWindow, RangeStart, TrailingSpaces, 1) = 0 Then Exit Sub
     End If
     Dim NextIdx As Long = FixShownIdx + 1
     If NextIdx >= FixCount Then NextIdx = -1
@@ -821,21 +926,6 @@ End Function
 ' Последнее набранное слово, а если его нет - выделенный текст (не больше
 ' ADD_WORD_MAX_WORDS слов: Ctrl+C без выделения в некоторых редакторах
 ' копирует всю строку)
-' Слово у каретки: Ctrl+Left - к началу слова (каретка в слове, сразу
-' после него или после пробела за ним), Ctrl+Shift+Right - выделить до
-' конца, скопировать; выделение снимается Right (каретка - после слова).
-' Каретка в самом начале слова даст предыдущее слово. Возвращает число
-' символов; 0 - ничего не скопировалось.
-Private Function CopyWordAtCaret(TextChars() As UShort) As Long
-    SendKeyWithModifier(LB_VK_CONTROL, LB_VK_LEFT)
-    SendKeyWithModifiers(LB_VK_CONTROL, LB_VK_SHIFT, LB_VK_RIGHT)
-    SendWaitPump(20)
-    Dim CharCount As Long = CopySelectionText(TextChars())
-    SendKeyTap(LB_VK_RIGHT)
-    If CharCount > 0 Then LogAction("словарь: взято слово у каретки")
-    Return CharCount
-End Function
-
 Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
     Dim TextChars() As UShort
     Dim CharCount As Long
@@ -856,14 +946,7 @@ Private Sub ActionAddWord(ByVal TargetWindow As Any Ptr)
             End With
         Next
     Else
-        CharCount = CopySelectionText(TextChars())
-        ' VS Code, Notepad++ и т. п. без выделения копируют строку целиком
-        ' (с переводом строки в конце) - это не выделение
-        If CharCount > 0 AndAlso (TextChars(CharCount - 1) = 10 Or TextChars(CharCount - 1) = 13) Then
-            LogAction("словарь: скопирована строка целиком - выделения нет, берётся слово у каретки")
-            CharCount = 0
-        End If
-        If CharCount <= 0 Then CharCount = CopyWordAtCaret(TextChars())
+        CharCount = CopySelectionOrWord(TextChars(), 0, "словарь")
         If CharCount <= 0 Then
             LogAction("словарь: нет ни набранного слова, ни выделения, ни слова у каретки")
             Exit Sub
