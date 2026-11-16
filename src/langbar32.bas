@@ -664,6 +664,10 @@ End Sub
 Sub OnTrayShow()
     MainForm.WindowState = 0
     MainForm.Show
+    ' окно отладки - поверх всех окон (HWND_TOPMOST), чтобы лог был виден,
+    ' пока работаешь в другом окне
+    LbSetWindowPos(Cast(Any Ptr, MainForm.Handle), Cast(Any Ptr, -1), 0, 0, 0, 0, _
+        LB_SWP_NOMOVE Or LB_SWP_NOSIZE)
     LbSetForegroundWindow(Cast(Any Ptr, MainForm.Handle))
 End Sub
 
