@@ -62,6 +62,7 @@
 #include once "ui/overlay.bi"
 #include once "ui/dlg_settings.bi"
 #include once "ui/dlg_about.bi"
+#include once "ui/dlg_learn.bi"
 
 Const APP_TITLE = "LangBarFB"
 Const MUTEX_NAME = "LangBarFB_SingleInstance"
@@ -198,6 +199,7 @@ Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
     If WindowHandle = Cast(Any Ptr, SettingsForm.Handle) Then Return 1
     If WindowHandle = Cast(Any Ptr, CaptureForm.Handle) Then Return 1
     If WindowHandle = Cast(Any Ptr, AboutForm.Handle) Then Return 1
+    If WindowHandle = Cast(Any Ptr, LearnForm.Handle) Then Return 1
     Dim ClassBuffer As ZString * 64
     LbGetClassName(WindowHandle, @ClassBuffer, 64)
     Select Case ClassBuffer
@@ -850,6 +852,7 @@ MainForm.OnResize = @OnMainFormResize
 If Settings.AutoStart Then ConfigApplyAutoStart(1)
 SettingsCreate()
 AboutCreate()
+LearnCreate()
 SettingsOnApply = @ApplySettings
 ActionLog = @DebugLog
 

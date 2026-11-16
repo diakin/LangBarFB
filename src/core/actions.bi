@@ -703,12 +703,107 @@ Sub FixLearnNote(ShownText() As UShort, ByVal ShownCount As Long)
 End Sub
 
 ' Запомнить слово WordChars(CoreStart..), исправленное вручную
+' Слово, исправленное вручную, не запоминается сразу: оно встаёт в очередь
+' вопросов, и окно поверх всех окон (ui/dlg_learn.bi, без захвата фокуса)
+' спрашивает, добавить ли его в словарь. Правку узнаём по нажатиям, и
+' она может оказаться не тем, чем кажется (стёрли и набрали заново, чтобы
+' попробовать ещё раз), поэтому решает пользователь.
+Const FIXLEARN_ASK_MAX = 5
+Dim Shared FixLearnAskLayout(0 To FIXLEARN_ASK_MAX - 1) As Long
+Dim Shared FixLearnAskChars(0 To FIXLEARN_ASK_MAX - 1, 0 To SPELL_MAX_WORD - 1) As UShort
+Dim Shared FixLearnAskLength(0 To FIXLEARN_ASK_MAX - 1) As Long
+Dim Shared FixLearnAskHow(0 To FIXLEARN_ASK_MAX - 1) As String
+Dim Shared FixLearnAskCount As Long
+Type FixLearnAskFn As Sub()
+' показать вопрос (ставит окно); 0 - окна нет, слово запоминается сразу
+Dim Shared FixLearnAskShow As FixLearnAskFn
+
+' Первый вопрос очереди: слово строкой CP1251 и как его исправили
+Function FixLearnAskWord() As String
+    If FixLearnAskCount = 0 Then Return ""
+    Dim WordChars(0 To SPELL_MAX_WORD - 1) As UShort
+    Dim CharIdx As Long
+    For CharIdx = 0 To FixLearnAskLength(0) - 1
+        WordChars(CharIdx) = FixLearnAskChars(0, CharIdx)
+    Next
+    Return SpellAnsiOf(WordChars(), 0, FixLearnAskLength(0))
+End Function
+
+Function FixLearnAskReason() As String
+    If FixLearnAskCount = 0 Then Return ""
+    Return FixLearnAskHow(0)
+End Function
+
+' Ответ на первый вопрос: Accept 1 - добавить в словари и user_dict.dic
+Sub FixLearnAskAnswer(ByVal Accept As Long)
+    If FixLearnAskCount = 0 Then Exit Sub
+    Dim WordChars(0 To SPELL_MAX_WORD - 1) As UShort
+    Dim CharIdx As Long, ItemIdx As Long
+    Dim WordLength As Long = FixLearnAskLength(0)
+    For CharIdx = 0 To WordLength - 1
+        WordChars(CharIdx) = FixLearnAskChars(0, CharIdx)
+    Next
+    Dim LayoutIdx As Long = FixLearnAskLayout(0)
+    For ItemIdx = 0 To FixLearnAskCount - 2
+        FixLearnAskLayout(ItemIdx) = FixLearnAskLayout(ItemIdx + 1)
+        FixLearnAskLength(ItemIdx) = FixLearnAskLength(ItemIdx + 1)
+        FixLearnAskHow(ItemIdx) = FixLearnAskHow(ItemIdx + 1)
+        For CharIdx = 0 To SPELL_MAX_WORD - 1
+            FixLearnAskChars(ItemIdx, CharIdx) = FixLearnAskChars(ItemIdx + 1, CharIdx)
+        Next
+    Next
+    FixLearnAskCount -= 1
+    Dim WordText As String = SpellAnsiOf(WordChars(), 0, WordLength)
+    If Accept = 0 Then
+        LogAction("опечатка: «" & WordText & "» - в словарь не добавлено (ответ «Нет»)")
+        Exit Sub
+    End If
+    SpellRemember(LayoutIdx, WordChars(), 0, WordLength, 1)
+    LogAction("опечатка: «" & WordText & "» добавлено в словарь (записано в user_dict.dic)")
+    PlayEventSound(SOUND_ADD_WORD)
+End Sub
+
 Private Sub FixLearnRemember(ByVal LayoutIdx As Long, WordChars() As UShort, ByVal CoreStart As Long, _
         ByVal CoreLength As Long, ByRef HowText As String)
-    SpellRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, Settings.AutoRemember)
-    LogAction("опечатка: слово «" & SpellAnsiOf(WordChars(), CoreStart, CoreLength) & "» исправлено вручную (" _
-        & HowText & ") - больше не исправляется" & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
-    PlayEventSound(SOUND_ADD_WORD)
+    Dim WordText As String = SpellAnsiOf(WordChars(), CoreStart, CoreLength)
+    If FixLearnAskShow = 0 Then
+        SpellRemember(LayoutIdx, WordChars(), CoreStart, CoreLength, Settings.AutoRemember)
+        LogAction("опечатка: слово «" & WordText & "» исправлено вручную (" & HowText & ") - запомнено")
+        PlayEventSound(SOUND_ADD_WORD)
+        Exit Sub
+    End If
+    If CoreLength > SPELL_MAX_WORD Then Exit Sub
+    ' уже спрашиваем про это слово
+    Dim ItemIdx As Long, CharIdx As Long
+    For ItemIdx = 0 To FixLearnAskCount - 1
+        If FixLearnAskLength(ItemIdx) <> CoreLength Then Continue For
+        Dim SameWord As Long = 1
+        For CharIdx = 0 To CoreLength - 1
+            If FixLearnAskChars(ItemIdx, CharIdx) <> WordChars(CoreStart + CharIdx) Then SameWord = 0 : Exit For
+        Next
+        If SameWord Then Exit Sub
+    Next
+    ' очередь полна - самый старый вопрос снимается без ответа
+    If FixLearnAskCount = FIXLEARN_ASK_MAX Then
+        For ItemIdx = 0 To FIXLEARN_ASK_MAX - 2
+            FixLearnAskLayout(ItemIdx) = FixLearnAskLayout(ItemIdx + 1)
+            FixLearnAskLength(ItemIdx) = FixLearnAskLength(ItemIdx + 1)
+            FixLearnAskHow(ItemIdx) = FixLearnAskHow(ItemIdx + 1)
+            For CharIdx = 0 To SPELL_MAX_WORD - 1
+                FixLearnAskChars(ItemIdx, CharIdx) = FixLearnAskChars(ItemIdx + 1, CharIdx)
+            Next
+        Next
+        FixLearnAskCount -= 1
+    End If
+    FixLearnAskLayout(FixLearnAskCount) = LayoutIdx
+    FixLearnAskLength(FixLearnAskCount) = CoreLength
+    FixLearnAskHow(FixLearnAskCount) = HowText
+    For CharIdx = 0 To CoreLength - 1
+        FixLearnAskChars(FixLearnAskCount, CharIdx) = WordChars(CoreStart + CharIdx)
+    Next
+    FixLearnAskCount += 1
+    LogAction("опечатка: слово «" & WordText & "» исправлено вручную (" & HowText & ") - вопрос, добавить ли в словарь")
+    FixLearnAskShow()
 End Sub
 
 ' Убрать исправление ItemIdx из списка
