@@ -10,6 +10,8 @@
 '  Веса (в десятых): замена буквы 10, замена похожей по звуку (е/и, а/о,
 '  с/з...; в английском - гласные между собой, i/y, s/z) 4, соседней клавиши 6; пропущенная буква 8, в конце слова 10,
 '  удвоенная 3; лишняя буква 9, удвоенная 3; перестановка соседних 5,
+'  (удвоенной считается и пара букв, читаемых как одна: английские ck -
+'  «breack» - «break» стоит 3, а не 9);
 '  перестановка через одну букву 8 («очепятка» - «опечатка»: ч и п).
 '  Правка первой буквы - ещё 7 (кроме похожей по звуку замены), вариант
 '  из двух слов - ещё 20. Веса подобраны на наборе русских опечаток со
@@ -41,6 +43,10 @@ Const FIXRANK_INS_DOUBLE = 3
 Const FIXRANK_DEL = 9
 Const FIXRANK_DEL_DOUBLE = 3
 Const FIXRANK_SWAP = 5
+' пары букв, которые пишутся рядом и читаются как одна (UTF-16): ck
+Const FIXRANK_ECHO_COUNT = 1
+Dim Shared FixRankEchoFirst(0 To FIXRANK_ECHO_COUNT - 1) As UShort = {&h63}
+Dim Shared FixRankEchoSecond(0 To FIXRANK_ECHO_COUNT - 1) As UShort = {&h6B}
 Const FIXRANK_SWAP_FAR = 8
 Const FIXRANK_FIRST = 7
 Const FIXRANK_SPLIT = 20
@@ -68,6 +74,17 @@ Dim Shared FixRankKeys(0 To 3, 0 To 12) As UByte = { _
     {&h41, &h53, &h44, &h46, &h47, &h48, &h4A, &h4B, &h4C, &hBA, &hDE, &h0, &h0}, _
     {&h5A, &h58, &h43, &h56, &h42, &h4E, &h4D, &hBC, &hBE, &hBF, &h0, &h0, &h0}}
 Dim Shared FixRankRowShift(0 To 3) As Long = {0, 2, 3, 5}
+
+' Буквы FirstChar, SecondChar подряд - одинаковые или пара, читаемая как
+' одна буква (ck): лишняя или пропущенная из них - как удвоенная
+Private Function FixRankEcho(ByVal FirstChar As UShort, ByVal SecondChar As UShort) As Long
+    If FirstChar = SecondChar Then Return 1
+    Dim PairIdx As Long
+    For PairIdx = 0 To FIXRANK_ECHO_COUNT - 1
+        If FirstChar = FixRankEchoFirst(PairIdx) And SecondChar = FixRankEchoSecond(PairIdx) Then Return 1
+    Next
+    Return 0
+End Function
 
 ' Буквы похожи по звуку (в одной группе)
 Private Function FixRankSimilar(ByVal FirstChar As UShort, ByVal SecondChar As UShort) As Long
@@ -141,8 +158,8 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
             ' лишняя буква в набранном
             If RowIdx > 0 Then
                 StepCost = FIXRANK_DEL
-                If RowIdx >= 2 AndAlso Typed(RowIdx) = Typed(RowIdx - 1) Then StepCost = FIXRANK_DEL_DOUBLE
-                If RowIdx < TypedLength AndAlso Typed(RowIdx) = Typed(RowIdx + 1) Then StepCost = FIXRANK_DEL_DOUBLE
+                If RowIdx >= 2 AndAlso FixRankEcho(Typed(RowIdx - 1), Typed(RowIdx)) Then StepCost = FIXRANK_DEL_DOUBLE
+                If RowIdx < TypedLength AndAlso FixRankEcho(Typed(RowIdx), Typed(RowIdx + 1)) Then StepCost = FIXRANK_DEL_DOUBLE
                 If RowIdx = 1 Then StepCost += FIXRANK_FIRST
                 If Dist(RowIdx - 1, ColIdx) + StepCost < BestCost Then BestCost = Dist(RowIdx - 1, ColIdx) + StepCost
             End If
@@ -150,8 +167,8 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
             If ColIdx > 0 Then
                 StepCost = FIXRANK_INS
                 If ColIdx = CandLength And RowIdx = TypedLength Then StepCost = FIXRANK_INS_END
-                If ColIdx >= 2 AndAlso Cand(ColIdx) = Cand(ColIdx - 1) Then StepCost = FIXRANK_INS_DOUBLE
-                If ColIdx < CandLength AndAlso Cand(ColIdx) = Cand(ColIdx + 1) Then StepCost = FIXRANK_INS_DOUBLE
+                If ColIdx >= 2 AndAlso FixRankEcho(Cand(ColIdx - 1), Cand(ColIdx)) Then StepCost = FIXRANK_INS_DOUBLE
+                If ColIdx < CandLength AndAlso FixRankEcho(Cand(ColIdx), Cand(ColIdx + 1)) Then StepCost = FIXRANK_INS_DOUBLE
                 If ColIdx = 1 And RowIdx = 0 Then StepCost += FIXRANK_FIRST
                 If Dist(RowIdx, ColIdx - 1) + StepCost < BestCost Then BestCost = Dist(RowIdx, ColIdx - 1) + StepCost
             End If
