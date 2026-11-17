@@ -73,6 +73,8 @@ Dim Shared FixLayoutIdx As Long
 Dim Shared FixCosts() As Long
 ' цена правок плюс цена редкости слова (wordfreq.bi) - по ней порядок
 Dim Shared FixScores() As Long
+' Ctrl + Break перебирает не больше стольких лучших вариантов
+Const FIX_MAX_VARIANTS = 4
 Dim Shared FixConfident As Long
 Declare Sub FixRankSort(ByVal TypedLayout As UInteger)
 ' 1 - исправление сделало автоисправление после пробела (Break его отменяет)
@@ -565,16 +567,17 @@ Sub FixRankSort(ByVal TypedLayout As UInteger)
     Dim NextScore As Long
     If FixCount > 1 Then NextScore = FixScores(1)
     FixConfident = FixRankConfident(FixCosts(0), FixScores(0), NextScore, FixCount, FixCoreLength)
+    ' лишние варианты отбрасываются после оценки: второй вариант нужен для
+    ' FixRankConfident в любом случае
+    Dim AllCount As Long = FixCount
+    If FixCount > FIX_MAX_VARIANTS Then FixCount = FIX_MAX_VARIANTS
     Dim RankText As String
     For ItemIdx = 0 To FixCount - 1
-        If ItemIdx = 5 Then
-            RankText &= ", ..."
-            Exit For
-        End If
         RankText &= IIf(ItemIdx = 0, "", ", ") & SpellAnsiOf(FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx)) _
             & " " & FixCostText(FixCosts(ItemIdx))
         If WithFreq Then RankText &= "+" & FixCostText(FixScores(ItemIdx) - FixCosts(ItemIdx))
     Next
+    If AllCount > FixCount Then RankText &= " (из " & AllCount & ")"
     LogAction("опечатка: варианты по цене правок" & IIf(WithFreq, " + частоте", "") & ": " & RankText _
         & IIf(FixConfident, "", " (первый не очевиден)"))
 End Sub
