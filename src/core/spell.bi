@@ -256,6 +256,109 @@ Function SpellUserDictName() As String
     Return ExePath & "\user_dict.dic"
 End Function
 
+' --- слежение за user_dict.dic: правку в любом редакторе видно без
+' «Перечитать словари» ---
+
+' слова файла при последнем чтении: каждое - строка из байтов UTF-16
+Dim Shared SpellUserWords() As String
+Dim Shared SpellUserWordCount As Long
+' дата и размер файла тогда же
+Dim Shared SpellUserStamp As Double
+Dim Shared SpellUserSize As LongInt = -1
+
+' Слова user_dict.dic, как их читает SpellAddWordsFromFile: до «/», без
+' пробелов по краям, без комментариев «;»
+Private Function SpellUserWordList(Words() As String) As Long
+    Dim TextChars() As UShort
+    Dim CharCount As Long = SpellReadTextFile(SpellUserDictName(), TextChars())
+    If CharCount <= 0 Then Return 0
+    Dim WordCount As Long, LineStart As Long, CharIdx As Long
+    ReDim Words(0 To 15)
+    For CharIdx = 0 To CharCount
+        If CharIdx < CharCount AndAlso TextChars(CharIdx) <> 10 Then Continue For
+        Dim WordStart As Long = LineStart, WordEnd As Long = LineStart
+        While WordEnd < CharIdx AndAlso TextChars(WordEnd) <> Asc("/") AndAlso TextChars(WordEnd) <> 13
+            WordEnd += 1
+        Wend
+        While WordStart < WordEnd AndAlso TextChars(WordStart) <= 32
+            WordStart += 1
+        Wend
+        While WordEnd > WordStart AndAlso TextChars(WordEnd - 1) <= 32
+            WordEnd -= 1
+        Wend
+        If WordEnd > WordStart AndAlso TextChars(WordStart) <> Asc(";") Then
+            If WordCount > UBound(Words) Then ReDim Preserve Words(0 To WordCount * 2)
+            Dim WordBytes As String = String((WordEnd - WordStart) * 2, 0)
+            Dim ByteIdx As Long
+            For ByteIdx = 0 To WordEnd - WordStart - 1
+                Cast(UShort Ptr, StrPtr(WordBytes))[ByteIdx] = TextChars(WordStart + ByteIdx)
+            Next
+            Words(WordCount) = WordBytes
+            WordCount += 1
+        End If
+        LineStart = CharIdx + 1
+    Next
+    Return WordCount
+End Function
+
+Private Function SpellUserFileStamp(ByRef FileSize As LongInt) As Double
+    Dim FileName As String = SpellUserDictName()
+    If FileExists(FileName) = 0 Then
+        FileSize = -1
+        Return 0
+    End If
+    FileSize = FileLen(FileName)
+    Return FileDateTime(FileName)
+End Function
+
+' Запомнить, что сейчас в user_dict.dic (после загрузки словарей и после
+' записи слова программой)
+Sub SpellUserSnapshot()
+    SpellUserWordCount = SpellUserWordList(SpellUserWords())
+    SpellUserStamp = SpellUserFileStamp(SpellUserSize)
+End Sub
+
+' Файл изменили: новые слова - в словари; RemovedCount - сколько слов
+' убрали (их из словарей Hunspell не убрать - нужна перезагрузка).
+' Возвращает 1, если файл изменился.
+Function SpellUserSync(ByRef AddedCount As Long, ByRef RemovedCount As Long) As Long
+    AddedCount = 0 : RemovedCount = 0
+    Dim NewSize As LongInt
+    Dim NewStamp As Double = SpellUserFileStamp(NewSize)
+    If NewStamp = SpellUserStamp And NewSize = SpellUserSize Then Return 0
+    Dim NewWords() As String
+    Dim NewCount As Long = SpellUserWordList(NewWords())
+    Dim NewIdx As Long, OldIdx As Long, Found As Long
+    For NewIdx = 0 To NewCount - 1
+        Found = 0
+        For OldIdx = 0 To SpellUserWordCount - 1
+            If SpellUserWords(OldIdx) = NewWords(NewIdx) Then Found = 1 : Exit For
+        Next
+        If Found = 0 Then
+            Dim WordLength As Long = Len(NewWords(NewIdx)) \ 2
+            Dim WordChars(0 To SPELL_MAX_WORD) As UShort
+            If WordLength > SPELL_MAX_WORD Then Continue For
+            Dim CharIdx As Long, LayoutIdx As Long
+            For CharIdx = 0 To WordLength - 1
+                WordChars(CharIdx) = Cast(UShort Ptr, StrPtr(NewWords(NewIdx)))[CharIdx]
+            Next
+            For LayoutIdx = 0 To LayoutCount - 1
+                SpellAddTo(LayoutIdx, WordChars(), 0, WordLength)
+            Next
+            AddedCount += 1
+        End If
+    Next
+    For OldIdx = 0 To SpellUserWordCount - 1
+        Found = 0
+        For NewIdx = 0 To NewCount - 1
+            If SpellUserWords(OldIdx) = NewWords(NewIdx) Then Found = 1 : Exit For
+        Next
+        If Found = 0 Then RemovedCount += 1
+    Next
+    SpellUserSnapshot()
+    Return 1
+End Function
+
 ' Слово - строкой в конец user_dict.dic (UTF-8)
 Private Sub SpellAppendUserWord(TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long)
     If CharCount <= 0 Then Exit Sub
@@ -274,6 +377,8 @@ Private Sub SpellAppendUserWord(TextChars() As UShort, ByVal StartIdx As Long, B
     End If
     Put #FileNum, Lof(FileNum) + 1, LineText
     Close #FileNum
+    ' своя запись - не правка пользователя
+    SpellUserSnapshot()
 End Sub
 
 ' Слово больше не переключается: в словарь раскладки и, если WriteFile,
@@ -428,6 +533,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     Next
     Dim UserWords As Long
     If SpellDictCount > 0 Then UserWords = SpellAddWordsFromFile(SpellUserDictName(), -1)
+    SpellUserSnapshot()
     If Loaded = "" Then
         SpellStatus = Tr("словарей нет в ") & SpellBaseFolder & "\dict"
     Else

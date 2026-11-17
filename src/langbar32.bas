@@ -581,6 +581,21 @@ Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
 End Sub
 
 Sub OnPollTimer()
+    ' user_dict.dic поправили в редакторе - раз в 2 с (каждый 8-й тик)
+    Static PollTicks As Long
+    PollTicks += 1
+    If PollTicks Mod 8 = 0 AndAlso SpellDictCount > 0 Then
+        Dim AddedWords As Long, RemovedWords As Long
+        If SpellUserSync(AddedWords, RemovedWords) Then
+            If RemovedWords > 0 Then
+                SpellLoad(Settings.SpellFolder)
+                DebugLog("user_dict.dic изменён: убрано слов " & RemovedWords & ", добавлено " & AddedWords _
+                    & " - словари перечитаны")
+            Else
+                DebugLog("user_dict.dic изменён: добавлено слов " & AddedWords)
+            End If
+        End If
+    End If
     If KbHookWatch() Then
         DebugLog("хуки клавиатуры и мыши поставлены заново (" & KbReinstallCount _
             & "-й раз): был ввод, а хук не вызывался - Windows сняла его" _
