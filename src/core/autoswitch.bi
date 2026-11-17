@@ -460,6 +460,13 @@ Sub AutoSwitchWordCheck()
         LogAction(LogText)
         ' слова нет ни в одной раскладке - автоисправление опечатки; если
         ' оно выключено или слово не тронуло - звук «Слова нет в словаре»
+        Dim UpperStart As Long, UpperLength As Long
+        If SourceKnown = 0 AndAlso SpellCoreRange(SourceChars(), CharCount, UpperStart, UpperLength) > 0 _
+                AndAlso SpellCheckUpper(SourceIdx, SourceChars(), UpperStart, UpperLength) Then
+            LogAction("слово «" & SourceText & "» есть в словаре " & LayoutList(SourceIdx).LocaleCode _
+                & " заглавными (сокращение) - не исправляется")
+            Exit Sub
+        End If
         If SourceKnown = 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
             If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
                 Dim WordFixed As Long = 0

@@ -156,6 +156,26 @@ Function SpellCheck(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartI
   Return IIf((HunspellSpell(DictHandle, Cast(WString Ptr, @WordBuffer(0))) And &hFF) <> 0, 1, 0)
 End Function
 
+' Слово есть в словаре заглавными буквами (аббревиатура: «gps» - GPS).
+' Hunspell принимает такие слова только заглавными. Для переключения
+' раскладки это не годится: заглавных сокращений в английском словаре
+' много, и «yt», «nfr», «ldt» (не, так, две) перестали бы переключаться.
+' Нужно, только чтобы не исправлять и не помечать сокращение как опечатку.
+Function SpellCheckUpper(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, _
+                         ByVal CharCount As Long) As Long
+  If LayoutIdx < 0 Or LayoutIdx >= MAX_LAYOUTS Then Return 0
+  Dim DictHandle As Any Ptr = SpellDict(LayoutIdx)
+  If DictHandle = 0 Or CharCount <= 0 Or CharCount > SPELL_MAX_WORD Then Return 0
+  Dim WordBuffer(0 To SPELL_MAX_WORD) As UShort
+  Dim CharIdx As Long
+  For CharIdx = 0 To CharCount - 1
+    WordBuffer(CharIdx) = TextChars(StartIdx + CharIdx)
+  Next
+  WordBuffer(CharCount) = 0
+  LbCharUpperBuff(@WordBuffer(0), CharCount)
+  Return IIf((HunspellSpell(DictHandle, Cast(WString Ptr, @WordBuffer(0))) And &hFF) <> 0, 1, 0)
+End Function
+
 ' Варианты исправления слова TextChars(StartIdx..) по словарю раскладки
 ' LayoutIdx: все варианты подряд в ResultChars, начало и длина каждого -
 ' в ResultStarts, ResultLengths. Возвращает число вариантов.

@@ -440,6 +440,11 @@ Function FixPrepareOriginal(ByVal TargetWindow As Any Ptr, ByVal TypedLayout As 
         If WithLog Then LogAction("опечатка: «" & WordText & "» есть в словаре " & LayoutCodeOf(TypedLayout))
         Return 0
     End If
+    If SpellCheckUpper(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength) Then
+        If WithLog Then LogAction("опечатка: «" & WordText & "» есть в словаре " & LayoutCodeOf(TypedLayout) _
+            & " заглавными (сокращение) - не исправляется")
+        Return 0
+    End If
     ' Hunspell ищет варианты в главном потоке; пока он ищет, хук ждёт
     Dim SuggestStart As Double = Timer
     FixCount = SpellSuggest(LayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, FixChars(), FixStarts(), FixLengths())
