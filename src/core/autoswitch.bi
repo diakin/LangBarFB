@@ -356,13 +356,16 @@ Sub AutoSwitchWord()
     Next
     If TargetIdx < 0 Then
         LogAction(LogText)
-        ' слова нет ни в одной раскладке - автоисправление опечатки
-        If SourceKnown = 0 And Settings.AutoFix <> 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
+        ' слова нет ни в одной раскладке - автоисправление опечатки; если
+        ' оно выключено или слово не тронуло - звук «Слова нет в словаре»
+        If SourceKnown = 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
             If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
-                If FixPrepare(TargetWindow, WordStart, 1, 0) Then
+                Dim WordFixed As Long = 0
+                If Settings.AutoFix <> 0 AndAlso FixPrepare(TargetWindow, WordStart, 1, 0) Then
                     If FixConfident Then
                         FixAuto = 1
                         FixShow(0)
+                        WordFixed = 1
                     Else
                         ' первый вариант не очевиден - слово остаётся, Ctrl + Break
                         ' сразу после этого покажет варианты по порядку
@@ -370,6 +373,7 @@ Sub AutoSwitchWord()
                         LogAction("автоисправление: слово не тронуто")
                     End If
                 End If
+                If WordFixed = 0 Then PlayEventSound(SOUND_UNKNOWN_WORD)
             End If
         End If
         Exit Sub
