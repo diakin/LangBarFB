@@ -301,14 +301,17 @@ Private Function SpellUserWordList(Words() As String) As Long
     Return WordCount
 End Function
 
+' Размер и время записи user_dict.dic через WinAPI (file.bi не подключаем:
+' FileExists есть и в RqLcl)
 Private Function SpellUserFileStamp(ByRef FileSize As LongInt) As Double
     Dim FileName As String = SpellUserDictName()
-    If FileExists(FileName) = 0 Then
+    Dim AttrData As LB_FILE_ATTR_DATA
+    If LbGetFileAttributesEx(StrPtr(FileName), 0, @AttrData) = 0 Then
         FileSize = -1
         Return 0
     End If
-    FileSize = FileLen(FileName)
-    Return FileDateTime(FileName)
+    FileSize = (CLngInt(AttrData.SizeHigh) Shl 32) Or AttrData.SizeLow
+    Return CDbl(AttrData.WriteHigh) * 4294967296.0 + AttrData.WriteLow
 End Function
 
 ' Запомнить, что сейчас в user_dict.dic (после загрузки словарей и после

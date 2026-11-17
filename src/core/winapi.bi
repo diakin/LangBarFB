@@ -137,6 +137,19 @@ Type LbLastInputInfo
     InputTime As ULong
 End Type
 Declare Function LbGetLastInputInfo Lib "user32" Alias "GetLastInputInfo" (ByRef InputInfo As LbLastInputInfo) As Long
+Type LB_FILE_ATTR_DATA
+    FileAttributes As ULong
+    CreationLow As ULong
+    CreationHigh As ULong
+    AccessLow As ULong
+    AccessHigh As ULong
+    WriteLow As ULong
+    WriteHigh As ULong
+    SizeHigh As ULong
+    SizeLow As ULong
+End Type
+Declare Function LbGetFileAttributesEx Lib "kernel32" Alias "GetFileAttributesExA" ( _
+    ByVal FileName As ZString Ptr, ByVal InfoLevel As Long, ByVal FileInfo As Any Ptr) As Long
 Declare Function LbGetTickCount Lib "kernel32" Alias "GetTickCount" () As ULong
 Declare Function LbQueryPerformanceCounter Lib "kernel32" Alias "QueryPerformanceCounter" ( _
     ByRef Counter As LongInt) As Long
