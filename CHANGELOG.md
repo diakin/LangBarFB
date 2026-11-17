@@ -1,5 +1,9 @@
 # История изменений
 
+## 1.019 (2026-11-17)
+
+- В `en_US_(langbarfb_abbr).dic` добавлены 106 ключевых слов и стандартных имён языков программирования (C, C++, C#, Python, JavaScript, Java, Go, Rust, SQL, Pascal, FreeBASIC, PHP, shell), которых нет в en_US.dic: printf, struct, sizeof, namespace, elif, nullptr, writeln, zstring и т. п. Из 311 проверенных 187 уже были в en_US.dic, 13 — в списке, `del` не вошло (в русской раскладке «вуд»). Всего в файле 388 слов.
+
 ## 1.018 (2026-11-17)
 
 - Свой список сокращений `dict/en-US/en_US_(langbarfb_abbr).dic` (282 слова, строчными — принимаются в любом регистре): сокращения из кода (abbrcode/abbreviations-in-code, MIT: addr, algo, btn, ctx, regex...), из переписки и open source (d-edge/foss-acronyms, CC0: afaik, lgtm, wip...) и общие (wifi, url, usb, gps, dns, html, json, pnp, p2p, 3d, mp3...). Не вошли: слова короче 3 букв (кроме слов с цифрами), слова, которые уже есть в en_US.dic, и слова, которые в русской раскладке дают русское слово (evt — «уме», exe — «учу», cfg — «сап» и ещё 26), чтобы такие русские слова по-прежнему переключались.
