@@ -251,15 +251,8 @@ Sub ConfigLoad()
         .SuggestCount = ValInt(IniRead("Rules", "SuggestCount", "2"))
         If .SuggestCount < 1 Or .SuggestCount > 99 Then .SuggestCount = 2
         .Language = LCase(IniRead("General", "Language", ""))
-        If .Language <> "ru" And .Language <> "en" Then
-            ' русский, украинский, белорусский Windows - русский интерфейс
-            Select Case LbGetUserDefaultUILanguage() And &h3FF
-            Case &h19, &h22, &h23
-                .Language = "ru"
-            Case Else
-                .Language = "en"
-            End Select
-        End If
+        ' по умолчанию английский, независимо от языка Windows
+        If .Language <> "ru" And .Language <> "en" Then .Language = "en"
     End With
 End Sub
 

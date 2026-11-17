@@ -14,7 +14,7 @@
 ; ---------------------------------------------------------------------------
 
 ; та же, что APP_VERSION в src\ui\dlg_about.bi
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.012"
 #define MyAppName "LangBarFB"
 #define MyAppURL "https://github.com/diakin/LangBarFB"
 ; имя класса служебного окна (src\ui\tray.bi): по нему программа
@@ -39,15 +39,17 @@ OutputDir=bin
 OutputBaseFilename=LangBarFB_setup_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
-ShowLanguageDialog=auto
+ShowLanguageDialog=yes
+; по умолчанию английский (первый в [Languages]), русский - выбором в окне
+LanguageDetectionMethod=none
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\langbar32.exe
 ; LGPL-3.0, как у LangBarXX; COPYING (GPL-3.0) ставится рядом
 LicenseFile=COPYING.LESSER
 
 [Languages]
-Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [CustomMessages]
 russian.TypeStandard=Стандартная (русский и английский словари)
