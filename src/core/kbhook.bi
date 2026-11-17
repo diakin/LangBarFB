@@ -13,6 +13,11 @@
 '  Решить, проглотить ли нажатие, можно только сразу, в обработчике:
 '  это делает KbKeyFilter (горячие клавиши, hotkeys.bi) - быстрая
 '  проверка по таблице, без вызовов, которые могут ждать.
+'  Задержка нажатий (KbHoldActive): пока программа читает текст окна
+'  (выделение и Ctrl+C), нажатия пользователя не доходят до окна, а
+'  копятся в KbHold* - иначе буква заменила бы выделенное слово. Потом
+'  они посылаются заново с меткой KB_REPLAY_MARK (SendHeldKeys, sendkeys.bi),
+'  и хук разбирает их как нажатия пользователя.
 '  Хук мыши (WH_MOUSE_LL) только сообщает о нажатии кнопки: после щелчка
 '  каретка могла уйти, и набранное слово для Break сбрасывается.
 '
@@ -73,6 +78,14 @@ Dim Shared KbReinstallCount As Long
 Dim Shared KbMouseNotifyMessage As ULong
 ' число нажатий кнопок мыши: по нему фильтр видит щелчок между событиями
 Dim Shared KbMouseClicks As ULong
+' задержка нажатий пользователя: VK, скан-код и флаги KEYEVENTF_...
+Const KB_HOLD_MAX = 64
+Const KB_REPLAY_MARK = &h4C42524C
+Dim Shared KbHoldActive As Long
+Dim Shared KbHoldCount As Long
+Dim Shared KbHoldVk(0 To KB_HOLD_MAX - 1) As UShort
+Dim Shared KbHoldScan(0 To KB_HOLD_MAX - 1) As UShort
+Dim Shared KbHoldFlags(0 To KB_HOLD_MAX - 1) As ULong
 ' где нажали кнопку мыши последний раз (экранные координаты)
 Dim Shared KbLastClickPos As LbPoint
 
@@ -158,6 +171,8 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
             .EventTime = HookData->time
             .IsKeyUp = IIf((HookData->flags And LB_LLKHF_UP) <> 0, 1, 0)
             .IsInjected = IIf((HookData->flags And LB_LLKHF_INJECTED) <> 0, 1, 0)
+            ' задержанное нажатие пользователя, посланное заново
+            If .IsInjected AndAlso HookData->dwExtraInfo = KB_REPLAY_MARK Then .IsInjected = 0
         End With
         KeyEvent.CapsOn = KbCapsOn
         Dim HeldBit As ULong = KbHeldBit(KeyEvent.VirtualKey)
@@ -173,6 +188,16 @@ Private Function KbHookProc stdcall (ByVal HookCode As Long, _
             Else
                 KbHeldMask Or= HeldBit
             End If
+        End If
+        ' программа читает текст окна - нажатие пользователя подождёт
+        If KbHoldActive AndAlso (HookData->flags And LB_LLKHF_INJECTED) = 0 AndAlso KbHoldCount < KB_HOLD_MAX Then
+            KbHoldVk(KbHoldCount) = KeyEvent.VirtualKey
+            KbHoldScan(KbHoldCount) = KeyEvent.ScanCode
+            KbHoldFlags(KbHoldCount) = IIf(KeyEvent.IsKeyUp, LB_KEYEVENTF_KEYUP, 0) _
+                Or IIf((HookData->flags And LB_LLKHF_EXTENDED) <> 0, LB_KEYEVENTF_EXTENDEDKEY, 0)
+            KbHoldCount += 1
+            KbHookCalls += 1
+            Return 1
         End If
         If KbKeyFilter <> 0 Then KeyEvent.IsSwallowed = KbKeyFilter(KeyEvent)
         ' Caps Lock переключается, только если нажатие дошло до Windows

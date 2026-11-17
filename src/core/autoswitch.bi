@@ -261,8 +261,101 @@ Sub AutoSwitchStart()
     LogAction(LogText)
 End Sub
 
-' Пробел попал в буфер слова: проверить слово перед ним
+' Слово перед пробелом SpaceIdx начато после перемещения каретки: в
+' буфере может быть только его конец. Выделяет назад до начала слова
+' (Ctrl+Shift+Left), копирует, снимает выделение (Right - каретка снова
+' после пробела) и дописывает в начало буфера клавиши недостающего начала
+' (раскладка - как у слова в буфере). Нажатия пользователя в это время
+' задерживаются (kbhook.bi); послать их потом - AutoSwitchWord.
+' Возвращает 1, если в буфере теперь всё слово.
+Private Function AutoReadWordStart(ByVal SpaceIdx As Long, ByVal SourceHandle As UInteger) As Long
+    Dim TypedCount As Long = SpaceIdx
+    Dim TypedChars(0 To TypedCount - 1) As UShort
+    Dim KeyIdx As Long, CharIdx As Long
+    For KeyIdx = 0 To TypedCount - 1
+        TypedChars(KeyIdx) = WordKeyChar(KeyIdx, SourceHandle)
+    Next
+    ActionBusy = 1
+    KbHoldStart()
+    SendKeyWithModifiers(LB_VK_CONTROL, LB_VK_SHIFT, LB_VK_LEFT)
+    SendWaitPump(20)
+    Dim TextChars() As UShort
+    Dim CharCount As Long = CopySelectionText(TextChars())
+    ' выделение есть только если скопировалось: иначе Right сдвинул бы каретку
+    If CharCount > 0 Then SendKeyTap(LB_VK_RIGHT)
+    ActionBusy = 0
+    If CharCount <= 0 Then
+        LogAction("автопереключение: слово начато после перемещения каретки, начало слова не скопировалось - не проверяется")
+        Return 0
+    End If
+    ' скопировано «начало + набранное + пробелы»
+    Dim TextEnd As Long = CharCount
+    While TextEnd > 0 AndAlso TextChars(TextEnd - 1) <= 32
+        TextEnd -= 1
+    Wend
+    Dim PrefixEnd As Long = TextEnd - TypedCount
+    Dim Matches As Long = IIf(PrefixEnd >= 0, 1, 0)
+    For CharIdx = 0 To TypedCount - 1
+        If Matches = 0 Then Exit For
+        If TextChars(PrefixEnd + CharIdx) <> TypedChars(CharIdx) Then Matches = 0
+    Next
+    If Matches = 0 Then
+        LogAction("автопереключение: слово начато после перемещения каретки, скопированный текст не кончается набранным - не проверяется")
+        Return 0
+    End If
+    ' начало - после последнего пробела или перевода строки
+    Dim PrefixStart As Long = PrefixEnd
+    While PrefixStart > 0 AndAlso TextChars(PrefixStart - 1) > 32
+        PrefixStart -= 1
+    Wend
+    Dim PrefixCount As Long = PrefixEnd - PrefixStart
+    WordInsideText = 0
+    If PrefixCount = 0 Then
+        LogAction("автопереключение: слово начато после перемещения каретки - перед ним пробел, проверяется как обычно")
+        Return 1
+    End If
+    If WordKeyCount + PrefixCount > WORD_BUFFER_SIZE Or TypedCount + PrefixCount > AUTOSWITCH_MAX_KEYS Then Return 0
+    ' клавиши начала в раскладке слова; знак не из неё - слово из двух раскладок
+    Dim PrefixKeys(0 To PrefixCount - 1) As TypedKey
+    For CharIdx = 0 To PrefixCount - 1
+        Dim KeyInfo As Short = LbVkKeyScanEx(TextChars(PrefixStart + CharIdx), Cast(Any Ptr, SourceHandle))
+        ' -1 - нет клавиши; биты Ctrl и Alt (AltGr) - так не набрать
+        If KeyInfo = -1 OrElse (KeyInfo And &h600) <> 0 Then
+            LogAction("автопереключение: начало слова «" & SpellAnsiOf(TextChars(), PrefixStart, PrefixCount) _
+                & "» не набирается в раскладке слова - не проверяется")
+            Return 0
+        End If
+        With PrefixKeys(CharIdx)
+            .VirtualKey = KeyInfo And &hFF
+            .WithShift = IIf((KeyInfo And &h100) <> 0, 1, 0)
+            .CapsOn = 0
+            .LayoutHandle = SourceHandle
+            .AfterBackspace = 0
+        End With
+    Next
+    For KeyIdx = WordKeyCount - 1 To 0 Step -1
+        WordKeys(KeyIdx + PrefixCount) = WordKeys(KeyIdx)
+    Next
+    For CharIdx = 0 To PrefixCount - 1
+        WordKeys(CharIdx) = PrefixKeys(CharIdx)
+    Next
+    WordKeyCount += PrefixCount
+    LogAction("автопереключение: слово начато после перемещения каретки - начало «" _
+        & SpellAnsiOf(TextChars(), PrefixStart, PrefixCount) & "» взято из окна")
+    Return 1
+End Function
+
+Declare Sub AutoSwitchWordCheck()
+
+' Пробел попал в буфер слова: проверить слово перед ним (нажатия,
+' задержанные при чтении начала слова, посылаются после проверки: иначе
+' автопереключение стёрло бы их вместо слова)
 Sub AutoSwitchWord()
+    AutoSwitchWordCheck()
+    If KbHoldActive Then SendHeldKeys()
+End Sub
+
+Sub AutoSwitchWordCheck()
     If ActionBusy Then
         ' идёт другое действие или ждём смены раскладки - проверить потом
         If Settings.AutoSwitch <> 0 Or FixLearnCount > 0 Then WordSpaceFed = 1
@@ -283,8 +376,11 @@ Sub AutoSwitchWord()
     Dim WordEnd As Long = SpaceIdx - 1
     If WordEnd - WordStart + 1 > AUTOSWITCH_MAX_KEYS Then Exit Sub
     If WordStart = 0 And WordInsideText <> 0 Then
-        LogAction("автопереключение: слово начато после перемещения каретки или Backspace (может быть концом другого слова) - не проверяется")
-        Exit Sub
+        ' только что набранное может быть концом слова, которое уже было в окне
+        If SpaceIdx <> WordKeyCount - 1 OrElse AutoReadWordStart(SpaceIdx, WordKeys(0).LayoutHandle) = 0 Then Exit Sub
+        SpaceIdx = WordKeyCount - 1
+        WordEnd = SpaceIdx - 1
+        If WordEnd - WordStart + 1 > AUTOSWITCH_MAX_KEYS Then Exit Sub
     End If
 
     ' набрано в одной раскладке, без правки, и окно всё ещё в ней

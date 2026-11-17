@@ -37,6 +37,28 @@ Private Sub SendFillKey(ByRef KeyInput As LbKeybdInput, ByVal VirtualKey As USho
     KeyInput.dwFlags = Flags
 End Sub
 
+' Начать задерживать нажатия пользователя (kbhook.bi)
+Sub KbHoldStart()
+    KbHoldCount = 0
+    KbHoldActive = 1
+End Sub
+
+' Перестать задерживать и послать задержанные нажатия заново: хук примет
+' их за нажатия пользователя (KB_REPLAY_MARK)
+Sub SendHeldKeys()
+    KbHoldActive = 0
+    Dim HeldCount As Long = KbHoldCount
+    KbHoldCount = 0
+    If HeldCount <= 0 Then Exit Sub
+    Dim KeyInputs(0 To HeldCount - 1) As LbKeybdInput
+    Dim HeldIdx As Long
+    For HeldIdx = 0 To HeldCount - 1
+        SendFillKey(KeyInputs(HeldIdx), KbHoldVk(HeldIdx), KbHoldScan(HeldIdx), KbHoldFlags(HeldIdx))
+        KeyInputs(HeldIdx).dwExtraInfo = KB_REPLAY_MARK
+    Next
+    LbSendInput(HeldCount, @KeyInputs(0), SizeOf(LbKeybdInput))
+End Sub
+
 ' Нажатие и отпускание клавиши, Repeats раз подряд
 Sub SendKeyTap(ByVal VirtualKey As UShort, ByVal Repeats As Long = 1)
     If Repeats <= 0 Then Exit Sub

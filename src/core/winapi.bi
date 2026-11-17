@@ -280,6 +280,7 @@ Declare Function LbSetMenuDefaultItem Lib "user32" Alias "SetMenuDefaultItem" ( 
 
 ' --- ввод, буфер обмена, настройки, звук ---
 Const LB_INPUT_KEYBOARD = 1
+Const LB_KEYEVENTF_EXTENDEDKEY = &h0001
 Const LB_KEYEVENTF_KEYUP = &h0002
 Const LB_KEYEVENTF_UNICODE = &h0004
 Const LB_CF_UNICODETEXT = 13
