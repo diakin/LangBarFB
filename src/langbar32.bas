@@ -145,591 +145,591 @@ Dim Shared FlagsLabelText As String
 Dim Shared SpellLoadedFolder As String
 
 Function HexByte(ByVal Value As ULong) As String
-    Return Right("0" & Hex(Value), 2)
+  Return Right("0" & Hex(Value), 2)
 End Function
 
 Function FolderExists(ByRef FolderPath As String) As Long
-    Return IIf(Dir(FolderPath, fbDirectory) <> "", 1, 0)
+  Return IIf(Dir(FolderPath, fbDirectory) <> "", 1, 0)
 End Function
 
 ' Папка флажков: flags рядом с exe или на уровень выше (exe в bin\ или src\,
 ' flags в корне проекта)
 Function FindFlagsFolder() As String
-    If FolderExists(ExePath & "\flags") Then Return ExePath & "\flags\"
-    If FolderExists(ExePath & "\..\flags") Then Return ExePath & "\..\flags\"
-    Return ""
+  If FolderExists(ExePath & "\flags") Then Return ExePath & "\flags\"
+  If FolderExists(ExePath & "\..\flags") Then Return ExePath & "\..\flags\"
+  Return ""
 End Function
 
 Sub LoadFlags()
-    Dim LayoutIdx As Long
-    For LayoutIdx = 0 To MAX_LAYOUTS - 1
-        GfxFreeImage(FlagImages(LayoutIdx))
-    Next
-    LayoutsLoad()
-    FlagsFolder = FindFlagsFolder()
-    Dim FoundCount As Long
-    For LayoutIdx = 0 To LayoutCount - 1
-        If FlagsFolder <> "" Then
-            FlagImages(LayoutIdx) = GfxLoadImage(FlagsFolder & LayoutList(LayoutIdx).LocaleCode & ".png")
-        End If
-        If FlagImages(LayoutIdx) <> 0 Then FoundCount += 1
-    Next
-    If FlagsFolder = "" Then
-        FlagsLabelText = "Флажки: папки flags нет - текстовые флажки. Раскладок: " & LayoutCount
-    Else
-        FlagsLabelText = "Флажки: " & FlagsFolder & " - найдено " & FoundCount & " из " & LayoutCount
+  Dim LayoutIdx As Long
+  For LayoutIdx = 0 To MAX_LAYOUTS - 1
+    GfxFreeImage(FlagImages(LayoutIdx))
+  Next
+  LayoutsLoad()
+  FlagsFolder = FindFlagsFolder()
+  Dim FoundCount As Long
+  For LayoutIdx = 0 To LayoutCount - 1
+    If FlagsFolder <> "" Then
+      FlagImages(LayoutIdx) = GfxLoadImage(FlagsFolder & LayoutList(LayoutIdx).LocaleCode & ".png")
     End If
-    FlagsLabel.Caption = FlagsLabelText
+    If FlagImages(LayoutIdx) <> 0 Then FoundCount += 1
+  Next
+  If FlagsFolder = "" Then
+    FlagsLabelText = "Флажки: папки flags нет - текстовые флажки. Раскладок: " & LayoutCount
+  Else
+    FlagsLabelText = "Флажки: " & FlagsFolder & " - найдено " & FoundCount & " из " & LayoutCount
+  End If
+  FlagsLabel.Caption = FlagsLabelText
 End Sub
 
 ' Словари Hunspell - по одному на раскладку списка, поэтому загружаются
 ' после него (при запуске, при новой раскладке, при смене папки)
 Sub LoadSpell()
-    SpellLoad(Settings.SpellFolder)
-    SpellLoadedFolder = Settings.SpellFolder
-    SpellLabel.Caption = "Hunspell: " & SpellStatus
+  SpellLoad(Settings.SpellFolder)
+  SpellLoadedFolder = Settings.SpellFolder
+  SpellLabel.Caption = "Hunspell: " & SpellStatus
 End Sub
 
 Function IsOwnOrShellWindow(ByVal WindowHandle As Any Ptr) As Long
-    If WindowHandle = 0 Then Return 1
-    If WindowHandle = TrayWindow Then Return 1
-    If WindowHandle = CaretFlag.WindowHandle Or WindowHandle = NoteFlag.WindowHandle Then Return 1
-    If WindowHandle = MouseFlag.WindowHandle Then Return 1
-    If WindowHandle = Cast(Any Ptr, MainForm.Handle) Then Return 1
-    If WindowHandle = Cast(Any Ptr, SettingsForm.Handle) Then Return 1
-    If WindowHandle = Cast(Any Ptr, CaptureForm.Handle) Then Return 1
-    If WindowHandle = Cast(Any Ptr, AboutForm.Handle) Then Return 1
-    If WindowHandle = Cast(Any Ptr, LearnForm.Handle) Then Return 1
-    Dim ClassBuffer As ZString * 64
-    LbGetClassName(WindowHandle, @ClassBuffer, 64)
-    Select Case ClassBuffer
-    Case "Shell_TrayWnd", "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland"
-        Return 1
-    End Select
-    Return 0
+  If WindowHandle = 0 Then Return 1
+  If WindowHandle = TrayWindow Then Return 1
+  If WindowHandle = CaretFlag.WindowHandle Or WindowHandle = NoteFlag.WindowHandle Then Return 1
+  If WindowHandle = MouseFlag.WindowHandle Then Return 1
+  If WindowHandle = Cast(Any Ptr, MainForm.Handle) Then Return 1
+  If WindowHandle = Cast(Any Ptr, SettingsForm.Handle) Then Return 1
+  If WindowHandle = Cast(Any Ptr, CaptureForm.Handle) Then Return 1
+  If WindowHandle = Cast(Any Ptr, AboutForm.Handle) Then Return 1
+  If WindowHandle = Cast(Any Ptr, LearnForm.Handle) Then Return 1
+  Dim ClassBuffer As ZString * 64
+  LbGetClassName(WindowHandle, @ClassBuffer, 64)
+  Select Case ClassBuffer
+  Case "Shell_TrayWnd", "NotifyIconOverflowWindow", "TopLevelWindowForOverflowXamlIsland"
+    Return 1
+  End Select
+  Return 0
 End Function
 
 ' Крупный флажок посреди основного экрана; через NOTE_DURATION_MS прячется.
 ' Мышь проходит сквозь него.
 Sub ShowLayoutNote(ByVal LayoutIdx As Long)
-    Dim NoteWidth As Long = LbGetSystemMetrics(LB_SM_CXSCREEN) * NOTE_SIZE_PERCENT \ 100
-    Dim NoteImage As Any Ptr
-    With LayoutList(LayoutIdx)
-        NoteImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, NoteWidth)
-    End With
-    If NoteImage = 0 Then Exit Sub
-    Dim ImgHeight As ULong
-    GdipGetImageHeight(NoteImage, ImgHeight)
-    OverlayShowImage(NoteFlag, NoteImage, _
-        (LbGetSystemMetrics(LB_SM_CXSCREEN) - NoteWidth) \ 2, _
-        (LbGetSystemMetrics(LB_SM_CYSCREEN) - CLng(ImgHeight)) \ 2)
-    GfxFreeImage(NoteImage)
-    NoteTimer.Enabled = 0
-    NoteTimer.Enabled = 1
+  Dim NoteWidth As Long = LbGetSystemMetrics(LB_SM_CXSCREEN) * NOTE_SIZE_PERCENT \ 100
+  Dim NoteImage As Any Ptr
+  With LayoutList(LayoutIdx)
+    NoteImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, NoteWidth)
+  End With
+  If NoteImage = 0 Then Exit Sub
+  Dim ImgHeight As ULong
+  GdipGetImageHeight(NoteImage, ImgHeight)
+  OverlayShowImage(NoteFlag, NoteImage, _
+                   (LbGetSystemMetrics(LB_SM_CXSCREEN) - NoteWidth) \ 2, _
+                   (LbGetSystemMetrics(LB_SM_CYSCREEN) - CLng(ImgHeight)) \ 2)
+  GfxFreeImage(NoteImage)
+  NoteTimer.Enabled = 0
+  NoteTimer.Enabled = 1
 End Sub
 
 Sub OnNoteTimer()
-    NoteTimer.Enabled = 0
-    OverlayHide(NoteFlag)
+  NoteTimer.Enabled = 0
+  OverlayHide(NoteFlag)
 End Sub
 
 ' Флажок у каретки активного окна: раз в 50 мс. Нет каретки, активна
 ' панель задач или наше окно - флажок прячется.
 Sub OnCaretTimer()
-    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
-    Dim CaretPos As LbPoint, CaretHeight As Long
-    If Settings.CaretFlag = 0 Or IsOwnOrShellWindow(ForegroundWindow) Or _
-            CaretOfWindow(ForegroundWindow, CaretPos, CaretHeight) = 0 Then
-        If OverlayVisible(CaretFlag) Then OverlayHide(CaretFlag)
-        Exit Sub
-    End If
-    Dim NewPos As LbPoint
-    If CARET_FLAG_BELOW Then
-        NewPos.PosX = CaretPos.PosX
-        NewPos.PosY = CaretPos.PosY + CaretHeight + CARET_FLAG_GAP
-    Else
-        ' высота флажка 3:4 от ширины; у картинки другой пропорции
-        ' центр сместится на пару точек
-        NewPos.PosX = CaretPos.PosX + CARET_FLAG_GAP + 1
-        NewPos.PosY = CaretPos.PosY + (CaretHeight - CARET_FLAG_WIDTH * 3 \ 4) \ 2
-    End If
+  Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+  Dim CaretPos As LbPoint, CaretHeight As Long
+  If Settings.CaretFlag = 0 Or IsOwnOrShellWindow(ForegroundWindow) Or _
+          CaretOfWindow(ForegroundWindow, CaretPos, CaretHeight) = 0 Then
+  If OverlayVisible(CaretFlag) Then OverlayHide(CaretFlag)
+  Exit Sub
+End If
+Dim NewPos As LbPoint
+If CARET_FLAG_BELOW Then
+  NewPos.PosX = CaretPos.PosX
+  NewPos.PosY = CaretPos.PosY + CaretHeight + CARET_FLAG_GAP
+Else
+  ' высота флажка 3:4 от ширины; у картинки другой пропорции
+  ' центр сместится на пару точек
+  NewPos.PosX = CaretPos.PosX + CARET_FLAG_GAP + 1
+  NewPos.PosY = CaretPos.PosY + (CaretHeight - CARET_FLAG_WIDTH * 3 \ 4) \ 2
+End If
 
-    Dim Current As LayoutInfo = LayoutOfWindow(ForegroundWindow)
-    If Current.LayoutHandle <> CaretFlagLayout Or OverlayVisible(CaretFlag) = 0 Then
-        Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
-        If LayoutIdx < 0 Then Exit Sub
-        Dim FlagImage As Any Ptr
-        With LayoutList(LayoutIdx)
-            FlagImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, CARET_FLAG_WIDTH)
-        End With
-        If FlagImage = 0 Then Exit Sub
-        OverlayShowImage(CaretFlag, FlagImage, NewPos.PosX, NewPos.PosY)
-        GfxFreeImage(FlagImage)
-        CaretFlagLayout = Current.LayoutHandle
-        CaretFlagPos = NewPos
-    ElseIf NewPos.PosX <> CaretFlagPos.PosX Or NewPos.PosY <> CaretFlagPos.PosY Then
-        OverlayMove(CaretFlag, NewPos.PosX, NewPos.PosY)
-        CaretFlagPos = NewPos
-    End If
+Dim Current As LayoutInfo = LayoutOfWindow(ForegroundWindow)
+If Current.LayoutHandle <> CaretFlagLayout Or OverlayVisible(CaretFlag) = 0 Then
+  Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
+  If LayoutIdx < 0 Then Exit Sub
+  Dim FlagImage As Any Ptr
+  With LayoutList(LayoutIdx)
+    FlagImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, CARET_FLAG_WIDTH)
+  End With
+  If FlagImage = 0 Then Exit Sub
+  OverlayShowImage(CaretFlag, FlagImage, NewPos.PosX, NewPos.PosY)
+  GfxFreeImage(FlagImage)
+  CaretFlagLayout = Current.LayoutHandle
+  CaretFlagPos = NewPos
+ElseIf NewPos.PosX <> CaretFlagPos.PosX Or NewPos.PosY <> CaretFlagPos.PosY Then
+  OverlayMove(CaretFlag, NewPos.PosX, NewPos.PosY)
+  CaretFlagPos = NewPos
+End If
 End Sub
 
 ' Флажок у указателя мыши: раскладка значка в трее. Таймер идёт, пока
 ' флажок нужен: всегда или MOUSE_FLAG_SHOW_MS после смены раскладки.
 ' Мышь проходит сквозь флажок.
 Sub OnMouseTimer()
-    Dim CursorInfo As LbCursorInfo
-    CursorInfo.cbSize = SizeOf(LbCursorInfo)
-    Dim NeedFlag As Long = 1
-    Select Case Settings.MouseFlag
-    Case MOUSE_FLAG_OFF
-        NeedFlag = 0
-    Case MOUSE_FLAG_ON_CHANGE
-        If Timer > MouseFlagUntil Then NeedFlag = 0
-    End Select
-    If NeedFlag = 0 Then
-        MouseTimer.Enabled = 0
-        If OverlayVisible(MouseFlag) Then OverlayHide(MouseFlag)
-        Exit Sub
-    End If
-    ' указатель скрыт (программа прячет его при наборе) - флажок тоже
-    If LbGetCursorInfo(CursorInfo) = 0 Or (CursorInfo.flags And LB_CURSOR_SHOWING) = 0 Or ShownLayout = 0 Then
-        If OverlayVisible(MouseFlag) Then OverlayHide(MouseFlag)
-        Exit Sub
-    End If
-    Dim NewPos As LbPoint
-    NewPos.PosX = CursorInfo.ptScreenPos.PosX + MOUSE_FLAG_DX
-    NewPos.PosY = CursorInfo.ptScreenPos.PosY + MOUSE_FLAG_DY
-    If ShownLayout <> MouseFlagLayout Or OverlayVisible(MouseFlag) = 0 Then
-        Dim LayoutIdx As Long = LayoutIndexOf(ShownLayout)
-        If LayoutIdx < 0 Then Exit Sub
-        Dim FlagImage As Any Ptr
-        With LayoutList(LayoutIdx)
-            FlagImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, MOUSE_FLAG_WIDTH)
-        End With
-        If FlagImage = 0 Then Exit Sub
-        OverlayShowImage(MouseFlag, FlagImage, NewPos.PosX, NewPos.PosY)
-        GfxFreeImage(FlagImage)
-        MouseFlagLayout = ShownLayout
-        MouseFlagPos = NewPos
-    ElseIf NewPos.PosX <> MouseFlagPos.PosX Or NewPos.PosY <> MouseFlagPos.PosY Then
-        OverlayMove(MouseFlag, NewPos.PosX, NewPos.PosY)
-        MouseFlagPos = NewPos
-    End If
+  Dim CursorInfo As LbCursorInfo
+  CursorInfo.cbSize = SizeOf(LbCursorInfo)
+  Dim NeedFlag As Long = 1
+  Select Case Settings.MouseFlag
+  Case MOUSE_FLAG_OFF
+    NeedFlag = 0
+  Case MOUSE_FLAG_ON_CHANGE
+    If Timer > MouseFlagUntil Then NeedFlag = 0
+  End Select
+  If NeedFlag = 0 Then
+    MouseTimer.Enabled = 0
+    If OverlayVisible(MouseFlag) Then OverlayHide(MouseFlag)
+    Exit Sub
+  End If
+  ' указатель скрыт (программа прячет его при наборе) - флажок тоже
+  If LbGetCursorInfo(CursorInfo) = 0 Or (CursorInfo.flags And LB_CURSOR_SHOWING) = 0 Or ShownLayout = 0 Then
+    If OverlayVisible(MouseFlag) Then OverlayHide(MouseFlag)
+    Exit Sub
+  End If
+  Dim NewPos As LbPoint
+  NewPos.PosX = CursorInfo.ptScreenPos.PosX + MOUSE_FLAG_DX
+  NewPos.PosY = CursorInfo.ptScreenPos.PosY + MOUSE_FLAG_DY
+  If ShownLayout <> MouseFlagLayout Or OverlayVisible(MouseFlag) = 0 Then
+    Dim LayoutIdx As Long = LayoutIndexOf(ShownLayout)
+    If LayoutIdx < 0 Then Exit Sub
+    Dim FlagImage As Any Ptr
+    With LayoutList(LayoutIdx)
+      FlagImage = GfxMakeFlagImage(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, MOUSE_FLAG_WIDTH)
+    End With
+    If FlagImage = 0 Then Exit Sub
+    OverlayShowImage(MouseFlag, FlagImage, NewPos.PosX, NewPos.PosY)
+    GfxFreeImage(FlagImage)
+    MouseFlagLayout = ShownLayout
+    MouseFlagPos = NewPos
+  ElseIf NewPos.PosX <> MouseFlagPos.PosX Or NewPos.PosY <> MouseFlagPos.PosY Then
+    OverlayMove(MouseFlag, NewPos.PosX, NewPos.PosY)
+    MouseFlagPos = NewPos
+  End If
 End Sub
 
 ' Раскладка сменилась или поменялись настройки - флажок у мыши показать
 Sub StartMouseFlag()
-    If Settings.MouseFlag = MOUSE_FLAG_OFF Then
-        OnMouseTimer()
-        Exit Sub
-    End If
-    MouseFlagUntil = Timer + MOUSE_FLAG_SHOW_MS / 1000
-    MouseTimer.Enabled = 1
+  If Settings.MouseFlag = MOUSE_FLAG_OFF Then
     OnMouseTimer()
+    Exit Sub
+  End If
+  MouseFlagUntil = Timer + MOUSE_FLAG_SHOW_MS / 1000
+  MouseTimer.Enabled = 1
+  OnMouseTimer()
 End Sub
 
 ' Флажок не активируется, поэтому активным остаётся окно с кареткой
 Function IsClickOnCaretFlag() As Long
-    If OverlayVisible(CaretFlag) = 0 Then Return 0
-    With KbLastClickPos
-        Return IIf(.PosX >= CaretFlagPos.PosX And .PosX < CaretFlagPos.PosX + CaretFlag.ImageWidth _
-            And .PosY >= CaretFlagPos.PosY And .PosY < CaretFlagPos.PosY + CaretFlag.ImageHeight, 1, 0)
-    End With
+  If OverlayVisible(CaretFlag) = 0 Then Return 0
+  With KbLastClickPos
+    Return IIf(.PosX >= CaretFlagPos.PosX And .PosX < CaretFlagPos.PosX + CaretFlag.ImageWidth _
+               And .PosY >= CaretFlagPos.PosY And .PosY < CaretFlagPos.PosY + CaretFlag.ImageHeight, 1, 0)
+  End With
 End Function
 
 ' Правый щелчок по флажку у каретки - как Break (ПКМ по флажку у LangBarXX)
 Sub OnCaretFlagRightClick()
-    RunHotkeyAction(ACTION_UNDO_CONVERT)
+  RunHotkeyAction(ACTION_UNDO_CONVERT)
 End Sub
 
 Sub OnCaretFlagClick()
-    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
-    If IsOwnOrShellWindow(ForegroundWindow) Then ForegroundWindow = LastUserWindow
-    LayoutNext(ForegroundWindow)
+  Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+  If IsOwnOrShellWindow(ForegroundWindow) Then ForegroundWindow = LastUserWindow
+  LayoutNext(ForegroundWindow)
 End Sub
 
 ' Значок трея - флажок раскладки LayoutHandle окна WindowHandle
 Sub ShowLayoutInTray(ByVal LayoutHandle As UInteger, ByVal WindowHandle As Any Ptr)
-    Dim LayoutIdx As Long = LayoutIndexOf(LayoutHandle)
-    If LayoutIdx < 0 Then
-        ' раскладку добавили в Windows после запуска
-        LoadFlags()
-        LoadSpell()
-        LayoutIdx = LayoutIndexOf(LayoutHandle)
-        If LayoutIdx < 0 Then Exit Sub
-    End If
-    Dim IconSize As Long = LbGetSystemMetrics(LB_SM_CXSMICON)
-    If IconSize < 16 Then IconSize = 16
-    With LayoutList(LayoutIdx)
-        TraySetIcon(GfxMakeFlagIcon(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, IconSize))
-        TraySetTip(APP_TITLE & ": " & .LocaleCode)
-    End With
-    ' уведомление - только когда раскладку сменили в том же окне; при
-    ' запуске и при переходе в окно с другой раскладкой его нет
-    If ShownLayout <> 0 And WindowHandle = ShownLayoutWindow Then ShowLayoutNote(LayoutIdx)
-    Dim LayoutChanged As Long = IIf(ShownLayout <> 0 And LayoutHandle <> ShownLayout, 1, 0)
-    ShownLayout = LayoutHandle
-    ShownLayoutWindow = WindowHandle
-    If LayoutChanged Then StartMouseFlag()
+  Dim LayoutIdx As Long = LayoutIndexOf(LayoutHandle)
+  If LayoutIdx < 0 Then
+    ' раскладку добавили в Windows после запуска
+    LoadFlags()
+    LoadSpell()
+    LayoutIdx = LayoutIndexOf(LayoutHandle)
+    If LayoutIdx < 0 Then Exit Sub
+  End If
+  Dim IconSize As Long = LbGetSystemMetrics(LB_SM_CXSMICON)
+  If IconSize < 16 Then IconSize = 16
+  With LayoutList(LayoutIdx)
+    TraySetIcon(GfxMakeFlagIcon(FlagImages(LayoutIdx), .ShortLabel, .FlagColor, IconSize))
+    TraySetTip(APP_TITLE & ": " & .LocaleCode)
+  End With
+  ' уведомление - только когда раскладку сменили в том же окне; при
+  ' запуске и при переходе в окно с другой раскладкой его нет
+  If ShownLayout <> 0 And WindowHandle = ShownLayoutWindow Then ShowLayoutNote(LayoutIdx)
+  Dim LayoutChanged As Long = IIf(ShownLayout <> 0 And LayoutHandle <> ShownLayout, 1, 0)
+  ShownLayout = LayoutHandle
+  ShownLayoutWindow = WindowHandle
+  If LayoutChanged Then StartMouseFlag()
 End Sub
 
 Function DescribeEvent(ByRef KeyEvent As KbEvent) As String
-    Dim Direction As String = IIf(KeyEvent.IsKeyUp, "отпущена", "нажата  ")
-    Dim LineText As String = Time & "  " & Direction & "  vk=" & HexByte(KeyEvent.VirtualKey) _
-        & "  sc=" & HexByte(KeyEvent.ScanCode)
-    If (KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0 Then LineText &= "  ext"
-    If (KeyEvent.KeyFlags And LB_LLKHF_ALTDOWN) <> 0 Then LineText &= "  alt"
-    If KeyEvent.IsInjected Then LineText &= "  программная"
-    If KeyEvent.IsSwallowed Then LineText &= "  проглочена (сочетание)"
-    ' сочетание назначено, но не сработало - почему
-    If KeyEvent.IsSwallowed = 0 AndAlso HotkeyActionOf(KeyEvent) >= 0 Then
-        LineText &= IIf(HotkeysEnabled = 0, "  сочетание не действует: открыто окно настроек", _
-            "  сочетание назначено, но не проглочено")
-    End If
-    If KeyEvent.Modifiers <> 0 Then LineText &= "  mods=" & KeyEvent.Modifiers
-    If KeyEvent.HeldMask <> 0 Then LineText &= "  held=" & Hex(KeyEvent.HeldMask)
-    ' раскладка активного окна на момент разбора события
-    Dim Current As LayoutInfo = LayoutOfForeground()
-    Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
-    If LayoutIdx >= 0 Then LineText &= "  [" & LayoutList(LayoutIdx).LocaleCode & "]"
-    Return LineText
+  Dim Direction As String = IIf(KeyEvent.IsKeyUp, "отпущена", "нажата  ")
+  Dim LineText As String = Time & "  " & Direction & "  vk=" & HexByte(KeyEvent.VirtualKey) _
+      & "  sc=" & HexByte(KeyEvent.ScanCode)
+  If (KeyEvent.KeyFlags And LB_LLKHF_EXTENDED) <> 0 Then LineText &= "  ext"
+  If (KeyEvent.KeyFlags And LB_LLKHF_ALTDOWN) <> 0 Then LineText &= "  alt"
+  If KeyEvent.IsInjected Then LineText &= "  программная"
+  If KeyEvent.IsSwallowed Then LineText &= "  проглочена (сочетание)"
+  ' сочетание назначено, но не сработало - почему
+  If KeyEvent.IsSwallowed = 0 AndAlso HotkeyActionOf(KeyEvent) >= 0 Then
+    LineText &= IIf(HotkeysEnabled = 0, "  сочетание не действует: открыто окно настроек", _
+                    "  сочетание назначено, но не проглочено")
+  End If
+  If KeyEvent.Modifiers <> 0 Then LineText &= "  mods=" & KeyEvent.Modifiers
+  If KeyEvent.HeldMask <> 0 Then LineText &= "  held=" & Hex(KeyEvent.HeldMask)
+  ' раскладка активного окна на момент разбора события
+  Dim Current As LayoutInfo = LayoutOfForeground()
+  Dim LayoutIdx As Long = LayoutIndexOf(Current.LayoutHandle)
+  If LayoutIdx >= 0 Then LineText &= "  [" & LayoutList(LayoutIdx).LocaleCode & "]"
+  Return LineText
 End Function
 
 ' Сигнал хука: разбираем всё, что накопилось в буфере
 Sub OnKeyEvents()
-    Dim KeyEvent As KbEvent
-    Dim AddedCount As Long
-    While KbHookTakeEvent(KeyEvent)
-        WordBufferFeed(KeyEvent)
-        ' список ведётся, только пока окно отладки открыто
-        If MainForm.Visible Then
-            EventList.AddItems(DescribeEvent(KeyEvent))
-            AddedCount += 1
-        End If
+  Dim KeyEvent As KbEvent
+  Dim AddedCount As Long
+  While KbHookTakeEvent(KeyEvent)
+    WordBufferFeed(KeyEvent)
+    ' список ведётся, только пока окно отладки открыто
+    If MainForm.Visible Then
+      EventList.AddItems(DescribeEvent(KeyEvent))
+      AddedCount += 1
+    End If
+  Wend
+  LastEventTick = Timer
+  If AddedCount > 0 Then
+    While EventList.ItemCount > MAX_LOG_LINES
+      EventList.DelItems(0)
     Wend
-    LastEventTick = Timer
-    If AddedCount > 0 Then
-        While EventList.ItemCount > MAX_LOG_LINES
-            EventList.DelItems(0)
-        Wend
-        If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
-    End If
-    ' автопереключение: начало слова (третья буква) и слово перед пробелом
-    If WordLetterFed Then
-        WordLetterFed = 0
-        AutoSwitchStart()
-    End If
-    If WordSpaceFed Then
-        WordSpaceFed = 0
-        AutoSwitchWord()
-    End If
-    StartQuickRefresh()
+    If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
+  End If
+  ' автопереключение: начало слова (третья буква) и слово перед пробелом
+  If WordLetterFed Then
+    WordLetterFed = 0
+    AutoSwitchStart()
+  End If
+  If WordSpaceFed Then
+    WordSpaceFed = 0
+    AutoSwitchWord()
+  End If
+  StartQuickRefresh()
 End Sub
 
 ' Окно, где менять раскладку: активное, а если активно наше окно или
 ' панель задач - то, где работали до них
 Function SwitchTargetWindow() As Any Ptr
-    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
-    If IsOwnOrShellWindow(ForegroundWindow) Then Return LastUserWindow
-    Return ForegroundWindow
+  Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+  If IsOwnOrShellWindow(ForegroundWindow) Then Return LastUserWindow
+  Return ForegroundWindow
 End Function
 
 ' Строка в окне отладки (пока оно открыто)
 Sub DebugLog(ByRef LineText As String)
-    If MainForm.Visible = 0 Then Exit Sub
-    EventList.AddItems(Time & "  " & LineText)
-    If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
+  If MainForm.Visible = 0 Then Exit Sub
+  EventList.AddItems(Time & "  " & LineText)
+  If EventList.SelCount <= 1 Then EventList.ItemIndex = EventList.ItemCount - 1
 End Sub
 
 ' Смена раскладки с клавиатуры: с проверкой и записью в окно отладки
 Sub SwitchFromKeyboard(ByRef Reason As String, ByVal TargetWindow As Any Ptr, ByVal LayoutHandle As UInteger)
-    Static SwitchBusy As Long
-    If SwitchBusy Or LayoutHandle = 0 Then Exit Sub
-    SwitchBusy = 1
-    ' 30 мс - чтобы окно успело получить отпускание клавиши
-    Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, LayoutHandle, 30)
-    StartQuickRefresh()
-    Dim TargetIdx As Long = LayoutIndexOf(LayoutHandle)
-    Dim TargetCode As String = IIf(TargetIdx >= 0, LayoutList(TargetIdx).LocaleCode, Hex(LayoutHandle))
-    Dim ResultText As String
-    Select Case SwitchResult
-    Case 1
-        ResultText = "сменилась"
-    Case 2
-        ResultText = "сменилась со второго запроса (окну)"
-    Case Else
-        ResultText = "НЕ сменилась, у окна " & Hex(LayoutOfWindow(TargetWindow).LayoutHandle)
-    End Select
-    DebugLog(Reason & " -> " & TargetCode & ": " & ResultText & ", класс окна " & LayoutOfWindow(TargetWindow).WindowClass)
-    SwitchBusy = 0
+  Static SwitchBusy As Long
+  If SwitchBusy Or LayoutHandle = 0 Then Exit Sub
+  SwitchBusy = 1
+  ' 30 мс - чтобы окно успело получить отпускание клавиши
+  Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, LayoutHandle, 30)
+  StartQuickRefresh()
+  Dim TargetIdx As Long = LayoutIndexOf(LayoutHandle)
+  Dim TargetCode As String = IIf(TargetIdx >= 0, LayoutList(TargetIdx).LocaleCode, Hex(LayoutHandle))
+  Dim ResultText As String
+  Select Case SwitchResult
+  Case 1
+    ResultText = "сменилась"
+  Case 2
+    ResultText = "сменилась со второго запроса (окну)"
+  Case Else
+    ResultText = "НЕ сменилась, у окна " & Hex(LayoutOfWindow(TargetWindow).LayoutHandle)
+  End Select
+  DebugLog(Reason & " -> " & TargetCode & ": " & ResultText & ", класс окна " & LayoutOfWindow(TargetWindow).WindowClass)
+  SwitchBusy = 0
 End Sub
 
 ' Одиночный Shift или Ctrl отпущен
 Sub OnSoloKey(ByVal KeyIdx As Long)
-    Static LastKeyIdx As Long = -1
-    Static LastPressTime As Double
-    If KeyIdx < 0 Or KeyIdx >= SOLO_KEY_COUNT Then Exit Sub
-    If Settings.DoublePress Then
-        If KeyIdx <> LastKeyIdx Or Timer - LastPressTime > DOUBLE_PRESS_SECONDS Then
-            LastKeyIdx = KeyIdx
-            LastPressTime = Timer
-            DebugLog(SoloKeyTitles(KeyIdx) & ": первое нажатие, ждём второе")
-            Exit Sub
-        End If
-        LastKeyIdx = -1
+  Static LastKeyIdx As Long = -1
+  Static LastPressTime As Double
+  If KeyIdx < 0 Or KeyIdx >= SOLO_KEY_COUNT Then Exit Sub
+  If Settings.DoublePress Then
+    If KeyIdx <> LastKeyIdx Or Timer - LastPressTime > DOUBLE_PRESS_SECONDS Then
+      LastKeyIdx = KeyIdx
+      LastPressTime = Timer
+      DebugLog(SoloKeyTitles(KeyIdx) & ": первое нажатие, ждём второе")
+      Exit Sub
     End If
-    Dim TargetWindow As Any Ptr = SwitchTargetWindow()
-    Dim KeyAction As String = Settings.SoloKeyAction(KeyIdx)
-    Dim LayoutHandle As UInteger
-    Select Case KeyAction
-    Case "next"
-        LayoutHandle = LayoutShifted(TargetWindow, 1)
-    Case "prev"
-        LayoutHandle = LayoutShifted(TargetWindow, -1)
-    Case Else
-        Dim LayoutIdx As Long = LayoutIndexOfCode(KeyAction)
-        If LayoutIdx >= 0 Then LayoutHandle = LayoutList(LayoutIdx).LayoutHandle
-    End Select
-    SwitchFromKeyboard(SoloKeyTitles(KeyIdx) & " (" & KeyAction & ")", TargetWindow, LayoutHandle)
+    LastKeyIdx = -1
+  End If
+  Dim TargetWindow As Any Ptr = SwitchTargetWindow()
+  Dim KeyAction As String = Settings.SoloKeyAction(KeyIdx)
+  Dim LayoutHandle As UInteger
+  Select Case KeyAction
+  Case "next"
+    LayoutHandle = LayoutShifted(TargetWindow, 1)
+  Case "prev"
+    LayoutHandle = LayoutShifted(TargetWindow, -1)
+  Case Else
+    Dim LayoutIdx As Long = LayoutIndexOfCode(KeyAction)
+    If LayoutIdx >= 0 Then LayoutHandle = LayoutList(LayoutIdx).LayoutHandle
+  End Select
+  SwitchFromKeyboard(SoloKeyTitles(KeyIdx) & " (" & KeyAction & ")", TargetWindow, LayoutHandle)
 End Sub
 
 ' Раскладка по номеру (левый Ctrl/Alt/Win + цифра) или следующая (Caps Lock)
 Sub OnSwitchLayout(ByVal LayoutIdx As Long)
-    ' после проглоченной цифры отпущенный Alt или Win открыл бы меню
-    If LayoutIdx >= 0 And Settings.LangSelect >= 2 Then SendKeyTap(LB_VK_MENU_MASK)
-    Dim TargetWindow As Any Ptr = SwitchTargetWindow()
-    If LayoutIdx < 0 Then
-        SwitchFromKeyboard("Caps Lock", TargetWindow, LayoutShifted(TargetWindow, 1))
-    ElseIf LayoutIdx < LayoutCount Then
-        SwitchFromKeyboard("Раскладка номер " & (LayoutIdx + 1), TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
-    End If
+  ' после проглоченной цифры отпущенный Alt или Win открыл бы меню
+  If LayoutIdx >= 0 And Settings.LangSelect >= 2 Then SendKeyTap(LB_VK_MENU_MASK)
+  Dim TargetWindow As Any Ptr = SwitchTargetWindow()
+  If LayoutIdx < 0 Then
+    SwitchFromKeyboard("Caps Lock", TargetWindow, LayoutShifted(TargetWindow, 1))
+  ElseIf LayoutIdx < LayoutCount Then
+    SwitchFromKeyboard("Раскладка номер " & (LayoutIdx + 1), TargetWindow, LayoutList(LayoutIdx).LayoutHandle)
+  End If
 End Sub
 
 ' --- словари ---
 
 ' Скачать библиотеку Hunspell и словари раскладок в папку exe
 Sub StartDictDownload()
-    Dim FileCount As Long = DictDownloadStart(ExePath, TrayWindow, DICT_DONE_MSG)
-    Select Case FileCount
-    Case -1
-        LbMessageBox(0, Tr("Словари уже скачиваются."), APP_TITLE, LB_MB_ICONINFORMATION)
-    Case 0
-        LoadSpell()
-        If SpellDictCount > 0 Then
-            LbMessageBox(0, Tr("Скачивать нечего: ") & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
-        Else
-            LbMessageBox(0, Tr("Для раскладок Windows нет словарей в LangBarFB.") & Chr(13, 10) _
-                & Tr("Словари других языков: меню «Словари других языков...»."), APP_TITLE, LB_MB_ICONINFORMATION)
-        End If
-    Case Else
-        DebugLog("скачивание словарей: " & FileCount & " файлов, языки " & DictLangList)
-    End Select
+  Dim FileCount As Long = DictDownloadStart(ExePath, TrayWindow, DICT_DONE_MSG)
+  Select Case FileCount
+  Case -1
+    LbMessageBox(0, Tr("Словари уже скачиваются."), APP_TITLE, LB_MB_ICONINFORMATION)
+  Case 0
+    LoadSpell()
+    If SpellDictCount > 0 Then
+      LbMessageBox(0, Tr("Скачивать нечего: ") & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
+    Else
+      LbMessageBox(0, Tr("Для раскладок Windows нет словарей в LangBarFB.") & Chr(13, 10) _
+                   & Tr("Словари других языков: меню «Словари других языков...»."), APP_TITLE, LB_MB_ICONINFORMATION)
+    End If
+  Case Else
+    DebugLog("скачивание словарей: " & FileCount & " файлов, языки " & DictLangList)
+  End Select
 End Sub
 
 ' Поток скачивания закончил
 Sub OnDictDone()
-    Dim FailedCount As Long
-    Dim ResultText As String = DictDownloadResult(FailedCount)
-    LoadSpell()
-    DebugLog("скачивание словарей: " & ResultText & "Hunspell: " & SpellStatus)
-    If FailedCount > 0 Then
-        LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & "." & Chr(13, 10) & Chr(13, 10) _
-            & Tr("Папки hunspell и dict можно скачать вручную: ") & DICT_PAGE_URL & Chr(13, 10) _
-            & Tr("и положить рядом с программой (") & ExePath & ").", APP_TITLE, LB_MB_ICONWARNING)
-    Else
-        LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
-    End If
+  Dim FailedCount As Long
+  Dim ResultText As String = DictDownloadResult(FailedCount)
+  LoadSpell()
+  DebugLog("скачивание словарей: " & ResultText & "Hunspell: " & SpellStatus)
+  If FailedCount > 0 Then
+    LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & "." & Chr(13, 10) & Chr(13, 10) _
+                 & Tr("Папки hunspell и dict можно скачать вручную: ") & DICT_PAGE_URL & Chr(13, 10) _
+                 & Tr("и положить рядом с программой (") & ExePath & ").", APP_TITLE, LB_MB_ICONWARNING)
+  Else
+    LbMessageBox(0, ResultText & Chr(13, 10) & "Hunspell: " & SpellStatus & ".", APP_TITLE, LB_MB_ICONINFORMATION)
+  End If
 End Sub
 
 ' Словарей нет - предложить скачать. 1 - пользователь согласился.
 Function AskDictDownload() As Long
-    Dim Answer As Long = LbMessageBox(0, Tr("Для автопереключения нужны словари Hunspell (") & SpellStatus & ")." _
-        & Chr(13, 10) & Tr("Скачать их сейчас? Это несколько мегабайт, только языки ваших раскладок."), _
-        APP_TITLE, LB_MB_YESNO Or LB_MB_ICONQUESTION)
-    If Answer <> LB_IDYES Then Return 0
-    StartDictDownload()
-    Return 1
+  Dim Answer As Long = LbMessageBox(0, Tr("Для автопереключения нужны словари Hunspell (") & SpellStatus & ")." _
+                                    & Chr(13, 10) & Tr("Скачать их сейчас? Это несколько мегабайт, только языки ваших раскладок."), _
+                                    APP_TITLE, LB_MB_YESNO Or LB_MB_ICONQUESTION)
+  If Answer <> LB_IDYES Then Return 0
+  StartDictDownload()
+  Return 1
 End Function
 
 Sub OnAppMessage(ByVal Msg As ULong, ByVal WParam As UInteger)
-    Select Case Msg
-    Case KEY_EVENT_MSG
-        OnKeyEvents()
-    Case HOTKEY_ACTION_MSG
-        ' нажатия, пришедшие до сочетания, должны попасть в буфер слова
-        OnKeyEvents()
-        RunHotkeyAction(CLng(WParam))
-        StartQuickRefresh()
-    Case HOTKEY_CAPTURE_MSG
-        SettingsCaptureDone()
-    Case SWITCH_SOLO_MSG
-        OnKeyEvents()
-        DebugLog("одиночная клавиша: " & SoloKeyTitles(CLng(WParam) And 3))
-        OnSoloKey(CLng(WParam))
-    Case SWITCH_LAYOUT_MSG
-        OnSwitchLayout(CLng(Cast(Integer, WParam)))
-    Case DICT_DONE_MSG
-        OnDictDone()
-    Case MOUSE_CLICK_MSG
-        ' каретка могла уйти - набранное слово больше не перед ней. Щелчок
-        ' по флажку у каретки каретку не двигает (правый - исправляет слово)
-        If IsClickOnCaretFlag() = 0 Then
-            WordBufferReset()
-            WordCaretMoved = 1
-        End If
-    End Select
+  Select Case Msg
+  Case KEY_EVENT_MSG
+    OnKeyEvents()
+  Case HOTKEY_ACTION_MSG
+    ' нажатия, пришедшие до сочетания, должны попасть в буфер слова
+    OnKeyEvents()
+    RunHotkeyAction(CLng(WParam))
+    StartQuickRefresh()
+  Case HOTKEY_CAPTURE_MSG
+    SettingsCaptureDone()
+  Case SWITCH_SOLO_MSG
+    OnKeyEvents()
+    DebugLog("одиночная клавиша: " & SoloKeyTitles(CLng(WParam) And 3))
+    OnSoloKey(CLng(WParam))
+  Case SWITCH_LAYOUT_MSG
+    OnSwitchLayout(CLng(Cast(Integer, WParam)))
+  Case DICT_DONE_MSG
+    OnDictDone()
+  Case MOUSE_CLICK_MSG
+    ' каретка могла уйти - набранное слово больше не перед ней. Щелчок
+    ' по флажку у каретки каретку не двигает (правый - исправляет слово)
+    If IsClickOnCaretFlag() = 0 Then
+      WordBufferReset()
+      WordCaretMoved = 1
+    End If
+  End Select
 End Sub
 
 Sub OnPollTimer()
-    ' user_dict.dic поправили в редакторе - раз в 2 с (каждый 8-й тик)
-    Static PollTicks As Long
-    PollTicks += 1
-    If PollTicks Mod 8 = 0 AndAlso SpellDictCount > 0 Then
-        Dim AddedWords As Long, RemovedWords As Long
-        If SpellUserSync(AddedWords, RemovedWords) Then
-            If RemovedWords > 0 Then
-                SpellLoad(Settings.SpellFolder)
-                DebugLog("user_dict.dic изменён: убрано слов " & RemovedWords & ", добавлено " & AddedWords _
-                    & " - словари перечитаны")
-            Else
-                DebugLog("user_dict.dic изменён: добавлено слов " & AddedWords)
-            End If
-        End If
+  ' user_dict.dic поправили в редакторе - раз в 2 с (каждый 8-й тик)
+  Static PollTicks As Long
+  PollTicks += 1
+  If PollTicks Mod 8 = 0 AndAlso SpellDictCount > 0 Then
+    Dim AddedWords As Long, RemovedWords As Long
+    If SpellUserSync(AddedWords, RemovedWords) Then
+      If RemovedWords > 0 Then
+        SpellLoad(Settings.SpellFolder)
+        DebugLog("user_dict.dic изменён: убрано слов " & RemovedWords & ", добавлено " & AddedWords _
+                 & " - словари перечитаны")
+      Else
+        DebugLog("user_dict.dic изменён: добавлено слов " & AddedWords)
+      End If
     End If
-    If KbHookWatch() Then
-        DebugLog("хуки клавиатуры и мыши поставлены заново (" & KbReinstallCount _
-            & "-й раз): был ввод, а хук не вызывался - Windows сняла его" _
-            & IIf(KbHookHandle = 0, "; поставить не удалось, ошибка " & LbGetLastError(), ""))
-    End If
-    Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
-    If IsOwnOrShellWindow(ForegroundWindow) = 0 Then LastUserWindow = ForegroundWindow
+  End If
+  If KbHookWatch() Then
+    DebugLog("хуки клавиатуры и мыши поставлены заново (" & KbReinstallCount _
+                                                        & "-й раз): был ввод, а хук не вызывался - Windows сняла его" _
+             & IIf(KbHookHandle = 0, "; поставить не удалось, ошибка " & LbGetLastError(), ""))
+  End If
+  Dim ForegroundWindow As Any Ptr = LbGetForegroundWindow()
+  If IsOwnOrShellWindow(ForegroundWindow) = 0 Then LastUserWindow = ForegroundWindow
 
-    ' флажок - раскладка окна, где работают; пока открыто меню значка
-    ' или окно отладки - раскладка того окна, что было до них
-    Dim Current As LayoutInfo = LayoutOfWindow(LastUserWindow)
-    If Current.LayoutHandle <> 0 And _
-            (Current.LayoutHandle <> ShownLayout Or LastUserWindow <> ShownLayoutWindow) Then
-        ShowLayoutInTray(Current.LayoutHandle, LastUserWindow)
-    End If
+  ' флажок - раскладка окна, где работают; пока открыто меню значка
+  ' или окно отладки - раскладка того окна, что было до них
+  Dim Current As LayoutInfo = LayoutOfWindow(LastUserWindow)
+  If Current.LayoutHandle <> 0 And _
+          (Current.LayoutHandle <> ShownLayout Or LastUserWindow <> ShownLayoutWindow) Then
+  ShowLayoutInTray(Current.LayoutHandle, LastUserWindow)
+End If
 
-    If MainForm.Visible = 0 Then Exit Sub
-    LayoutLabel.Caption = "Раскладка окна: " & Current.LanguageCode _
-        & " (0x" & Right("0000" & Hex(Current.LanguageId), 4) & "), класс окна: " & Current.WindowClass
-    Dim HookState As String = IIf(KbHookHandle <> 0, "хук стоит", "хука нет")
-    Dim SinceLast As String = "-"
-    If LastEventTick > 0 Then SinceLast = Str(Int((Timer - LastEventTick) * 10) / 10) & " с назад"
-    HookLabel.Caption = HookState & ";  вызовов: " & KbHookCalls _
-        & ";  в обработчике: среднее " & KbHookAverageMicros() & " мкс, наибольшее " & KbMaxHookMicros & " мкс" _
-        & ";  потеряно: " & KbLostEvents & ";  поставлен заново: " & KbReinstallCount _
-        & ";  последнее нажатие: " & SinceLast
-    FlagsLabel.Caption = FlagsLabelText & ";  " & CaretDebugText
+If MainForm.Visible = 0 Then Exit Sub
+LayoutLabel.Caption = "Раскладка окна: " & Current.LanguageCode _
+    & " (0x" & Right("0000" & Hex(Current.LanguageId), 4) & "), класс окна: " & Current.WindowClass
+Dim HookState As String = IIf(KbHookHandle <> 0, "хук стоит", "хука нет")
+Dim SinceLast As String = "-"
+If LastEventTick > 0 Then SinceLast = Str(Int((Timer - LastEventTick) * 10) / 10) & " с назад"
+HookLabel.Caption = HookState & ";  вызовов: " & KbHookCalls _
+    & ";  в обработчике: среднее " & KbHookAverageMicros() & " мкс, наибольшее " & KbMaxHookMicros & " мкс" _
+    & ";  потеряно: " & KbLostEvents & ";  поставлен заново: " & KbReinstallCount _
+    & ";  последнее нажатие: " & SinceLast
+FlagsLabel.Caption = FlagsLabelText & ";  " & CaretDebugText
 End Sub
 
 ' Раскладку, значок и флажки - сразу и ещё несколько раз подряд
 Sub OnQuickTimer()
-    OnPollTimer()
-    OnCaretTimer()
-    QuickTicksLeft -= 1
-    If QuickTicksLeft <= 0 Then QuickTimer.Enabled = 0
+  OnPollTimer()
+  OnCaretTimer()
+  QuickTicksLeft -= 1
+  If QuickTicksLeft <= 0 Then QuickTimer.Enabled = 0
 End Sub
 
 Sub StartQuickRefresh()
-    QuickTicksLeft = QUICK_REFRESH_TICKS
-    OnPollTimer()
-    OnCaretTimer()
-    QuickTimer.Enabled = 1
+  QuickTicksLeft = QUICK_REFRESH_TICKS
+  OnPollTimer()
+  OnCaretTimer()
+  QuickTimer.Enabled = 1
 End Sub
 
 Sub OnClearClick()
-    EventList.Clear
+  EventList.Clear
 End Sub
 
 ' Строки журнала - в буфер обмена: выделенные (Ctrl/Shift + щелчок),
 ' а если выделена одна строка или ни одной - все
 Sub OnCopyLogClick()
-    Dim LogText As String
-    Dim LineIdx As Long
-    Dim OnlySelected As Long = IIf(EventList.SelCount > 1, 1, 0)
-    For LineIdx = 0 To EventList.ItemCount - 1
-        If OnlySelected = 0 OrElse EventList.Selected(LineIdx) Then
-            LogText &= EventList.Item(LineIdx) & Chr(13, 10)
-        End If
-    Next
-    If LogText = "" Then Exit Sub
-    Dim WideChars(0 To Len(LogText)) As UShort
-    Dim CharCount As Long = LbMultiByteToWideChar(LB_CP_ACP, 0, StrPtr(LogText), Len(LogText), _
-        Cast(WString Ptr, @WideChars(0)), Len(LogText) + 1)
-    If CharCount > 0 Then ClipboardWriteText(WideChars(), CharCount)
+  Dim LogText As String
+  Dim LineIdx As Long
+  Dim OnlySelected As Long = IIf(EventList.SelCount > 1, 1, 0)
+  For LineIdx = 0 To EventList.ItemCount - 1
+    If OnlySelected = 0 OrElse EventList.Selected(LineIdx) Then
+      LogText &= EventList.Item(LineIdx) & Chr(13, 10)
+    End If
+  Next
+  If LogText = "" Then Exit Sub
+  Dim WideChars(0 To Len(LogText)) As UShort
+  Dim CharCount As Long = LbMultiByteToWideChar(LB_CP_ACP, 0, StrPtr(LogText), Len(LogText), _
+                                                Cast(WString Ptr, @WideChars(0)), Len(LogText) + 1)
+  If CharCount > 0 Then ClipboardWriteText(WideChars(), CharCount)
 End Sub
 
 ' Список журнала растягивается вместе с окном
 Sub OnMainFormResize()
-    EventList.Width = MainForm.ClientWidth - 16
-    EventList.Height = MainForm.ClientHeight - 118
-    LayoutLabel.Width = MainForm.ClientWidth - 16
-    HookLabel.Width = MainForm.ClientWidth - 16
-    FlagsLabel.Width = MainForm.ClientWidth - 16
+  EventList.Width = MainForm.ClientWidth - 16
+  EventList.Height = MainForm.ClientHeight - 118
+  LayoutLabel.Width = MainForm.ClientWidth - 16
+  HookLabel.Width = MainForm.ClientWidth - 16
+  FlagsLabel.Width = MainForm.ClientWidth - 16
 End Sub
 
 Sub OnTrayClick()
-    LayoutNext(LastUserWindow)
-    ' Windows может не дать окну активироваться обратно после щелчка по
-    ' значку; раскладку окно получит и без этого
-    LbSetForegroundWindow(LastUserWindow)
+  LayoutNext(LastUserWindow)
+  ' Windows может не дать окну активироваться обратно после щелчка по
+  ' значку; раскладку окно получит и без этого
+  LbSetForegroundWindow(LastUserWindow)
 End Sub
 
 Sub OnTrayShow()
-    MainForm.WindowState = 0
-    MainForm.Show
-    ' окно отладки - поверх всех окон (HWND_TOPMOST), чтобы лог был виден,
-    ' пока работаешь в другом окне
-    LbSetWindowPos(Cast(Any Ptr, MainForm.Handle), Cast(Any Ptr, -1), 0, 0, 0, 0, _
-        LB_SWP_NOMOVE Or LB_SWP_NOSIZE)
-    LbSetForegroundWindow(Cast(Any Ptr, MainForm.Handle))
+  MainForm.WindowState = 0
+  MainForm.Show
+  ' окно отладки - поверх всех окон (HWND_TOPMOST), чтобы лог был виден,
+  ' пока работаешь в другом окне
+  LbSetWindowPos(Cast(Any Ptr, MainForm.Handle), Cast(Any Ptr, -1), 0, 0, 0, 0, _
+                 LB_SWP_NOMOVE Or LB_SWP_NOSIZE)
+  LbSetForegroundWindow(Cast(Any Ptr, MainForm.Handle))
 End Sub
 
 Sub OnTrayExit()
-    ExitRequested = 1
-    LbPostMessage(TrayWindow, LB_WM_NULL, 0, 0)
+  ExitRequested = 1
+  LbPostMessage(TrayWindow, LB_WM_NULL, 0, 0)
 End Sub
 
 ' Настройки поменялись (окно настроек, меню значка)
 Sub ApplySettings()
-    ConfigApplyAutoStart(Settings.AutoStart)
-    HotkeysLoadTable()
-    SwitchLoadTable()
-    SwitchFixLockKeys()
-    If Settings.CaretFlag = 0 Then OverlayHide(CaretFlag)
-    StartMouseFlag()
-    If Settings.SpellFolder <> SpellLoadedFolder Then LoadSpell()
-    SpellLabel.Caption = "Hunspell: " & SpellStatus
-    If Settings.Language <> LoadedLanguage Then
-        ' вопрос - на языке, который выбрали
-        LangSet(Settings.Language)
-        Dim Answer As Long = LbMessageBox(0, Tr("Язык интерфейса сменится после перезапуска. Перезапустить LangBarFB сейчас?"), _
-            APP_TITLE, LB_MB_YESNO Or LB_MB_ICONQUESTION)
-        LangSet(LoadedLanguage)
-        If Answer = LB_IDYES Then
-            RestartRequested = 1
-            If SettingsOpen Then SettingsForm.Close
-            OnTrayExit()
-        End If
+  ConfigApplyAutoStart(Settings.AutoStart)
+  HotkeysLoadTable()
+  SwitchLoadTable()
+  SwitchFixLockKeys()
+  If Settings.CaretFlag = 0 Then OverlayHide(CaretFlag)
+  StartMouseFlag()
+  If Settings.SpellFolder <> SpellLoadedFolder Then LoadSpell()
+  SpellLabel.Caption = "Hunspell: " & SpellStatus
+  If Settings.Language <> LoadedLanguage Then
+    ' вопрос - на языке, который выбрали
+    LangSet(Settings.Language)
+    Dim Answer As Long = LbMessageBox(0, Tr("Язык интерфейса сменится после перезапуска. Перезапустить LangBarFB сейчас?"), _
+                                      APP_TITLE, LB_MB_YESNO Or LB_MB_ICONQUESTION)
+    LangSet(LoadedLanguage)
+    If Answer = LB_IDYES Then
+      RestartRequested = 1
+      If SettingsOpen Then SettingsForm.Close
+      OnTrayExit()
     End If
+  End If
 End Sub
 
 ' Справка: help\langbarfb.<язык>.html рядом с exe или на уровень выше,
 ' иначе README на GitHub
 Sub ShowHelp()
-    Dim HelpName As String = "help\langbarfb." & LoadedLanguage & ".html"
-    Dim HelpPath As String
-    If FileExists(ExePath & "\" & HelpName) Then
-        HelpPath = ExePath & "\" & HelpName
-    ElseIf FileExists(ExePath & "\..\" & HelpName) Then
-        HelpPath = ExePath & "\..\" & HelpName
-    Else
-        HelpPath = HELP_URL
-    End If
-    LbShellExecute(0, "open", HelpPath, 0, 0, LB_SW_SHOWNORMAL)
+  Dim HelpName As String = "help\langbarfb." & LoadedLanguage & ".html"
+  Dim HelpPath As String
+  If FileExists(ExePath & "\" & HelpName) Then
+    HelpPath = ExePath & "\" & HelpName
+  ElseIf FileExists(ExePath & "\..\" & HelpName) Then
+    HelpPath = ExePath & "\..\" & HelpName
+  Else
+    HelpPath = HELP_URL
+  End If
+  LbShellExecute(0, "open", HelpPath, 0, 0, LB_SW_SHOWNORMAL)
 End Sub
 
 ' --- меню значка (правый щелчок) ---
@@ -745,60 +745,60 @@ Const CMD_DICT_MORE = 109
 Const CMD_RESET = 110
 
 Private Function CheckedFlag(ByVal IsOn As Long) As ULong
-    Return IIf(IsOn, LB_MF_CHECKED, 0)
+Return IIf(IsOn, LB_MF_CHECKED, 0)
 End Function
 
 Function BuildTrayMenu() As Any Ptr
-    Dim MainMenu As Any Ptr = LbCreatePopupMenu()
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_SETTINGS, Tr("Настройки..."))
-    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.AutoSwitch), CMD_AUTOSWITCH, Tr("Автопереключение"))
-    LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.SoundsOn), CMD_SOUNDS, Tr("Звуковые эффекты"))
-    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_DOWNLOAD, Tr("Скачать словари"))
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_MORE, Tr("Словари других языков..."))
-    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_RESET, Tr("Сброс настроек..."))
-    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, Tr("О LangBarFB") & " " & APP_VERSION)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_HELP, Tr("Помощь"))
-    ' окно отладки - только если меню открыли с нажатым Shift
-    If (LbGetAsyncKeyState(LB_VK_SHIFT) And &h8000) <> 0 Then
-        LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DEBUG_WINDOW, Tr("Окно отладки"))
-    End If
-    LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
-    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_EXIT, Tr("Выход"))
-    ' пункт по умолчанию Windows рисует жирным
-    LbSetMenuDefaultItem(MainMenu, CMD_SETTINGS, 0)
-    Return MainMenu
+  Dim MainMenu As Any Ptr = LbCreatePopupMenu()
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_SETTINGS, Tr("Настройки..."))
+  LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+  LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.AutoSwitch), CMD_AUTOSWITCH, Tr("Автопереключение"))
+  LbAppendMenu(MainMenu, LB_MF_STRING Or CheckedFlag(Settings.SoundsOn), CMD_SOUNDS, Tr("Звуковые эффекты"))
+  LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_DOWNLOAD, Tr("Скачать словари"))
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DICT_MORE, Tr("Словари других языков..."))
+  LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_RESET, Tr("Сброс настроек..."))
+  LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_ABOUT, Tr("О LangBarFB") & " " & APP_VERSION)
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_HELP, Tr("Помощь"))
+  ' окно отладки - только если меню открыли с нажатым Shift
+  If (LbGetAsyncKeyState(LB_VK_SHIFT) And &h8000) <> 0 Then
+    LbAppendMenu(MainMenu, LB_MF_STRING, CMD_DEBUG_WINDOW, Tr("Окно отладки"))
+  End If
+  LbAppendMenu(MainMenu, LB_MF_SEPARATOR, 0, 0)
+  LbAppendMenu(MainMenu, LB_MF_STRING, CMD_EXIT, Tr("Выход"))
+  ' пункт по умолчанию Windows рисует жирным
+  LbSetMenuDefaultItem(MainMenu, CMD_SETTINGS, 0)
+  Return MainMenu
 End Function
 
 Sub OnTrayCommand(ByVal CommandId As Long)
-    Select Case CommandId
-    Case CMD_SETTINGS
-        SettingsShow()
-    Case CMD_AUTOSWITCH
-        Settings.AutoSwitch Xor= 1
-        ConfigSave()
-        If Settings.AutoSwitch And SpellDictCount = 0 Then AskDictDownload()
-    Case CMD_DICT_DOWNLOAD
-        StartDictDownload()
-    Case CMD_DICT_MORE
-        LbShellExecute(0, "open", DICT_MORE_URL, 0, 0, LB_SW_SHOWNORMAL)
-    Case CMD_SOUNDS
-        Settings.SoundsOn Xor= 1
-        ConfigSave()
-    Case CMD_ABOUT
-        AboutShow()
-    Case CMD_HELP
-        ShowHelp()
-    Case CMD_RESET
-        SettingsResetAsk()
-    Case CMD_DEBUG_WINDOW
-        OnTrayShow()
-    Case CMD_EXIT
-        OnTrayExit()
-    End Select
+  Select Case CommandId
+  Case CMD_SETTINGS
+    SettingsShow()
+  Case CMD_AUTOSWITCH
+    Settings.AutoSwitch Xor= 1
+    ConfigSave()
+    If Settings.AutoSwitch And SpellDictCount = 0 Then AskDictDownload()
+  Case CMD_DICT_DOWNLOAD
+    StartDictDownload()
+  Case CMD_DICT_MORE
+    LbShellExecute(0, "open", DICT_MORE_URL, 0, 0, LB_SW_SHOWNORMAL)
+  Case CMD_SOUNDS
+    Settings.SoundsOn Xor= 1
+    ConfigSave()
+  Case CMD_ABOUT
+    AboutShow()
+  Case CMD_HELP
+    ShowHelp()
+  Case CMD_RESET
+    SettingsResetAsk()
+  Case CMD_DEBUG_WINDOW
+    OnTrayShow()
+  Case CMD_EXIT
+    OnTrayExit()
+  End Select
 End Sub
 
 ' --- настройки и язык: сообщения ниже уже на выбранном языке ---
@@ -811,15 +811,15 @@ LangSet(LoadedLanguage)
 Dim Shared InstanceMutex As Any Ptr
 Dim MutexRetries As Long
 Do
-    InstanceMutex = LbCreateMutex(0, 0, MUTEX_NAME)
-    If LbGetLastError() <> LB_ERROR_ALREADY_EXISTS Then Exit Do
-    LbCloseHandle(InstanceMutex)
-    If InStr(LCase(Command()), "/restart") = 0 Or MutexRetries >= 50 Then
-        LbMessageBox(0, Tr("LangBarFB уже запущен."), APP_TITLE, LB_MB_ICONINFORMATION)
-        End 0
-    End If
-    MutexRetries += 1
-    Sleep 100
+  InstanceMutex = LbCreateMutex(0, 0, MUTEX_NAME)
+  If LbGetLastError() <> LB_ERROR_ALREADY_EXISTS Then Exit Do
+  LbCloseHandle(InstanceMutex)
+  If InStr(LCase(Command()), "/restart") = 0 Or MutexRetries >= 50 Then
+    LbMessageBox(0, Tr("LangBarFB уже запущен."), APP_TITLE, LB_MB_ICONINFORMATION)
+  End 0
+End If
+MutexRetries += 1
+Sleep 100
 Loop
 
 ' --- окно отладки (закрытие прячет его; программа остаётся в трее) ---
@@ -873,7 +873,7 @@ ActionLog = @DebugLog
 
 ' --- значок, флажки, хук ---
 If GfxStart() = 0 Then
-    LbMessageBox(0, Tr("Не удалось запустить GDI+: флажков не будет."), APP_TITLE, 0)
+  LbMessageBox(0, Tr("Не удалось запустить GDI+: флажков не будет."), APP_TITLE, 0)
 End If
 LoadFlags()
 LoadSpell()
@@ -884,14 +884,14 @@ TrayOnClick = @OnTrayClick
 TrayOnClose = @OnTrayExit
 TrayOnAppMessage = @OnAppMessage
 If TrayCreate(APP_TITLE) = 0 Then
-    LbMessageBox(0, Tr("Не удалось создать значок в области уведомлений."), APP_TITLE, 0)
+  LbMessageBox(0, Tr("Не удалось создать значок в области уведомлений."), APP_TITLE, 0)
 End If
 LastUserWindow = LbGetForegroundWindow()
 If IsOwnOrShellWindow(LastUserWindow) Then LastUserWindow = 0
 OnPollTimer()
 
 If KbHookInstall(TrayWindow, KEY_EVENT_MSG) = 0 Then
-    LbMessageBox(0, Tr("Не удалось поставить хук клавиатуры (ошибка ") & LbGetLastError() & ").", APP_TITLE, 0)
+  LbMessageBox(0, Tr("Не удалось поставить хук клавиатуры (ошибка ") & LbGetLastError() & ").", APP_TITLE, 0)
 End If
 HotkeysStart(TrayWindow, HOTKEY_ACTION_MSG, HOTKEY_CAPTURE_MSG)
 ' общий фильтр хука (горячие клавиши и переключение) ставит SwitchStart
@@ -921,18 +921,18 @@ CaretTimer.OnTimer = @OnCaretTimer
 
 ' первый запуск без словарей - предложить их скачать (один раз)
 If SpellDictCount = 0 And Settings.DictAsked = 0 Then
-    Settings.DictAsked = 1
-    ConfigSave()
-    AskDictDownload()
+  Settings.DictAsked = 1
+  ConfigSave()
+  AskDictDownload()
 End If
 
 ' --- цикл сообщений: окно не нужно, программа живёт в трее ---
 ' DoEvents (Application.ProcessMessages) разбирает всё, что пришло, в том
 ' числе вызовы хука; MsgWaitForMultipleObjects ждёт следующего сообщения
 Do
-    DoEvents
-    If ExitRequested Then Exit Do
-    LbMsgWaitForMultipleObjects(0, 0, 0, LB_INFINITE, LB_QS_ALLINPUT)
+  DoEvents
+  If ExitRequested Then Exit Do
+  LbMsgWaitForMultipleObjects(0, 0, 0, LB_INFINITE, LB_QS_ALLINPUT)
 Loop
 
 PollTimer.Enabled = 0
@@ -948,13 +948,14 @@ KbHookRemove()
 TrayDestroy()
 Dim FlagIdx As Long
 For FlagIdx = 0 To MAX_LAYOUTS - 1
-    GfxFreeImage(FlagImages(FlagIdx))
+  GfxFreeImage(FlagImages(FlagIdx))
 Next
 GfxStop()
 MainForm.Close
 LbCloseHandle(InstanceMutex)
 If RestartRequested Then
-    Dim SelfName As ZString * 1024
-    LbGetModuleFileName(0, @SelfName, 1024)
-    LbShellExecute(0, "open", SelfName, "/restart", 0, LB_SW_SHOWNORMAL)
+  Dim SelfName As ZString * 1024
+  LbGetModuleFileName(0, @SelfName, 1024)
+  LbShellExecute(0, "open", SelfName, "/restart", 0, LB_SW_SHOWNORMAL)
 End If
+
