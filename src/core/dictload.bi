@@ -43,16 +43,17 @@ Const DICT_MORE_URL = "https://drive.google.com/drive/folders/1Xe13v0hm3nzipRkTS
 ' Словари: код раскладки и файлы через «|». Файл - «имя у нас=путь в
 ' репозитории LibreOffice»; без «=путь» запасного источника у файла нет,
 ' и он необязательный. README_*.txt - описание и лицензия словаря.
+' freq.txt - частотный словарь (wordfreq.bi), только из этого репозитория.
 Const DICT_LANG_COUNT = 6
 Dim Shared DictLangCodes(0 To DICT_LANG_COUNT - 1) As ZString * 8 = { _
     "en-US", "ru-RU", "uk-UA", "be-BY", "de-DE", "fr-FR"}
 Dim Shared DictLangFiles(0 To DICT_LANG_COUNT - 1) As ZString * 200 = { _
-    "en_US.aff=en/en_US.aff|en_US.dic=en/en_US.dic|en_US_(computer_abbr).dic|README_en_US.txt=en/README_en_US.txt", _
-    "ru_RU.aff=ru_RU/ru_RU.aff|ru_RU.dic=ru_RU/ru_RU.dic|README_ru_RU.txt=ru_RU/README_ru_RU.txt", _
-    "uk_UA.aff=uk_UA/uk_UA.aff|uk_UA.dic=uk_UA/uk_UA.dic|README_uk_UA.txt=uk_UA/README_uk_UA.txt", _
+    "en_US.aff=en/en_US.aff|en_US.dic=en/en_US.dic|en_US_(computer_abbr).dic|README_en_US.txt=en/README_en_US.txt|freq.txt", _
+    "ru_RU.aff=ru_RU/ru_RU.aff|ru_RU.dic=ru_RU/ru_RU.dic|README_ru_RU.txt=ru_RU/README_ru_RU.txt|freq.txt", _
+    "uk_UA.aff=uk_UA/uk_UA.aff|uk_UA.dic=uk_UA/uk_UA.dic|README_uk_UA.txt=uk_UA/README_uk_UA.txt|freq.txt", _
     "be_BY.aff=be_BY/be-official.aff|be_BY.dic=be_BY/be-official.dic|README_be_BY.txt=be_BY/README_be_BY.txt", _
-    "de_DE.aff=de/de_DE_frami.aff|de_DE.dic=de/de_DE_frami.dic|README_de_DE_frami.txt=de/README_de_DE_frami.txt", _
-    "fr_FR.aff=fr_FR/dictionaries/fr.aff|fr_FR.dic=fr_FR/dictionaries/fr.dic|README_dict_fr.txt=fr_FR/dictionaries/README_dict_fr.txt"}
+    "de_DE.aff=de/de_DE_frami.aff|de_DE.dic=de/de_DE_frami.dic|README_de_DE_frami.txt=de/README_de_DE_frami.txt|freq.txt", _
+    "fr_FR.aff=fr_FR/dictionaries/fr.aff|fr_FR.dic=fr_FR/dictionaries/fr.dic|README_dict_fr.txt=fr_FR/dictionaries/README_dict_fr.txt|freq.txt"}
 
 Type DictJob
     SourceUrl As ZString * 512

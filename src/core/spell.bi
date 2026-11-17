@@ -108,6 +108,9 @@ Private Function SpellReadTextFile(ByRef FileName As String, TextChars() As USho
   Return CharCount
 End Function
 
+' частотные словари (читают файлы через SpellReadTextFile)
+#include once "wordfreq.bi"
+
 ' --- проверка слова ---
 
 ' Слово без знаков по краям: от первой буквы до последней (дефис и
@@ -424,6 +427,7 @@ Sub SpellUnload()
     StartsClear(LayoutIdx)
   Next
   SpellDictCount = 0
+  FreqUnload()
 End Sub
 
 ' Файл целиком в строку байтов; 0 - не прочитан или пустой
@@ -523,11 +527,14 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     End If
   End If
 
-  Dim Loaded As String, Missing As String
+  Dim Loaded As String, Missing As String, FreqLoaded As String
   Dim LayoutIdx As Long
   For LayoutIdx = 0 To LayoutCount - 1
     Dim LocaleCode As String = LayoutList(LayoutIdx).LocaleCode
     SpellLoadLayout(LayoutIdx, SpellBaseFolder & "\dict\" & LocaleCode)
+    If SpellDict(LayoutIdx) <> 0 AndAlso FreqLoadLayout(LayoutIdx, SpellBaseFolder & "\dict\" & LocaleCode) > 0 Then
+      FreqLoaded &= IIf(FreqLoaded = "", "", ", ") & LocaleCode
+    End If
     If SpellDict(LayoutIdx) <> 0 Then
       Loaded &= IIf(Loaded = "", "", ", ") & LocaleCode
     Else
@@ -543,6 +550,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     SpellStatus = Tr("словари: ") & Loaded
     If Missing <> "" Then SpellStatus &= Tr("; нет словаря: ") & Missing
     If UserWords > 0 Then SpellStatus &= Tr("; слов пользователя: ") & UserWords
+    If FreqLoaded <> "" Then SpellStatus &= Tr("; частоты слов: ") & FreqLoaded
   End If
   Return SpellDictCount
 End Function

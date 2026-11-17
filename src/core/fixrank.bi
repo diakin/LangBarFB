@@ -18,8 +18,12 @@
 '  из двух слов - ещё 20. Веса подобраны на наборе русских опечаток со
 '  словарём ru-RU.
 '
-'  Автоисправление берёт вариант, только если он дешевле предела и дешевле
-'  второго хотя бы на FIXRANK_AUTO_GAP и на половину своей цены. Предел -
+'  Если для языка есть частотный словарь (wordfreq.bi), к цене правок
+'  добавляется цена редкости слова, и варианты сортируются по сумме.
+'
+'  Автоисправление берёт вариант, только если цена его правок меньше
+'  предела, а сумма меньше суммы второго хотя бы на FIXRANK_AUTO_GAP и на
+'  половину цены его правок. Предел -
 '  FIXRANK_AUTO_MAX, для слов длиннее FIXRANK_AUTO_FROM букв он растёт на
 '  FIXRANK_AUTO_PER_LETTER за букву, до FIXRANK_AUTO_TOP: в длинном слове
 '  две правки ещё оставляют его узнаваемым («очепятка» - «опечатка» 12,
@@ -221,11 +225,12 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
     Return TotalCost
 End Function
 
-' Можно ли автоматически ставить лучший вариант: BestCost - его цена,
-' NextCost - цена второго (не важна, если вариант один), WordLength -
-' число знаков набранного слова
-Function FixRankConfident(ByVal BestCost As Long, ByVal NextCost As Long, ByVal VariantCount As Long, _
-        ByVal WordLength As Long) As Long
+' Можно ли автоматически ставить лучший вариант: BestCost - цена его
+' правок, BestScore и NextScore - цена с частотой у него и у второго
+' (NextScore не важна, если вариант один), WordLength - число знаков
+' набранного слова
+Function FixRankConfident(ByVal BestCost As Long, ByVal BestScore As Long, ByVal NextScore As Long, _
+        ByVal VariantCount As Long, ByVal WordLength As Long) As Long
     If VariantCount <= 0 Then Return 0
     Dim CostLimit As Long = FIXRANK_AUTO_MAX
     If WordLength > FIXRANK_AUTO_FROM Then CostLimit += (WordLength - FIXRANK_AUTO_FROM) * FIXRANK_AUTO_PER_LETTER
@@ -237,5 +242,5 @@ Function FixRankConfident(ByVal BestCost As Long, ByVal NextCost As Long, ByVal 
     If BestCost >= CostLimit Then Return 0
     Dim NeedGap As Long = BestCost \ 2
     If NeedGap < FIXRANK_AUTO_GAP Then NeedGap = FIXRANK_AUTO_GAP
-    Return IIf(NextCost - BestCost >= NeedGap, 1, 0)
+    Return IIf(NextScore - BestScore >= NeedGap, 1, 0)
 End Function

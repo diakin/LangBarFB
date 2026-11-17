@@ -71,6 +71,8 @@ Dim Shared FixShownChars As Long
 Dim Shared FixLayoutIdx As Long
 ' цена правок каждого варианта (fixrank.bi) и уверенность в первом
 Dim Shared FixCosts() As Long
+' цена правок плюс цена редкости слова (wordfreq.bi) - по ней порядок
+Dim Shared FixScores() As Long
 Dim Shared FixConfident As Long
 Declare Sub FixRankSort(ByVal TypedLayout As UInteger)
 ' 1 - исправление сделало автоисправление после пробела (Break его отменяет)
@@ -522,34 +524,47 @@ Function FixPrepareSelection(ByVal TargetWindow As Any Ptr) As Long
     Return FixPrepareOriginal(TargetWindow, TypedLayout, 0, 0, 1)
 End Function
 
-' Варианты - по цене правок (fixrank.bi), при равной цене - в порядке
-' Hunspell; FixConfident - первый вариант можно ставить автоматически
+' Цена в десятых как текст: 8 - «0.8»
+Private Function FixCostText(ByVal CostValue As Long) As String
+    Return (CostValue \ 10) & "." & (CostValue Mod 10)
+End Function
+
+' Варианты - по цене правок (fixrank.bi) плюс цене редкости слова
+' (wordfreq.bi), при равной цене - в порядке Hunspell; FixConfident -
+' первый вариант можно ставить автоматически
 Sub FixRankSort(ByVal TypedLayout As UInteger)
     If FixCount <= 0 Then Exit Sub
     ReDim FixCosts(0 To FixCount - 1)
-    Dim ItemIdx As Long, ScanIdx As Long
+    ReDim FixScores(0 To FixCount - 1)
+    Dim LayoutIdx As Long = LayoutIndexOf(TypedLayout)
+    Dim ItemIdx As Long, ScanIdx As Long, WithFreq As Long
     For ItemIdx = 0 To FixCount - 1
         FixCosts(ItemIdx) = FixRankCost(FixOriginal(), FixCoreStart, FixCoreLength, _
             FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx), TypedLayout)
+        Dim RareCost As Long = FreqCost(LayoutIdx, FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx))
+        If RareCost > 0 Then WithFreq = 1
+        FixScores(ItemIdx) = FixCosts(ItemIdx) + RareCost
     Next
     ' вставками: порядок равных сохраняется
     For ItemIdx = 1 To FixCount - 1
-        Dim KeyCost As Long = FixCosts(ItemIdx)
+        Dim KeyCost As Long = FixCosts(ItemIdx), KeyScore As Long = FixScores(ItemIdx)
         Dim KeyStart As Long = FixStarts(ItemIdx), KeyLength As Long = FixLengths(ItemIdx)
         ScanIdx = ItemIdx - 1
-        While ScanIdx >= 0 AndAlso FixCosts(ScanIdx) > KeyCost
+        While ScanIdx >= 0 AndAlso FixScores(ScanIdx) > KeyScore
             FixCosts(ScanIdx + 1) = FixCosts(ScanIdx)
+            FixScores(ScanIdx + 1) = FixScores(ScanIdx)
             FixStarts(ScanIdx + 1) = FixStarts(ScanIdx)
             FixLengths(ScanIdx + 1) = FixLengths(ScanIdx)
             ScanIdx -= 1
         Wend
         FixCosts(ScanIdx + 1) = KeyCost
+        FixScores(ScanIdx + 1) = KeyScore
         FixStarts(ScanIdx + 1) = KeyStart
         FixLengths(ScanIdx + 1) = KeyLength
     Next
-    Dim NextCost As Long
-    If FixCount > 1 Then NextCost = FixCosts(1)
-    FixConfident = FixRankConfident(FixCosts(0), NextCost, FixCount, FixCoreLength)
+    Dim NextScore As Long
+    If FixCount > 1 Then NextScore = FixScores(1)
+    FixConfident = FixRankConfident(FixCosts(0), FixScores(0), NextScore, FixCount, FixCoreLength)
     Dim RankText As String
     For ItemIdx = 0 To FixCount - 1
         If ItemIdx = 5 Then
@@ -557,9 +572,11 @@ Sub FixRankSort(ByVal TypedLayout As UInteger)
             Exit For
         End If
         RankText &= IIf(ItemIdx = 0, "", ", ") & SpellAnsiOf(FixChars(), FixStarts(ItemIdx), FixLengths(ItemIdx)) _
-            & " " & (FixCosts(ItemIdx) \ 10) & "." & (FixCosts(ItemIdx) Mod 10)
+            & " " & FixCostText(FixCosts(ItemIdx))
+        If WithFreq Then RankText &= "+" & FixCostText(FixScores(ItemIdx) - FixCosts(ItemIdx))
     Next
-    LogAction("опечатка: варианты по цене правок: " & RankText & IIf(FixConfident, "", " (первый не очевиден)"))
+    LogAction("опечатка: варианты по цене правок" & IIf(WithFreq, " + частоте", "") & ": " & RankText _
+        & IIf(FixConfident, "", " (первый не очевиден)"))
 End Sub
 
 ' Показать в окне вариант ShowIdx (-1 - исходное слово)
