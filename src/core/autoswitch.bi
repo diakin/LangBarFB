@@ -201,6 +201,8 @@ Sub AutoSwitchStart()
         If WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE Then Exit Sub
     Next
     If WordStart > 0 AndAlso WordKeys(WordStart - 1).VirtualKey <> LB_VK_SPACE Then Exit Sub
+    ' набрано после перемещения каретки - может быть продолжением слова
+    If WordStart = 0 And WordInsideText <> 0 Then Exit Sub
     Dim SourceHandle As UInteger = WordKeys(WordStart).LayoutHandle
     For KeyIdx = WordStart To WordKeyCount - 1
         If WordKeys(KeyIdx).LayoutHandle <> SourceHandle Or WordKeys(KeyIdx).AfterBackspace Then Exit Sub
@@ -280,6 +282,10 @@ Sub AutoSwitchWord()
     If WordStart < 0 Then Exit Sub
     Dim WordEnd As Long = SpaceIdx - 1
     If WordEnd - WordStart + 1 > AUTOSWITCH_MAX_KEYS Then Exit Sub
+    If WordStart = 0 And WordInsideText <> 0 Then
+        LogAction("автопереключение: слово начато после перемещения каретки или Backspace (может быть концом другого слова) - не проверяется")
+        Exit Sub
+    End If
 
     ' набрано в одной раскладке, без правки, и окно всё ещё в ней
     Dim SourceHandle As UInteger = WordKeys(WordStart).LayoutHandle

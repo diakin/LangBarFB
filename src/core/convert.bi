@@ -221,6 +221,11 @@ Dim Shared WordEmptyBackspaces As Long
 ' буфер сброшен из-за щелчка мышью или клавиши без символа (стрелки, Home,
 ' Delete): следующее слово набирается в другом месте текста
 Dim Shared WordCaretMoved As Long
+' первая клавиша буфера набрана после перемещения каретки (щелчок, стрелки,
+' Delete) или после Backspace по прежнему тексту: начало буфера может
+' быть серединой слова, которого программа не видит (текст окна она не
+' читает). Такое первое слово автопереключение не проверяет.
+Dim Shared WordInsideText As Long
 ' вызывается перед сбросом непустого буфера: набранное ещё можно
 ' разобрать (actions.bi, FixLearnOnReset)
 Type WordResetFn As Sub()
@@ -232,6 +237,7 @@ Sub WordBufferReset()
     WordResetCount += 1
     WordEmptyBackspaces = 0
     WordCaretMoved = 0
+    WordInsideText = 0
     WordKeyCount = 0
     WordWindow = 0
     WordCycleActive = 0
@@ -279,6 +285,7 @@ Sub WordBufferFeed(ByRef KeyEvent As KbEvent)
         Next
         WordKeyCount -= 1
     End If
+    If WordKeyCount = 0 Then WordInsideText = IIf(WordCaretMoved <> 0 Or WordEmptyBackspaces > 0, 1, 0)
     With WordKeys(WordKeyCount)
         .VirtualKey = VirtualKey
         .WithShift = IIf((KeyEvent.Modifiers And KB_MOD_SHIFT) <> 0, 1, 0)
