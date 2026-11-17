@@ -126,6 +126,8 @@ Type AppSettings
     AutoSingleLetter As Long
     AutoRemember As Long
     AutoFix As Long
+    ' 1 - автоисправление ставит первый вариант всегда, 0 - только очевидный
+    AutoFixAlways As Long
     DictAsked As Long
     AutoEarly As Long
     MouseFlag As Long
@@ -221,6 +223,7 @@ Sub ConfigLoad()
         .AutoSingleLetter = IniReadFlag("AutoSwitch", "SingleLetter", 0)
         .AutoRemember = IniReadFlag("AutoSwitch", "Remember", 1)
         .AutoFix = IniReadFlag("AutoSwitch", "Fix", 0)
+        .AutoFixAlways = IniReadFlag("AutoSwitch", "FixAlways", 1)
         .DictAsked = IniReadFlag("AutoSwitch", "DictAsked", 0)
         .AutoEarly = IniReadFlag("AutoSwitch", "Early", 1)
         .MouseFlag = ValInt(IniRead("General", "MouseFlag", Str(MOUSE_FLAG_ON_CHANGE)))
@@ -293,6 +296,7 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "SingleLetter", Str(.AutoSingleLetter))
         IniWrite("AutoSwitch", "Remember", Str(.AutoRemember))
         IniWrite("AutoSwitch", "Fix", Str(.AutoFix))
+        IniWrite("AutoSwitch", "FixAlways", Str(.AutoFixAlways))
         IniWrite("AutoSwitch", "DictAsked", Str(.DictAsked))
         IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
         IniWrite("General", "MouseFlag", Str(.MouseFlag))

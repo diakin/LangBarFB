@@ -471,7 +471,10 @@ Sub AutoSwitchWordCheck()
             If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
                 Dim WordFixed As Long = 0
                 If Settings.AutoFix <> 0 AndAlso FixPrepare(TargetWindow, WordStart, 1, 0) Then
-                    If FixConfident Then
+                    ' FixAlways (по умолчанию) - первый вариант лучше слова,
+                    ' которого нет в словаре; Break вернёт набранное
+                    If FixConfident Or Settings.AutoFixAlways <> 0 Then
+                        If FixConfident = 0 Then LogAction("автоисправление: первый вариант не очевиден, но ставится (FixAlways)")
                         FixAuto = 1
                         FixShow(0)
                         WordFixed = 1
