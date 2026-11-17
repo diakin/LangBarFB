@@ -48,7 +48,7 @@ Const DICT_LANG_COUNT = 6
 Dim Shared DictLangCodes(0 To DICT_LANG_COUNT - 1) As ZString * 8 = { _
     "en-US", "ru-RU", "uk-UA", "be-BY", "de-DE", "fr-FR"}
 Dim Shared DictLangFiles(0 To DICT_LANG_COUNT - 1) As ZString * 200 = { _
-    "en_US.aff=en/en_US.aff|en_US.dic=en/en_US.dic|en_US_(computer_abbr).dic|README_en_US.txt=en/README_en_US.txt|freq.txt", _
+    "en_US.aff=en/en_US.aff|en_US.dic=en/en_US.dic|en_US_(computer_abbr).dic|README_en_US.txt=en/README_en_US.txt|freq.txt|en_US_(langbarfb_abbr).dic", _
     "ru_RU.aff=ru_RU/ru_RU.aff|ru_RU.dic=ru_RU/ru_RU.dic|README_ru_RU.txt=ru_RU/README_ru_RU.txt|freq.txt", _
     "uk_UA.aff=uk_UA/uk_UA.aff|uk_UA.dic=uk_UA/uk_UA.dic|README_uk_UA.txt=uk_UA/README_uk_UA.txt|freq.txt", _
     "be_BY.aff=be_BY/be-official.aff|be_BY.dic=be_BY/be-official.dic|README_be_BY.txt=be_BY/README_be_BY.txt", _

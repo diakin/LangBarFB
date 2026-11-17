@@ -11,6 +11,7 @@
 | `dict/fr-FR` | MPL 2.0 (заголовок `fr_FR.aff`) |
 | `dict/en-US` | SCOWL, Kevin Atkinson и др. — `README_en_US.txt` |
 | `dict/uk-UA` | MPL 1.1 — `README_uk_UA.txt` |
+| `dict/en-US/en_US_(langbarfb_abbr).dic` | Сокращения: abbreviations-in-code (https://github.com/abbrcode/abbreviations-in-code, MIT, Copyright (c) 2022 Gábor Kiss-Vámosi), FOSS Community Acronyms (https://github.com/d-edge/foss-acronyms, CC0 1.0) и список LangBarFB. Что и почему отброшено — в начале файла |
 | `dict/*/freq.txt` | Частотные списки: FrequencyWords, Hermit Dave (https://github.com/hermitdave/FrequencyWords, `content/2018/<язык>/<язык>_50k.txt`, субтитры OpenSubtitles 2018), CC BY-SA 4.0. Изменения: убраны числа частот, повторы и не-слова, всё в нижнем регистре. Источник и лицензия — в первых строках каждого файла |
 
 Файлы `README_*.txt` взяты из репозитория словарей LibreOffice (https://github.com/LibreOffice/dictionaries, ветка master) — версии словарей там могут быть новее, чем здесь.

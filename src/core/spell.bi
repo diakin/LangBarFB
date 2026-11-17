@@ -214,13 +214,14 @@ Function SpellSuggest(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal Star
   Return SuggestCount
 End Function
 
-' Слово - в словарь раскладки и в её таблицу начал слов
+' Слово - в словарь раскладки и в её таблицу начал слов (WithStarts 0 -
+' только в словарь)
 Private Sub SpellAddTo(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, _
-                       ByVal CharCount As Long)
+                       ByVal CharCount As Long, ByVal WithStarts As Long = 1)
   If LayoutIdx < 0 Or LayoutIdx >= MAX_LAYOUTS Then Exit Sub
   Dim DictHandle As Any Ptr = SpellDict(LayoutIdx)
   If DictHandle = 0 Or CharCount <= 0 Or CharCount > SPELL_MAX_WORD Then Exit Sub
-  StartsAddWord(LayoutIdx, TextChars(), StartIdx, CharCount)
+  If WithStarts Then StartsAddWord(LayoutIdx, TextChars(), StartIdx, CharCount)
   Dim WordBuffer(0 To SPELL_MAX_WORD) As UShort
   Dim CharIdx As Long
   For CharIdx = 0 To CharCount - 1
@@ -232,8 +233,11 @@ End Sub
 
 ' Слова файла (по одному в строке) - в словарь; у строк вида «слово/флаги»
 ' флаги отбрасываются, первая строка .dic с числом слов пропускается.
-' TargetIdx -1 - во все словари. Возвращает число слов.
-Private Function SpellAddWordsFromFile(ByRef FileName As String, ByVal TargetIdx As Long) As Long
+' TargetIdx -1 - во все словари. WithStarts 0 - слова не попадают в таблицу
+' начал слов (сокращения: с ними раньше переключалось бы начало с опечаткой).
+' Возвращает число слов.
+Private Function SpellAddWordsFromFile(ByRef FileName As String, ByVal TargetIdx As Long, _
+                                       ByVal WithStarts As Long = 1) As Long
   Dim TextChars() As UShort
   Dim CharCount As Long = SpellReadTextFile(FileName, TextChars())
   If CharCount <= 0 Then Return 0
@@ -260,11 +264,11 @@ Private Function SpellAddWordsFromFile(ByRef FileName As String, ByVal TargetIdx
     End If
     If IsWord Then
       If TargetIdx >= 0 Then
-        SpellAddTo(TargetIdx, TextChars(), WordStart, WordEnd - WordStart)
+        SpellAddTo(TargetIdx, TextChars(), WordStart, WordEnd - WordStart, WithStarts)
       Else
         Dim LayoutIdx As Long
         For LayoutIdx = 0 To LayoutCount - 1
-          SpellAddTo(LayoutIdx, TextChars(), WordStart, WordEnd - WordStart)
+          SpellAddTo(LayoutIdx, TextChars(), WordStart, WordEnd - WordStart, WithStarts)
         Next
       End If
       WordCount += 1
@@ -497,11 +501,12 @@ Private Sub SpellLoadLayout(ByVal LayoutIdx As Long, ByRef DictFolder As String)
   If SpellDict(LayoutIdx) = 0 Then Exit Sub
   SpellDictCount += 1
   StartsBuild(LayoutIdx, DictFolder & "\" & AffName, DictFolder & "\" & MainDic)
-  ' остальные .dic папки - дополнительные списки слов
+  ' остальные .dic папки - дополнительные списки слов; списки сокращений
+  ' («abbr» в имени) - без таблицы начал слов
   Dim ExtraName As String = Dir(DictFolder & "\*.dic")
   While ExtraName <> ""
     If LCase(ExtraName) <> LCase(MainDic) Then
-      SpellAddWordsFromFile(DictFolder & "\" & ExtraName, LayoutIdx)
+      SpellAddWordsFromFile(DictFolder & "\" & ExtraName, LayoutIdx, IIf(InStr(LCase(ExtraName), "abbr") > 0, 0, 1))
     End If
     ExtraName = Dir()
   Wend
