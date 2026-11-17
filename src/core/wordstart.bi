@@ -12,6 +12,9 @@
 '  с флагами окончаний даёт ключ с нулями в конце: любое слово на «go»
 '  считается возможным. Такая же основа без флагов («в», «to») - готовое
 '  слово, в таблицу не идёт: иначе любое слово на «в» было бы «возможным».
+'  Аббревиатуры из одних заглавных («GRC» из en_US_(computer_abbr).dic)
+'  тоже не идут: строчными их не пишут, а «пкс» в начале «пкстое»
+'  (опечатка в «пустое») из-за «GRC» переключалось в «grc».
 '
 '  Часть LangBarFB (https://github.com/diakin/LangBarFB), лицензия LGPL-3.0
 '  (COPYING.LESSER и COPYING в корне репозитория).
@@ -95,9 +98,22 @@ Private Function StartKeyOfText(TextChars() As UShort, ByVal StartIdx As Long, B
     Return StartKeyOf(Letters(0), Letters(1), Letters(2))
 End Function
 
+' Слово из одних заглавных букв (их больше одной) - аббревиатура
+Private Function StartAllCaps(TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long) As Long
+    Dim CharIdx As Long, Letters As Long
+    For CharIdx = StartIdx To StartIdx + CharCount - 1
+        If LbIsCharAlpha(TextChars(CharIdx)) Then
+            If LbIsCharUpper(TextChars(CharIdx)) = 0 Then Return 0
+            Letters += 1
+        End If
+    Next
+    Return IIf(Letters > 1, 1, 0)
+End Function
+
 ' Слово (основа или слово из списка) - в таблицу начал
 Sub StartsAddWord(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCount As Long)
     If LayoutIdx < 0 Or LayoutIdx >= MAX_LAYOUTS Or CharCount < 3 Then Exit Sub
+    If StartAllCaps(TextChars(), StartIdx, CharCount) Then Exit Sub
     StartsPut(LayoutIdx, StartKeyOfText(TextChars(), StartIdx, CharCount))
 End Sub
 
@@ -254,6 +270,7 @@ Sub StartsBuild(ByVal LayoutIdx As Long, ByRef AffPath As String, ByRef DicPath 
         If IsStem And LineIdx = 0 Then
             If DicChars(WordStart) >= Asc("0") And DicChars(WordStart) <= Asc("9") Then IsStem = 0
         End If
+        If IsStem AndAlso StartAllCaps(DicChars(), WordStart, StemLength) Then IsStem = 0
         If IsStem Then
             ' флаги основы: от «/» до пробела
             Dim FlagStart As Long = StemEnd + 1, FlagEnd As Long = StemEnd + 1
