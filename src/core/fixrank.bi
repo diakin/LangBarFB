@@ -14,7 +14,8 @@
 '  «breack» - «break» стоит 3, а не 9);
 '  перестановка через одну букву 8 («очепятка» - «опечатка»: ч и п).
 '  Правка первой буквы - ещё 7 (кроме похожей по звуку замены и
-'  перестановки первых двух букв: «коно» - «окно» 5), вариант
+'  перестановки первых двух букв: «коно» - «окно» 5; замена первой буквы
+'  соседней клавишей - ещё 2: «гибудь» - «нибудь» 8), вариант
 '  из двух слов - ещё 20. Веса подобраны на наборе русских опечаток со
 '  словарём ru-RU.
 '
@@ -54,6 +55,8 @@ Dim Shared FixRankEchoFirst(0 To FIXRANK_ECHO_COUNT - 1) As UShort = {&h63}
 Dim Shared FixRankEchoSecond(0 To FIXRANK_ECHO_COUNT - 1) As UShort = {&h6B}
 Const FIXRANK_SWAP_FAR = 8
 Const FIXRANK_FIRST = 7
+' надбавка за первую букву при замене на соседнюю клавишу («гибудь» - «нибудь» 8)
+Const FIXRANK_FIRST_KEY = 2
 Const FIXRANK_SPLIT = 20
 Const FIXRANK_AUTO_MAX = 10
 Const FIXRANK_AUTO_GAP = 3
@@ -185,8 +188,14 @@ Function FixRankCost(TypedChars() As UShort, ByVal TypedStart As Long, ByVal Typ
                 ElseIf FixRankSimilar(TypedChar, CandChar) Then
                     StepCost = FIXRANK_SUB_SIMILAR
                 Else
-                    StepCost = IIf(FixRankNearKeys(TypedChar, CandChar, LayoutHandle), FIXRANK_SUB_KEY, FIXRANK_SUB)
-                    If RowIdx = 1 Then StepCost += FIXRANK_FIRST
+                    If FixRankNearKeys(TypedChar, CandChar, LayoutHandle) Then
+                        ' промах по соседней клавише одинаково вероятен в любой букве
+                        StepCost = FIXRANK_SUB_KEY
+                        If RowIdx = 1 Then StepCost += FIXRANK_FIRST_KEY
+                    Else
+                        StepCost = FIXRANK_SUB
+                        If RowIdx = 1 Then StepCost += FIXRANK_FIRST
+                    End If
                 End If
                 If Dist(RowIdx - 1, ColIdx - 1) + StepCost < BestCost Then BestCost = Dist(RowIdx - 1, ColIdx - 1) + StepCost
             End If
