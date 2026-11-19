@@ -607,6 +607,10 @@ Sub OnPollTimer()
   ' флажок - раскладка окна, где работают; пока открыто меню значка
   ' или окно отладки - раскладка того окна, что было до них
   Dim Current As LayoutInfo = LayoutOfWindow(LastUserWindow)
+  ' при запуске окна, где работают, может не быть (активна панель задач,
+  ' автозапуск): значок - раскладка по умолчанию (раскладка потока
+  ' программы), а не пустой стандартный значок до первой смены раскладки
+  If Current.LayoutHandle = 0 And ShownLayout = 0 Then Current.LayoutHandle = Cast(UInteger, LbGetKeyboardLayout(0))
   If Current.LayoutHandle <> 0 And _
           (Current.LayoutHandle <> ShownLayout Or LastUserWindow <> ShownLayoutWindow) Then
   ShowLayoutInTray(Current.LayoutHandle, LastUserWindow)
