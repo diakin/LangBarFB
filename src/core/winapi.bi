@@ -436,6 +436,8 @@ Declare Function LbURLDownloadToFile Lib "urlmon" Alias "URLDownloadToFileA" ( _
 Declare Function LbCoInitialize Lib "ole32" Alias "CoInitialize" (ByVal Reserved As Any Ptr) As Long
 Declare Sub LbCoUninitialize Lib "ole32" Alias "CoUninitialize" ()
 Declare Function LbDeleteFile Lib "kernel32" Alias "DeleteFileA" (ByVal FileName As ZString Ptr) As Long
+Declare Function LbMoveFile Lib "kernel32" Alias "MoveFileA" (ByVal ExistingName As ZString Ptr, _
+    ByVal NewName As ZString Ptr) As Long
 
 ' запасной источник библиотеки Hunspell - zip (пакет NuGet), его
 ' распаковывает cscript со скриптом Shell.Application

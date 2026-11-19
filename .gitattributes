@@ -40,3 +40,5 @@
 *.aff  binary
 *.dic  binary
 *.wav  binary
+# user words in userdata: UTF-8 text, readable diffs (later rule wins over *.dic binary)
+userdata/*.dic text eol=crlf

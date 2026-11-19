@@ -25,6 +25,7 @@
 #include once "winapi.bi"
 #include once "layouts.bi"
 #include once "wordstart.bi"
+#include once "userdata.bi"
 
 ' NHunspell: функции cdecl, строки UTF-16. bool C++ - один байт в AL,
 ' поэтому результат берётся And &hFF.
@@ -279,9 +280,14 @@ Private Function SpellAddWordsFromFile(ByRef FileName As String, ByVal TargetIdx
   Return WordCount
 End Function
 
+' user_dict.dic: в папке userdata репозитория, если она есть (userdata.bi),
+' иначе рядом с exe
 Function SpellUserDictName() As String
+  Dim FolderPath As String = UserDataFolder()
+  If FolderPath <> "" Then Return FolderPath & "\user_dict.dic"
   Return ExePath & "\user_dict.dic"
 End Function
+
 
 ' --- слежение за user_dict.dic: правку в любом редакторе видно без
 ' «Перечитать словари» ---
@@ -295,9 +301,9 @@ Dim Shared SpellUserSize As LongInt = -1
 
 ' Слова user_dict.dic, как их читает SpellAddWordsFromFile: до «/», без
 ' пробелов по краям, без комментариев «;»
-Private Function SpellUserWordList(Words() As String) As Long
+Private Function SpellUserWordListOf(ByRef FileName As String, Words() As String) As Long
   Dim TextChars() As UShort
-  Dim CharCount As Long = SpellReadTextFile(SpellUserDictName(), TextChars())
+  Dim CharCount As Long = SpellReadTextFile(FileName, TextChars())
   If CharCount <= 0 Then Return 0
   Dim WordCount As Long, LineStart As Long, CharIdx As Long
   ReDim Words(0 To 15)
@@ -326,6 +332,56 @@ Private Function SpellUserWordList(Words() As String) As Long
     LineStart = CharIdx + 1
   Next
   Return WordCount
+End Function
+
+Private Function SpellUserWordList(Words() As String) As Long
+  Return SpellUserWordListOf(SpellUserDictName(), Words())
+End Function
+
+' Папка userdata появилась, а рядом с exe остался прежний user_dict.dic:
+' его слова, которых нет в userdata\user_dict.dic, дописываются туда, а
+' файл переименовывается в user_dict_old.dic (чтобы не дописывать снова
+' слова, удалённые потом из нового файла). Возвращает число слов.
+Private Function SpellUserMoveOld() As Long
+  If UserDataFolder() = "" Then Return 0
+  Dim OldName As String = ExePath & "\user_dict.dic"
+  If FileExists(OldName) = 0 Then Return 0
+  Dim OldWords() As String, NewWords() As String
+  Dim OldCount As Long = SpellUserWordListOf(OldName, OldWords())
+  Dim NewCount As Long = SpellUserWordListOf(SpellUserDictName(), NewWords())
+  Dim AddText As String, Added As Long, OldIdx As Long, NewIdx As Long
+  For OldIdx = 0 To OldCount - 1
+    Dim Found As Long = 0
+    For NewIdx = 0 To NewCount - 1
+      If NewWords(NewIdx) = OldWords(OldIdx) Then Found = 1 : Exit For
+    Next
+    If Found = 0 AndAlso Len(OldWords(OldIdx)) > 0 Then
+      ' слово в списке - UTF-16 по 2 байта; в файл - UTF-8
+      Dim WideCount As Long = Len(OldWords(OldIdx)) \ 2
+      Dim LineBytes As String = String(WideCount * 3 + 2, 0)
+      Dim ByteCount As Long = LbWideCharToMultiByte(LB_CP_UTF8, 0, Cast(WString Ptr, StrPtr(OldWords(OldIdx))), _
+                                                    WideCount, StrPtr(LineBytes), Len(LineBytes), 0, 0)
+      If ByteCount > 0 Then
+        AddText &= Left(LineBytes, ByteCount) & Chr(13, 10)
+        Added += 1
+      End If
+    End If
+  Next
+  If Added > 0 Then
+    Dim FileNum As Long = FreeFile
+    If Open(SpellUserDictName() For Binary As #FileNum) <> 0 Then Return 0
+    If Lof(FileNum) > 0 Then
+      Dim LastByte As String = " "
+      Get #FileNum, Lof(FileNum), LastByte
+      If LastByte <> Chr(10) Then AddText = Chr(13, 10) & AddText
+    End If
+    Put #FileNum, Lof(FileNum) + 1, AddText
+    Close #FileNum
+  End If
+  Dim MovedName As String = ExePath & "\user_dict_old.dic"
+  LbDeleteFile(StrPtr(MovedName))
+  LbMoveFile(StrPtr(OldName), StrPtr(MovedName))
+  Return Added
 End Function
 
 ' Размер и время записи user_dict.dic через WinAPI (file.bi не подключаем:
@@ -567,6 +623,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     End If
   Next
   Dim UserWords As Long
+  Dim MovedWords As Long = SpellUserMoveOld()
   If SpellDictCount > 0 Then UserWords = SpellAddWordsFromFile(SpellUserDictName(), -1)
   SpellUserSnapshot()
   If Loaded = "" Then
@@ -575,6 +632,7 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     SpellStatus = Tr("словари: ") & Loaded
     If Missing <> "" Then SpellStatus &= Tr("; нет словаря: ") & Missing
     If UserWords > 0 Then SpellStatus &= Tr("; слов пользователя: ") & UserWords
+    If MovedWords > 0 Then SpellStatus &= Tr("; перенесено в userdata: ") & MovedWords
     If FreqLoaded <> "" Then SpellStatus &= Tr("; частоты слов: ") & FreqLoaded
   End If
   Return SpellDictCount

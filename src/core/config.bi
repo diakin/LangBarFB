@@ -43,6 +43,7 @@
 
 #include once "winapi.bi"
 #include once "lang.bi"
+#include once "userdata.bi"
 
 Const HOTKEY_ACTION_COUNT = 6
 ' номера действий горячих клавиш (с 0)
@@ -167,17 +168,32 @@ Function ConfigFileName() As String
     Return ExePath & "\langbarfb.ini"
 End Function
 
-Private Function IniRead(ByRef Section As String, ByRef KeyName As String, ByRef DefaultValue As String) As String
+' Файл правил переключения: userdata\rules.ini, если есть папка userdata
+' (userdata.bi), иначе langbarfb.ini
+Function RulesFileName() As String
+    Dim FolderPath As String = UserDataFolder()
+    If FolderPath <> "" Then Return FolderPath & "\rules.ini"
+    Return ConfigFileName()
+End Function
+
+Private Function IniReadIn(ByRef FileName As String, ByRef Section As String, ByRef KeyName As String, _
+        ByRef DefaultValue As String) As String
     Dim ValueBuffer As ZString * 1024
-    Dim FileName As String = ConfigFileName()
     LbGetPrivateProfileString(StrPtr(Section), StrPtr(KeyName), StrPtr(DefaultValue), _
         @ValueBuffer, 1024, StrPtr(FileName))
     Return ValueBuffer
 End Function
 
-Private Sub IniWrite(ByRef Section As String, ByRef KeyName As String, ByRef Value As String)
-    Dim FileName As String = ConfigFileName()
+Private Sub IniWriteIn(ByRef FileName As String, ByRef Section As String, ByRef KeyName As String, ByRef Value As String)
     LbWritePrivateProfileString(StrPtr(Section), StrPtr(KeyName), StrPtr(Value), StrPtr(FileName))
+End Sub
+
+Private Function IniRead(ByRef Section As String, ByRef KeyName As String, ByRef DefaultValue As String) As String
+    Return IniReadIn(ConfigFileName(), Section, KeyName, DefaultValue)
+End Function
+
+Private Sub IniWrite(ByRef Section As String, ByRef KeyName As String, ByRef Value As String)
+    IniWriteIn(ConfigFileName(), Section, KeyName, Value)
 End Sub
 
 Private Function IniReadFlag(ByRef Section As String, ByRef KeyName As String, ByVal DefaultValue As Long) As Long
@@ -229,10 +245,14 @@ Sub ConfigLoad()
         .MouseFlag = ValInt(IniRead("General", "MouseFlag", Str(MOUSE_FLAG_ON_CHANGE)))
         If .MouseFlag < MOUSE_FLAG_OFF Or .MouseFlag > MOUSE_FLAG_ON_CHANGE Then .MouseFlag = MOUSE_FLAG_ON_CHANGE
         .RuleCount = 0
-        Dim RuleTotal As Long = ValInt(IniRead("Rules", "Count", "0"))
+        ' правила - из userdata\rules.ini; пока его нет (первый запуск с
+        ' папкой userdata) - из langbarfb.ini, при сохранении они переедут
+        Dim RulesFile As String = RulesFileName()
+        If RulesFile <> ConfigFileName() AndAlso IniReadIn(RulesFile, "Rules", "Count", "") = "" Then RulesFile = ConfigFileName()
+        Dim RuleTotal As Long = ValInt(IniReadIn(RulesFile, "Rules", "Count", "0"))
         If RuleTotal > MAX_RULES Then RuleTotal = MAX_RULES
         For ItemIdx = 1 To RuleTotal
-            Dim RuleLine As String = IniRead("Rules", "Rule" & ItemIdx, "")
+            Dim RuleLine As String = IniReadIn(RulesFile, "Rules", "Rule" & ItemIdx, "")
             Dim FieldValues(0 To 2) As Long, FieldIdx As Long, CommaPos As Long
             For FieldIdx = 0 To 2
                 CommaPos = InStr(RuleLine, ",")
@@ -250,8 +270,8 @@ Sub ConfigLoad()
             End With
             .RuleCount += 1
         Next
-        .SuggestRule = IniReadFlag("Rules", "Suggest", 1)
-        .SuggestCount = ValInt(IniRead("Rules", "SuggestCount", "2"))
+        .SuggestRule = IIf(Val(IniReadIn(RulesFile, "Rules", "Suggest", "1")) <> 0, 1, 0)
+        .SuggestCount = ValInt(IniReadIn(RulesFile, "Rules", "SuggestCount", "2"))
         If .SuggestCount < 1 Or .SuggestCount > 99 Then .SuggestCount = 2
         .Language = LCase(IniRead("General", "Language", ""))
         ' по умолчанию английский, независимо от языка Windows
@@ -301,17 +321,20 @@ Sub ConfigSave()
         IniWrite("AutoSwitch", "Early", Str(.AutoEarly))
         IniWrite("General", "MouseFlag", Str(.MouseFlag))
         IniWrite("General", "Language", .Language)
-        ' прежние правила - целиком: удалённые не должны остаться в файле
+        ' прежние правила - целиком: удалённые не должны остаться в файле.
+        ' С папкой userdata правила - в rules.ini, из langbarfb.ini раздел убирается.
         Dim RulesSection As String = "Rules", FileName As String = ConfigFileName()
+        Dim RulesFile As String = RulesFileName()
         LbWritePrivateProfileString(StrPtr(RulesSection), 0, 0, StrPtr(FileName))
-        IniWrite("Rules", "Count", Str(.RuleCount))
+        If RulesFile <> FileName Then LbWritePrivateProfileString(StrPtr(RulesSection), 0, 0, StrPtr(RulesFile))
+        IniWriteIn(RulesFile, "Rules", "Count", Str(.RuleCount))
         For ItemIdx = 0 To .RuleCount - 1
             With .Rule(ItemIdx)
-                IniWrite("Rules", "Rule" & (ItemIdx + 1), .Condition & "," & .MatchCase & "," & .Action & "," & .RuleText)
+                IniWriteIn(RulesFile, "Rules", "Rule" & (ItemIdx + 1), .Condition & "," & .MatchCase & "," & .Action & "," & .RuleText)
             End With
         Next
-        IniWrite("Rules", "Suggest", Str(.SuggestRule))
-        IniWrite("Rules", "SuggestCount", Str(.SuggestCount))
+        IniWriteIn(RulesFile, "Rules", "Suggest", Str(.SuggestRule))
+        IniWriteIn(RulesFile, "Rules", "SuggestCount", Str(.SuggestCount))
     End With
 End Sub
 
