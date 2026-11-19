@@ -633,6 +633,8 @@ Function SpellLoad(ByRef PreferredFolder As String) As Long
     If Missing <> "" Then SpellStatus &= Tr("; нет словаря: ") & Missing
     If UserWords > 0 Then SpellStatus &= Tr("; слов пользователя: ") & UserWords
     If MovedWords > 0 Then SpellStatus &= Tr("; перенесено в userdata: ") & MovedWords
+    ' где лежат слова пользователя (видно, из какой папки запущен exe)
+    If UserDataFolder() <> "" Then SpellStatus &= "; userdata: " & UserDataFolder()
     If FreqLoaded <> "" Then SpellStatus &= Tr("; частоты слов: ") & FreqLoaded
   End If
   Return SpellDictCount
