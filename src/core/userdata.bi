@@ -1,8 +1,8 @@
 ' ---------------------------------------------------------------------------
 '  userdata.bi - папка данных пользователя в репозитории.
 '
-'  Если рядом с exe или на уровень выше есть папка userdata (exe собран в
-'  bin или src репозитория LangBarFB), слова пользователя (user_dict.dic)
+'  Если рядом с exe, на один или на два уровня выше есть папка userdata
+'  (exe собран в bin, src или src\bin репозитория LangBarFB), слова пользователя (user_dict.dic)
 '  и правила переключения (rules.ini) хранятся в ней, а не рядом с exe.
 '  Папка лежит в git: правки сохраняются коммитом (save_userdata.bat) и не
 '  пропадают при пересборке, сбросе настроек или запуске exe из другой
@@ -26,9 +26,14 @@ Private Function UserDataIsFolder(ByRef FolderPath As String) As Long
     Return IIf((FileAttr And USERDATA_ATTR_DIRECTORY) <> 0, 1, 0)
 End Function
 
-' Папка userdata рядом с exe или на уровень выше; "" - её нет
+' Папка userdata рядом с exe, на один или на два уровня выше (bin, src,
+' src\bin репозитория); "" - её нет
 Function UserDataFolder() As String
-    If UserDataIsFolder(ExePath & "\" & USERDATA_FOLDER_NAME) Then Return ExePath & "\" & USERDATA_FOLDER_NAME
-    If UserDataIsFolder(ExePath & "\..\" & USERDATA_FOLDER_NAME) Then Return ExePath & "\..\" & USERDATA_FOLDER_NAME
+    Dim LevelPrefix(0 To 2) As String = {"\", "\..\", "\..\..\"}
+    Dim LevelIdx As Long
+    For LevelIdx = 0 To 2
+        Dim FolderPath As String = ExePath & LevelPrefix(LevelIdx) & USERDATA_FOLDER_NAME
+        If UserDataIsFolder(FolderPath) Then Return FolderPath
+    Next
     Return ""
 End Function
