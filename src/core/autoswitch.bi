@@ -95,13 +95,33 @@ Private Function AutoAllCaps(TextChars() As UShort, ByVal CharCount As Long) As 
 End Function
 
 ' Слово «есть» в раскладке: ядро в словаре. Letters - число букв ядра.
+' FoldCase 1 - слово набрано с Caps Lock: проверяется строчными (иначе
+' «YT» нашлось бы среди английских сокращений, а «НЕ» не проверялось бы)
 Private Function AutoWordKnown(ByVal LayoutIdx As Long, TextChars() As UShort, ByVal CharCount As Long, _
-        ByRef Letters As Long, ByRef WordText As String) As Long
+        ByRef Letters As Long, ByRef WordText As String, ByVal FoldCase As Long = 0) As Long
     Dim CoreStart As Long, CoreLength As Long
     Letters = SpellCoreRange(TextChars(), CharCount, CoreStart, CoreLength)
     WordText = SpellAnsiOf(TextChars(), 0, CharCount)
     If Letters = 0 Then Return 0
-    Return SpellCheck(LayoutIdx, TextChars(), CoreStart, CoreLength)
+    If FoldCase = 0 Then Return SpellCheck(LayoutIdx, TextChars(), CoreStart, CoreLength)
+    Dim LowChars(0 To CoreLength - 1) As UShort
+    Dim CharIdx As Long
+    For CharIdx = 0 To CoreLength - 1
+        LowChars(CharIdx) = TextChars(CoreStart + CharIdx)
+    Next
+    LbCharLowerBuff(@LowChars(0), CoreLength)
+    Return SpellCheck(LayoutIdx, LowChars(), 0, CoreLength)
+End Function
+
+' Слово набрано с включённым Caps Lock: заглавные - от Caps Lock, а не от
+' Shift. Для такого слова не действует «не переключать слова заглавными»
+' (это для сокращений, набранных с Shift), и словарь проверяется строчными.
+Private Function AutoCapsLockWord(ByVal StartIdx As Long, ByVal EndIdx As Long) As Long
+    Dim KeyIdx As Long
+    For KeyIdx = StartIdx To EndIdx
+        If WordKeys(KeyIdx).CapsOn <> 0 Then Return 1
+    Next
+    Return 0
 End Function
 
 ' Перепечатывает клавиши буфера WordStart..WordKeyCount-1 (они заняли
@@ -249,7 +269,8 @@ Sub AutoSwitchStart()
             If LbIsCharAlpha(AltChars(CharIdx)) = 0 Then AltLetters = 0
         Next
         If AltLetters = 0 Then Continue For
-        If Settings.AutoIgnoreCaps AndAlso AutoAllCaps(AltChars(), 3) Then Continue For
+        If Settings.AutoIgnoreCaps AndAlso AutoAllCaps(AltChars(), 3) _
+                AndAlso AutoCapsLockWord(WordStart, WordKeyCount - 1) = 0 Then Continue For
         Dim AltKnown As Long = StartKnown(AltIdx, AltChars(), 0)
         LogText &= "; «" & SpellAnsiOf(AltChars(), 0, 3) & "» " & LayoutList(AltIdx).LocaleCode _
             & IIf(AltKnown > 0, " есть", " нет")
@@ -429,8 +450,9 @@ Sub AutoSwitchWordCheck()
     If SpellDict(SourceIdx) = 0 Then Exit Sub
     If Settings.AutoIgnoreDigits AndAlso AutoHasDigit(SourceChars(), CharCount) Then Exit Sub
 
+    Dim CapsLockWord As Long = AutoCapsLockWord(WordStart, WordEnd)
     Dim SourceLetters As Long, SourceText As String
-    Dim SourceKnown As Long = AutoWordKnown(SourceIdx, SourceChars(), CharCount, SourceLetters, SourceText)
+    Dim SourceKnown As Long = AutoWordKnown(SourceIdx, SourceChars(), CharCount, SourceLetters, SourceText, CapsLockWord)
     Dim LogText As String = "слово «" & SourceText & "» " & LayoutList(SourceIdx).LocaleCode _
         & IIf(SourceKnown, " есть", " нет")
 
@@ -441,9 +463,9 @@ Sub AutoSwitchWordCheck()
         If AltIdx = SourceIdx Or SpellDict(AltIdx) = 0 Then Continue For
         Dim AltChars() As UShort
         If AutoWordText(WordStart, WordEnd, AltIdx, AltChars()) = 0 Then Continue For
-        If Settings.AutoIgnoreCaps AndAlso AutoAllCaps(AltChars(), CharCount) Then Continue For
+        If Settings.AutoIgnoreCaps AndAlso CapsLockWord = 0 AndAlso AutoAllCaps(AltChars(), CharCount) Then Continue For
         Dim AltLetters As Long, AltText As String
-        Dim AltKnown As Long = AutoWordKnown(AltIdx, AltChars(), CharCount, AltLetters, AltText)
+        Dim AltKnown As Long = AutoWordKnown(AltIdx, AltChars(), CharCount, AltLetters, AltText, CapsLockWord)
         LogText &= "; «" & AltText & "» " & LayoutList(AltIdx).LocaleCode & IIf(AltKnown, " есть", " нет")
         If AltKnown = 0 Then Continue For
         If AltLetters < 2 And Settings.AutoSingleLetter = 0 Then Continue For
@@ -468,7 +490,7 @@ Sub AutoSwitchWordCheck()
             Exit Sub
         End If
         If SourceKnown = 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
-            If Settings.AutoIgnoreCaps = 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
+            If Settings.AutoIgnoreCaps = 0 OrElse CapsLockWord <> 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
                 Dim WordFixed As Long = 0
                 If Settings.AutoFix <> 0 AndAlso FixPrepare(TargetWindow, WordStart, 1, 0) Then
                     ' FixAlways (по умолчанию) - первый вариант лучше слова,
