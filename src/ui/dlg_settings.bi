@@ -27,6 +27,7 @@
 #include once "../core/hotkeys.bi"
 #include once "../core/sendkeys.bi"
 #include once "../core/spell.bi"
+#include once "../core/rules.bi"
 
 Type SettingsApplyFn As Sub()
 
@@ -208,9 +209,11 @@ Private Sub FillRulesView()
     For RuleIdx = 0 To EditSettings.RuleCount - 1
         With EditSettings.Rule(RuleIdx)
             RulesView.AddItems(.RuleText)
-            RulesView.SetSubItem(RuleIdx, 0, Tr(RuleConditionNames(.Condition)))
-            RulesView.SetSubItem(RuleIdx, 1, Tr(RuleCaseNames(.MatchCase)))
-            RulesView.SetSubItem(RuleIdx, 2, Tr(RuleActionNames(.Action)))
+            ' для «переключать» - во что переключится сочетание
+            RulesView.SetSubItem(RuleIdx, 0, IIf(.Action = RULE_SWITCH, RuleOtherLayoutText(.RuleText), ""))
+            RulesView.SetSubItem(RuleIdx, 1, Tr(RuleConditionNames(.Condition)))
+            RulesView.SetSubItem(RuleIdx, 2, Tr(RuleCaseNames(.MatchCase)))
+            RulesView.SetSubItem(RuleIdx, 3, Tr(RuleActionNames(.Action)))
         End With
     Next
     If KeepIdx >= EditSettings.RuleCount Then KeepIdx = EditSettings.RuleCount - 1
@@ -786,11 +789,12 @@ Sub SettingsCreate()
     RulesView.RowSelect = 1
     RulesView.ReadOnly = 1
     RulesView.HideSelection = 0
-    RulesView.AddColumns(Tr("Сочетание"), Tr("Условие"), Tr("Регистр"), Tr("Действие"))
-    RulesView.Column(0).Width = 100
-    RulesView.Column(1).Width = 100
-    RulesView.Column(2).Width = 100
-    RulesView.Column(3).Width = 110
+    RulesView.AddColumns(Tr("Сочетание"), Tr("Станет"), Tr("Условие"), Tr("Регистр"), Tr("Действие"))
+    RulesView.Column(0).Width = 70
+    RulesView.Column(1).Width = 70
+    RulesView.Column(2).Width = 90
+    RulesView.Column(3).Width = 85
+    RulesView.Column(4).Width = 100
     PlaceButton(AddRuleButton, RulesPage, Tr("Добавить..."), 0, 278, 100)
     PlaceButton(EditRuleButton, RulesPage, Tr("Изменить..."), 108, 278, 100)
     PlaceButton(DeleteRuleButton, RulesPage, Tr("Удалить"), 216, 278, 100)

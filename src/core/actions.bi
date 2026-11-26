@@ -79,6 +79,12 @@ Dim Shared FixConfident As Long
 Declare Sub FixRankSort(ByVal TypedLayout As UInteger)
 ' 1 - исправление сделало автоисправление после пробела (Break его отменяет)
 Dim Shared FixAuto As Long
+' автоисправление в другой раскладке (autoswitch.bi): набранное слово и
+' раскладка набора - их возвращает Break; FixUndoLayoutIdx -1 - исправление
+' в раскладке набора
+Dim Shared FixUndoLayoutIdx As Long = -1
+Dim Shared FixUndoChars() As UShort
+Dim Shared FixUndoCount As Long
 
 ' Слово, исправленное вручную после исправления опечатки, запоминается
 ' (FixLearnOnSpace). Последние FIXLEARN_KEEP исправлений: окно, словарь,
@@ -467,6 +473,7 @@ Function FixPrepareOriginal(ByVal TargetWindow As Any Ptr, ByVal TypedLayout As 
     FixShownIdx = -1
     FixShownChars = ShownChars
     FixAuto = 0
+    FixUndoLayoutIdx = -1
     FixActive = 1
     ' буфер больше не совпадает с текстом в окне: Break и
     ' автопереключение для этого слова не работают
@@ -635,6 +642,33 @@ End Sub
 ' Break сразу после автоисправления: исходное слово обратно, и оно
 ' запоминается, как слово, автопереключение которого отменили
 Private Sub FixUndoAuto()
+    If FixUndoLayoutIdx >= 0 Then
+        ' исправление было в другой раскладке: набранное слово и раскладка
+        ' набора обратно
+        Dim UndoIdx As Long = FixUndoLayoutIdx
+        FixUndoLayoutIdx = -1
+        FixActive = 0
+        Dim UndoText(0 To FixUndoCount + FixTrailing) As UShort
+        Dim CharIdx As Long
+        For CharIdx = 0 To FixUndoCount - 1
+            UndoText(CharIdx) = FixUndoChars(CharIdx)
+        Next
+        For CharIdx = 1 To FixTrailing
+            UndoText(FixUndoCount + CharIdx - 1) = 32
+        Next
+        SendKeyTap(LB_VK_BACK, FixShownChars)
+        Dim SwitchResult As Long = LayoutSwitchChecked(FixWindow, LayoutList(UndoIdx).LayoutHandle, 30)
+        SendUnicodeText(UndoText(), FixUndoCount + FixTrailing)
+        Dim UndoStart As Long, UndoLength As Long
+        If SpellCoreRange(FixUndoChars(), FixUndoCount, UndoStart, UndoLength) > 0 Then
+            SpellRemember(UndoIdx, FixUndoChars(), UndoStart, UndoLength, Settings.AutoRemember)
+        End If
+        LogAction("автоисправление отменено, возвращено «" & SpellAnsiOf(FixUndoChars(), 0, FixUndoCount) _
+            & "» " & LayoutList(UndoIdx).LocaleCode & ", раскладка: " & SwitchResultText(SwitchResult) _
+            & IIf(Settings.AutoRemember, " (записано в user_dict.dic)", ""))
+        PlayEventSound(SOUND_UNDO_AUTOSWITCH)
+        Exit Sub
+    End If
     FixShow(-1)
     FixActive = 0
     SpellRemember(FixLayoutIdx, FixOriginal(), FixCoreStart, FixCoreLength, Settings.AutoRemember)
