@@ -33,6 +33,9 @@ End Type
 Dim Shared HotkeyTable(0 To HOTKEY_ACTION_COUNT - 1) As HotkeyEntry
 ' 0 - сочетания не действуют (открыто окно настроек)
 Dim Shared HotkeysEnabled As Long = 1
+' предупреждение «сочетания не действуют» уже показано, пока окно настроек
+' открыто (langbar32.bas, OnKeyEvents)
+Dim Shared HotkeysWarned As Long
 Dim Shared HotkeyNotifyWindow As Any Ptr
 Dim Shared HotkeyActionMessage As ULong    ' WParam - номер действия
 Dim Shared HotkeyCaptureMessage As ULong

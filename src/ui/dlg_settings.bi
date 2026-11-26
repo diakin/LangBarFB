@@ -879,6 +879,7 @@ Sub SettingsShow(ByVal SectionIdx As Long = 0)
     SoundView.ItemIndex = 0
     ' пока окно открыто, сочетания не действуют: их назначают
     HotkeysEnabled = 0
+    HotkeysWarned = 0
     SettingsForm.Center
     SettingsForm.ShowModal
     HotkeysEnabled = 1
