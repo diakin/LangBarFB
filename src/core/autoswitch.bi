@@ -153,6 +153,69 @@ Private Sub AutoRetype(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, B
     ActionBusy = 0
 End Sub
 
+' Клавиши буфера одинаковые (та же клавиша, тот же Shift)
+Private Function AutoSameKey(ByVal FirstIdx As Long, ByVal SecondIdx As Long) As Long
+    Return IIf(WordKeys(FirstIdx).VirtualKey = WordKeys(SecondIdx).VirtualKey _
+        And WordKeys(FirstIdx).WithShift = WordKeys(SecondIdx).WithShift, 1, 0)
+End Function
+
+' В слове WordStart..WordEnd (за ним пробел) три и больше одинаковых
+' нажатий подряд - клавиша залипла или нажата лишний раз («ввводить»).
+' Если слово с двумя, а потом с одной такой буквой есть в словаре какой-
+' нибудь раскладки (сначала - раскладки набора), лишние нажатия убираются
+' из буфера, и слово перепечатывается в этой раскладке. Возвращает 1, если
+' слово исправлено.
+Private Function AutoFixTripled(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, ByVal WordEnd As Long, _
+        ByVal SourceIdx As Long, ByVal FoldCase As Long) As Long
+    Dim RunStart As Long = -1, KeyIdx As Long
+    For KeyIdx = WordStart To WordEnd - 2
+        If AutoSameKey(KeyIdx, KeyIdx + 1) AndAlso AutoSameKey(KeyIdx, KeyIdx + 2) Then
+            RunStart = KeyIdx
+            Exit For
+        End If
+    Next
+    If RunStart < 0 Then Return 0
+    Dim RunLength As Long = 3
+    While RunStart + RunLength <= WordEnd AndAlso AutoSameKey(RunStart, RunStart + RunLength)
+        RunLength += 1
+    Wend
+    ' на экране - слово и пробел
+    Dim ShownCount As Long = WordEnd - WordStart + 2
+    Dim KeepCount As Long, OrderIdx As Long, LayoutIdx As Long, CharIdx As Long
+    For KeepCount = 2 To 1 Step -1
+        Dim DropCount As Long = RunLength - KeepCount
+        Dim CutFrom As Long = RunStart - WordStart + KeepCount
+        Dim CutTo As Long = RunStart - WordStart + RunLength
+        For OrderIdx = 0 To LayoutCount - 1
+            LayoutIdx = (SourceIdx + OrderIdx) Mod LayoutCount
+            If SpellDict(LayoutIdx) = 0 Then Continue For
+            Dim FullChars() As UShort
+            Dim FullCount As Long = AutoWordText(WordStart, WordEnd, LayoutIdx, FullChars())
+            If FullCount = 0 Then Continue For
+            ' место под слово без лишних букв и пробел после него
+            Dim CutChars(0 To FullCount - DropCount) As UShort
+            Dim CutCount As Long = 0
+            For CharIdx = 0 To FullCount - 1
+                If CharIdx >= CutFrom And CharIdx < CutTo Then Continue For
+                CutChars(CutCount) = FullChars(CharIdx)
+                CutCount += 1
+            Next
+            Dim CutLetters As Long, CutText As String
+            If AutoWordKnown(LayoutIdx, CutChars(), CutCount, CutLetters, CutText, FoldCase) = 0 Then Continue For
+            For KeyIdx = RunStart + KeepCount To WordKeyCount - 1 - DropCount
+                WordKeys(KeyIdx) = WordKeys(KeyIdx + DropCount)
+            Next
+            WordKeyCount -= DropCount
+            CutChars(CutCount) = 32
+            AutoRetype(TargetWindow, WordStart, ShownCount, CutChars(), CutCount + 1, SourceIdx, LayoutIdx, _
+                "слово «" & SpellAnsiOf(FullChars(), 0, FullCount) & "»: лишние повторы буквы - «" & CutText & "» " _
+                & LayoutList(LayoutIdx).LocaleCode & " есть")
+            Return 1
+        Next
+    Next
+    Return 0
+End Function
+
 ' Правила переключения для клавиш WordStart..WordEnd, набранных в
 ' раскладке SourceIdx: 0 - ни одно не подошло, RULE_KEEP + 1 - не
 ' переключать, RULE_SWITCH + 1 - переключать в TargetIdx. Сочетание
@@ -423,7 +486,9 @@ Sub AutoSwitchWordCheck()
     Dim CharCount As Long = AutoWordText(WordStart, WordEnd, SourceIdx, SourceChars())
     If CharCount = 0 Then Exit Sub
     ' три одинаковых знака в начале - не слово
-    If CharCount >= 3 AndAlso SourceChars(0) = SourceChars(1) AndAlso SourceChars(1) = SourceChars(2) Then Exit Sub
+    ' (три одинаковые буквы - не выход: может быть залипшая клавиша, AutoFixTripled)
+    If CharCount >= 3 AndAlso SourceChars(0) = SourceChars(1) AndAlso SourceChars(1) = SourceChars(2) _
+            AndAlso LbIsCharAlpha(SourceChars(0)) = 0 Then Exit Sub
 
     ' правила - раньше словаря и настроек «не переключать слова с цифрами...»
     Dim RuleTarget As Long = -1, RuleInfo As String
@@ -483,6 +548,8 @@ Sub AutoSwitchWordCheck()
         ' слова нет ни в одной раскладке - автоисправление опечатки; если
         ' оно выключено или слово не тронуло - звук «Слова нет в словаре»
         Dim UpperStart As Long, UpperLength As Long
+        ' лишние повторы буквы: «dddjlbnm» - «вводить»
+        If SourceKnown = 0 AndAlso AutoFixTripled(TargetWindow, WordStart, WordEnd, SourceIdx, CapsLockWord) Then Exit Sub
         If SourceKnown = 0 AndAlso SpellCoreRange(SourceChars(), CharCount, UpperStart, UpperLength) > 0 _
                 AndAlso SpellCheckUpper(SourceIdx, SourceChars(), UpperStart, UpperLength) Then
             LogAction("слово «" & SourceText & "» есть в словаре " & LayoutList(SourceIdx).LocaleCode _
