@@ -22,6 +22,8 @@
 
 #include once "winapi.bi"
 #include once "config.bi"
+#include once "layouts.bi"
+#include once "convert.bi"
 
 Const RULE_MB_SETFOREGROUND = &h10000
 Const RULE_MB_TOPMOST = &h40000
@@ -85,6 +87,27 @@ Function RuleMayMatchStart(ByRef CheckRule As SwitchRule, ByRef PrefixText As St
     ' сочетание короче начала: «слово целиком» уже не совпадёт
     If CheckRule.Condition = RULE_WHOLE Then Return 0
     Return IIf(Left(SubjectText, Len(RuleText)) = RuleText, 1, 0)
+End Function
+
+' Сочетание правила, набранное теми же клавишами в другой раскладке
+' («КЗЬ» - «RPM»). Раскладка сочетания - та, где набирается больше его
+' букв; другая - следующая за ней. Пустая строка - раскладка одна или
+' сочетание не переводится.
+Function RuleOtherLayoutText(ByRef RuleText As String) As String
+    If RuleText = "" Or LayoutCount < 2 Then Return ""
+    Dim WideChars(0 To Len(RuleText)) As UShort
+    Dim CharCount As Long = LbMultiByteToWideChar(LB_CP_ACP, 0, StrPtr(RuleText), Len(RuleText), _
+        Cast(WString Ptr, @WideChars(0)), Len(RuleText) + 1)
+    If CharCount <= 0 Then Return ""
+    Dim SourceIdx As Long = ConvertSourceLayout(WideChars(), CharCount, 0)
+    ConvertLayoutText(WideChars(), CharCount, SourceIdx, (SourceIdx + 1) Mod LayoutCount)
+    Dim OtherText As String = String(CharCount * 2, 0)
+    Dim ByteCount As Long = LbWideCharToMultiByte(LB_CP_ACP, 0, Cast(WString Ptr, @WideChars(0)), CharCount, _
+        StrPtr(OtherText), Len(OtherText), 0, 0)
+    If ByteCount <= 0 Then Return ""
+    OtherText = Left(OtherText, ByteCount)
+    If OtherText = RuleText Then Return ""
+    Return OtherText
 End Function
 
 ' Правило словами для окна отладки (оно не переводится)
