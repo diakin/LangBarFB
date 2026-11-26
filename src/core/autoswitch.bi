@@ -216,6 +216,125 @@ Private Function AutoFixTripled(ByVal TargetWindow As Any Ptr, ByVal WordStart A
     Return 0
 End Function
 
+' Готовит исправление опечатки слова TextChars (за ним пробел) по словарю
+' раскладки LayoutIdx. Буфер клавиш не нужен: после первого удачного
+' вызова он уже сброшен (FixPrepareOriginal). 1 - варианты есть.
+Private Function AutoFixPrepareIn(ByVal TargetWindow As Any Ptr, ByVal LayoutIdx As Long, _
+        TextChars() As UShort, ByVal CharCount As Long) As Long
+    If HunspellSuggest = 0 Or CharCount <= 0 Then Return 0
+    ReDim FixOriginal(0 To CharCount - 1)
+    Dim CharIdx As Long
+    For CharIdx = 0 To CharCount - 1
+        FixOriginal(CharIdx) = TextChars(CharIdx)
+    Next
+    FixOriginalCount = CharCount
+    Return FixPrepareOriginal(TargetWindow, LayoutList(LayoutIdx).LayoutHandle, 1, CharCount + 1, 0)
+End Function
+
+' Ставит первый вариант подготовленного исправления. Если словарь
+' исправления - не раскладки набора, окно переключается в его раскладку,
+' а Break вернёт набранное слово SourceChars и раскладку SourceIdx.
+Private Sub AutoFixApply(ByVal TargetWindow As Any Ptr, ByVal SourceIdx As Long, _
+        SourceChars() As UShort, ByVal CharCount As Long)
+    Dim FixIdx As Long = FixLayoutIdx
+    If FixConfident = 0 Then LogAction("автоисправление: первый вариант не очевиден, но ставится (FixAlways)")
+    FixAuto = 1
+    FixShow(0)
+    If FixIdx = SourceIdx Then Exit Sub
+    FixUndoLayoutIdx = SourceIdx
+    ReDim FixUndoChars(0 To CharCount - 1)
+    Dim CharIdx As Long
+    For CharIdx = 0 To CharCount - 1
+        FixUndoChars(CharIdx) = SourceChars(CharIdx)
+    Next
+    FixUndoCount = CharCount
+    Dim SwitchResult As Long = LayoutSwitchChecked(TargetWindow, LayoutList(FixIdx).LayoutHandle, 30)
+    LogAction("автоисправление в раскладке " & LayoutList(FixIdx).LocaleCode & ", раскладка: " _
+        & SwitchResultText(SwitchResult))
+End Sub
+
+' Исправление опечатки слова WordStart..WordEnd, которого нет ни в одной
+' раскладке. Сначала варианты по словарю раскладки набора; если их нет
+' или первый не очевиден - слово переводится в другие раскладки, и
+' варианты ищутся там. Очевидный вариант ставится сразу; иначе (при
+' FixAlways) - вариант с меньшей ценой, при равной - раскладки набора.
+' Исправление в другой раскладке переключает раскладку окна. 1 - слово
+' исправлено.
+Private Function AutoFixAnyLayout(ByVal TargetWindow As Any Ptr, ByVal WordStart As Long, ByVal WordEnd As Long, _
+        ByVal SourceIdx As Long, SourceChars() As UShort, ByVal CharCount As Long, ByVal CapsLockWord As Long) As Long
+    ' слово во всех раскладках - заранее: после первой подготовки
+    ' исправления буфер клавиш сброшен
+    Dim FormChars(0 To MAX_LAYOUTS - 1, 0 To CharCount - 1) As UShort
+    Dim FormReady(0 To MAX_LAYOUTS - 1) As Long
+    Dim LayoutIdx As Long, CharIdx As Long, OrderIdx As Long
+    For LayoutIdx = 0 To LayoutCount - 1
+        If LayoutIdx = SourceIdx Or SpellDict(LayoutIdx) = 0 Then Continue For
+        Dim AltChars() As UShort
+        If AutoWordText(WordStart, WordEnd, LayoutIdx, AltChars()) = 0 Then Continue For
+        If Settings.AutoIgnoreCaps AndAlso CapsLockWord = 0 AndAlso AutoAllCaps(AltChars(), CharCount) Then Continue For
+        Dim AltLetters As Long = 0
+        For CharIdx = 0 To CharCount - 1
+            FormChars(LayoutIdx, CharIdx) = AltChars(CharIdx)
+            If LbIsCharAlpha(AltChars(CharIdx)) Then AltLetters += 1
+        Next
+        If AltLetters >= AUTOFIX_MIN_LETTERS Then FormReady(LayoutIdx) = 1
+    Next
+
+    ' раскладка набора
+    Dim BestIdx As Long = -1, BestScore As Long
+    If AutoFixPrepareIn(TargetWindow, SourceIdx, SourceChars(), CharCount) Then
+        If FixConfident Then
+            AutoFixApply(TargetWindow, SourceIdx, SourceChars(), CharCount)
+            Return 1
+        End If
+        BestIdx = SourceIdx
+        BestScore = FixScores(0)
+    End If
+
+    ' другие раскладки
+    Dim TryChars(0 To CharCount - 1) As UShort
+    For OrderIdx = 1 To LayoutCount - 1
+        LayoutIdx = (SourceIdx + OrderIdx) Mod LayoutCount
+        If FormReady(LayoutIdx) = 0 Then Continue For
+        For CharIdx = 0 To CharCount - 1
+            TryChars(CharIdx) = FormChars(LayoutIdx, CharIdx)
+        Next
+        If AutoFixPrepareIn(TargetWindow, LayoutIdx, TryChars(), CharCount) = 0 Then Continue For
+        LogAction("автоисправление: «" & SpellAnsiOf(TryChars(), 0, CharCount) & "» " _
+            & LayoutList(LayoutIdx).LocaleCode & " - первый вариант «" _
+            & SpellAnsiOf(FixChars(), FixStarts(0), FixLengths(0)) & "»" & IIf(FixConfident, "", " (не очевиден)"))
+        If FixConfident Then
+            AutoFixApply(TargetWindow, SourceIdx, SourceChars(), CharCount)
+            Return 1
+        End If
+        If BestIdx < 0 OrElse FixScores(0) < BestScore Then
+            BestIdx = LayoutIdx
+            BestScore = FixScores(0)
+        End If
+    Next
+    If BestIdx < 0 Then Return 0
+
+    ' очевидного нет - лучший вариант заново (подготовлено последнее)
+    If BestIdx = SourceIdx Then
+        AutoFixPrepareIn(TargetWindow, SourceIdx, SourceChars(), CharCount)
+    Else
+        For CharIdx = 0 To CharCount - 1
+            TryChars(CharIdx) = FormChars(BestIdx, CharIdx)
+        Next
+        AutoFixPrepareIn(TargetWindow, BestIdx, TryChars(), CharCount)
+    End If
+    ' FixAlways (по умолчанию) - первый вариант лучше слова, которого нет
+    ' в словаре; Break вернёт набранное
+    If Settings.AutoFixAlways <> 0 Then
+        AutoFixApply(TargetWindow, SourceIdx, SourceChars(), CharCount)
+        Return 1
+    End If
+    ' слово остаётся, Ctrl + Break сразу после этого покажет варианты
+    FixSerial = WordChangeSerial
+    LogAction("автоисправление: слово не тронуто")
+    Return 0
+End Function
+
 ' Правила переключения для клавиш WordStart..WordEnd, набранных в
 ' раскладке SourceIdx: 0 - ни одно не подошло, RULE_KEEP + 1 - не
 ' переключать, RULE_SWITCH + 1 - переключать в TargetIdx. Сочетание
@@ -559,21 +678,8 @@ Sub AutoSwitchWordCheck()
         If SourceKnown = 0 And SourceLetters >= AUTOFIX_MIN_LETTERS Then
             If Settings.AutoIgnoreCaps = 0 OrElse CapsLockWord <> 0 OrElse AutoAllCaps(SourceChars(), CharCount) = 0 Then
                 Dim WordFixed As Long = 0
-                If Settings.AutoFix <> 0 AndAlso FixPrepare(TargetWindow, WordStart, 1, 0) Then
-                    ' FixAlways (по умолчанию) - первый вариант лучше слова,
-                    ' которого нет в словаре; Break вернёт набранное
-                    If FixConfident Or Settings.AutoFixAlways <> 0 Then
-                        If FixConfident = 0 Then LogAction("автоисправление: первый вариант не очевиден, но ставится (FixAlways)")
-                        FixAuto = 1
-                        FixShow(0)
-                        WordFixed = 1
-                    Else
-                        ' первый вариант не очевиден - слово остаётся, Ctrl + Break
-                        ' сразу после этого покажет варианты по порядку
-                        FixSerial = WordChangeSerial
-                        LogAction("автоисправление: слово не тронуто")
-                    End If
-                End If
+                If Settings.AutoFix <> 0 Then WordFixed = AutoFixAnyLayout(TargetWindow, WordStart, WordEnd, _
+                    SourceIdx, SourceChars(), CharCount, CapsLockWord)
                 If WordFixed = 0 Then PlayEventSound(SOUND_UNKNOWN_WORD)
             End If
         End If
