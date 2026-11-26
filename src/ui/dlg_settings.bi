@@ -471,7 +471,9 @@ Private Sub OnUserDictClick()
     If FileExists(FileName) = 0 Then
         Dim FileNum As Long = FreeFile
         If Open(FileName For Output As #FileNum) = 0 Then
-            Print #FileNum, "; слова, которые не надо переключать, по одному в строке (UTF-8)"
+            ' только латиница: строка CP1251 в файле UTF-8 сломала бы
+            ' чтение остальных слов
+            Print #FileNum, "; LangBarFB user words, one per line (UTF-8)"
             Close #FileNum
         End If
     End If
@@ -877,6 +879,7 @@ Sub SettingsShow(ByVal SectionIdx As Long = 0)
     SoundView.ItemIndex = 0
     ' пока окно открыто, сочетания не действуют: их назначают
     HotkeysEnabled = 0
+    HotkeysWarned = 0
     SettingsForm.Center
     SettingsForm.ShowModal
     HotkeysEnabled = 1

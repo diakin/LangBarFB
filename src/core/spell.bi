@@ -83,8 +83,11 @@ Function SpellAnsiOf(TextChars() As UShort, ByVal StartIdx As Long, ByVal CharCo
   Return Left(AnsiText, ByteCount)
 End Function
 
-' Файл целиком в UTF-16: UTF-8 (с BOM или без) или, если это не UTF-8, CP1251.
-' Возвращает число символов; -1 - файл не прочитан.
+' Файл целиком в UTF-16. Каждая строка - UTF-8 (BOM в начале файла
+' пропускается) или, если она не UTF-8, CP1251: в файле, где строки в
+' разных кодировках (одни дописала программа, другие сохранил редактор в
+' ANSI), каждая читается в своей. Возвращает число символов; -1 - файл
+' не прочитан.
 Private Function SpellReadTextFile(ByRef FileName As String, TextChars() As UShort) As Long
   Dim FileNum As Long = FreeFile
   If Open(FileName For Binary Access Read As #FileNum) <> 0 Then Return -1
@@ -96,16 +99,29 @@ Private Function SpellReadTextFile(ByRef FileName As String, TextChars() As USho
   Dim SourcePtr As ZString Ptr = StrPtr(FileBytes) + SkipBytes
   Dim SourceLen As Long = Len(FileBytes) - SkipBytes
   If SourceLen <= 0 Then Return 0
-  ' флаг 8 - ошибка на неверной последовательности UTF-8
-  Dim CodePage As ULong = LB_CP_UTF8
-  Dim CharCount As Long = LbMultiByteToWideChar(CodePage, 8, SourcePtr, SourceLen, 0, 0)
-  If CharCount <= 0 Then
-    CodePage = LB_CP_ACP
-    CharCount = LbMultiByteToWideChar(CodePage, 0, SourcePtr, SourceLen, 0, 0)
-  End If
+  ' символов не больше, чем байтов
+  ReDim TextChars(0 To SourceLen - 1)
+  Dim CharCount As Long, LineStart As Long, ByteIdx As Long
+  For ByteIdx = 0 To SourceLen - 1
+    If Cast(UByte Ptr, SourcePtr)[ByteIdx] <> 10 AndAlso ByteIdx < SourceLen - 1 Then Continue For
+    ' строка LineStart..ByteIdx вместе с переводом строки
+    Dim LinePtr As ZString Ptr = SourcePtr + LineStart
+    Dim LineLen As Long = ByteIdx - LineStart + 1
+    ' флаг 8 - ошибка на неверной последовательности UTF-8
+    Dim CodePage As ULong = LB_CP_UTF8
+    Dim LineChars As Long = LbMultiByteToWideChar(CodePage, 8, LinePtr, LineLen, 0, 0)
+    If LineChars <= 0 Then
+      CodePage = LB_CP_ACP
+      LineChars = LbMultiByteToWideChar(CodePage, 0, LinePtr, LineLen, 0, 0)
+    End If
+    If LineChars > 0 Then
+      LbMultiByteToWideChar(CodePage, 0, LinePtr, LineLen, Cast(WString Ptr, @TextChars(CharCount)), LineChars)
+      CharCount += LineChars
+    End If
+    LineStart = ByteIdx + 1
+  Next
   If CharCount <= 0 Then Return 0
-  ReDim TextChars(0 To CharCount - 1)
-  LbMultiByteToWideChar(CodePage, 0, SourcePtr, SourceLen, Cast(WString Ptr, @TextChars(0)), CharCount)
+  ReDim Preserve TextChars(0 To CharCount - 1)
   Return CharCount
 End Function
 

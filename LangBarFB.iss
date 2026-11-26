@@ -14,7 +14,7 @@
 ; ---------------------------------------------------------------------------
 
 ; та же, что APP_VERSION в src\ui\dlg_about.bi
-#define MyAppVersion "1.030"
+#define MyAppVersion "1.032"
 #define MyAppName "LangBarFB"
 #define MyAppURL "https://github.com/diakin/LangBarFB"
 ; имя класса служебного окна (src\ui\tray.bi): по нему программа

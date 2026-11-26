@@ -399,8 +399,13 @@ End Function
 Sub OnKeyEvents()
   Dim KeyEvent As KbEvent
   Dim AddedCount As Long
+  Dim WarnHotkeys As Long
   While KbHookTakeEvent(KeyEvent)
     WordBufferFeed(KeyEvent)
+    ' сочетание нажали в другом окне, пока открыто окно настроек
+    If HotkeysEnabled = 0 AndAlso HotkeysWarned = 0 AndAlso KeyEvent.IsKeyUp = 0 _
+            AndAlso KeyEvent.IsSwallowed = 0 AndAlso HotkeyActionOf(KeyEvent) >= 0 _
+            AndAlso IsOwnOrShellWindow(LbGetForegroundWindow()) = 0 Then WarnHotkeys = 1
     ' список ведётся, только пока окно отладки открыто
     If MainForm.Visible Then
       EventList.AddItems(DescribeEvent(KeyEvent))
@@ -424,6 +429,17 @@ Sub OnKeyEvents()
     AutoSwitchWord()
   End If
   StartQuickRefresh()
+  If WarnHotkeys Then
+    ' один раз, пока окно настроек открыто; флаг - до окна: окно
+    ' сообщения разбирает сообщения, и сюда можно попасть снова
+    HotkeysWarned = 1
+    DebugLog("предупреждение: сочетания не действуют, открыто окно настроек")
+    If LbMessageBox(0, Tr("Открыто окно настроек LangBarFB: пока оно открыто, сочетания клавиш не действуют.") _
+            & Chr(13, 10) & Tr("Перейти к окну настроек?"), "LangBarFB", _
+            LB_MB_YESNO Or LB_MB_ICONWARNING Or RULE_MB_SETFOREGROUND Or RULE_MB_TOPMOST) = LB_IDYES Then
+      If SettingsOpen Then LbSetForegroundWindow(Cast(Any Ptr, SettingsForm.Handle))
+    End If
+  End If
 End Sub
 
 ' Окно, где менять раскладку: активное, а если активно наше окно или
