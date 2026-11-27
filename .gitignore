@@ -11,3 +11,6 @@ build_local.bat
 /src/*_compile.log
 /src/*_res.rc
 /src/dict/
+/src/langbar32_error.log
+/src/langbar32_git.log
+/src/langbar32_hilite.log
