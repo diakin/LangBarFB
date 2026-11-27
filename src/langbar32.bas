@@ -118,6 +118,7 @@ Const QUICK_REFRESH_TICKS = 6
 Dim Shared QuickTimer As QTIMER
 Dim Shared QuickTicksLeft As Long
 Declare Sub StartQuickRefresh()
+Declare Sub DebugLog(ByRef LineText As String)
 ' раскладка во флажке у мыши, его место и до какого Timer его показывать
 Dim Shared MouseFlagLayout As UInteger
 Dim Shared MouseFlagPos As LbPoint
