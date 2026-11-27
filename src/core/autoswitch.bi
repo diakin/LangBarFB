@@ -391,9 +391,18 @@ Private Function AutoRuleKeepsStart(ByVal WordStart As Long, ByRef RuleInfo As S
     Return 0
 End Function
 
+Declare Function AutoReadWordStart(ByVal SpaceIdx As Long, ByVal SourceHandle As UInteger) As Long
+Declare Sub AutoSwitchStartCheck()
+
 ' Клавиша слова попала в буфер: если в слове ровно три клавиши - проверка
-' начала слова по таблицам начал
+' начала слова по таблицам начал (нажатия, задержанные при чтении текста
+' перед словом, посылаются после проверки)
 Sub AutoSwitchStart()
+    AutoSwitchStartCheck()
+    If KbHoldActive Then SendHeldKeys()
+End Sub
+
+Sub AutoSwitchStartCheck()
     If Settings.AutoSwitch = 0 Or Settings.AutoEarly = 0 Or SpellDictCount = 0 Or LayoutCount < 2 Then Exit Sub
     If ActionBusy Or WordKeyCount < 3 Then Exit Sub
     Dim WordStart As Long = WordKeyCount - 3
@@ -403,12 +412,18 @@ Sub AutoSwitchStart()
         If WordKeys(KeyIdx).VirtualKey = LB_VK_SPACE Then Exit Sub
     Next
     If WordStart > 0 AndAlso WordKeys(WordStart - 1).VirtualKey <> LB_VK_SPACE Then Exit Sub
-    ' набрано после перемещения каретки - может быть продолжением слова
-    If WordStart = 0 And WordInsideText <> 0 Then Exit Sub
     Dim SourceHandle As UInteger = WordKeys(WordStart).LayoutHandle
     For KeyIdx = WordStart To WordKeyCount - 1
         If WordKeys(KeyIdx).LayoutHandle <> SourceHandle Or WordKeys(KeyIdx).AfterBackspace Then Exit Sub
     Next
+    ' набрано после перемещения каретки (начало строки, щелчок, стрелки) -
+    ' может быть продолжением слова: текст перед ним берётся из окна. Если
+    ' перед ним пробел или начало строки - это начало слова; если буквы -
+    ' слово проверится после пробела
+    If WordStart = 0 And WordInsideText <> 0 Then
+        If AutoReadWordStart(3, SourceHandle) = 0 Then Exit Sub
+        If WordKeyCount <> 3 Then Exit Sub
+    End If
     Dim TargetWindow As Any Ptr = WordWindow
     If LayoutOfWindow(TargetWindow).LayoutHandle <> SourceHandle Then Exit Sub
     Dim SourceIdx As Long = LayoutIndexOf(SourceHandle)
@@ -471,7 +486,7 @@ End Sub
 ' (раскладка - как у слова в буфере). Нажатия пользователя в это время
 ' задерживаются (kbhook.bi); послать их потом - AutoSwitchWord.
 ' Возвращает 1, если в буфере теперь всё слово.
-Private Function AutoReadWordStart(ByVal SpaceIdx As Long, ByVal SourceHandle As UInteger) As Long
+Function AutoReadWordStart(ByVal SpaceIdx As Long, ByVal SourceHandle As UInteger) As Long
     Dim TypedCount As Long = SpaceIdx
     Dim TypedChars(0 To TypedCount - 1) As UShort
     Dim KeyIdx As Long, CharIdx As Long
